@@ -19,18 +19,22 @@ import { CinemaColors } from '@/constants/theme';
 export default function ForgotPasswordScreen() {
   const router = useRouter();
 
-  const [step, setStep] = useState<1 | 2>(1); // 1: Enter email, 2: OTP & Reset Password
+  // 1: Enter email, 2: Enter OTP, 3: Set new password
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '']);
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
 
   const otpInputRefs = useRef<Array<TextInput | null>>([]);
 
+  // Countdown timer for OTP resend
   useEffect(() => {
     let timer: any;
     if (step === 2 && countdown > 0) {
@@ -41,6 +45,7 @@ export default function ForgotPasswordScreen() {
     return () => clearInterval(timer);
   }, [step, countdown]);
 
+  // Step 1: Send OTP to Email
   const handleSendCode = () => {
     if (!email.trim() || !email.includes('@')) {
       Alert.alert('Thông báo', 'Vui lòng nhập địa chỉ email hợp lệ');
@@ -52,32 +57,49 @@ export default function ForgotPasswordScreen() {
       setIsLoading(false);
       setStep(2);
       setCountdown(60);
-    }, 1000);
+      setOtp(['', '', '', '']);
+    }, 900);
   };
 
+  // OTP Change handler
   const handleOtpChange = (value: string, index: number) => {
+    // Only allow single digit or numeric character
+    const cleaned = value.replace(/[^0-9]/g, '');
     const newOtp = [...otp];
-    newOtp[index] = value;
+    newOtp[index] = cleaned;
     setOtp(newOtp);
 
-    // Auto focus next input
-    if (value && index < 3) {
+    // Auto focus next input if character entered
+    if (cleaned && index < 3) {
       otpInputRefs.current[index + 1]?.focus();
     }
   };
 
+  // OTP Backspace key handling
   const handleOtpKeyPress = (e: any, index: number) => {
     if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
       otpInputRefs.current[index - 1]?.focus();
     }
   };
 
-  const handleResetPassword = () => {
+  // Step 2: Verify OTP
+  const handleVerifyOtp = () => {
     const enteredOtp = otp.join('');
     if (enteredOtp.length < 4) {
       Alert.alert('Thông báo', 'Vui lòng nhập đầy đủ mã OTP 4 chữ số');
       return;
     }
+
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+      // Move to Step 3: Set new password
+      setStep(3);
+    }, 800);
+  };
+
+  // Step 3: Save New Password
+  const handleResetPassword = () => {
     if (newPassword.length < 6) {
       Alert.alert('Thông báo', 'Mật khẩu mới phải có ít nhất 6 ký tự');
       return;
@@ -90,19 +112,29 @@ export default function ForgotPasswordScreen() {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      Alert.alert('Thành công', 'Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.', [
+      Alert.alert('Thành công', 'Đặt lại mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.', [
         {
           text: 'Đăng nhập ngay',
           onPress: () => router.push('/(auth)/login' as any),
         },
       ]);
-    }, 1200);
+    }, 1000);
   };
 
   const handleResendCode = () => {
     if (countdown > 0) return;
     setCountdown(60);
     Alert.alert('Thông báo', `Mã xác nhận mới đã được gửi lại tới ${email}`);
+  };
+
+  const handleBack = () => {
+    if (step === 3) {
+      setStep(2);
+    } else if (step === 2) {
+      setStep(1);
+    } else {
+      router.back();
+    }
   };
 
   return (
@@ -124,13 +156,7 @@ export default function ForgotPasswordScreen() {
           <View style={styles.topBar}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => {
-                if (step === 2) {
-                  setStep(1);
-                } else {
-                  router.back();
-                }
-              }}
+              onPress={handleBack}
               activeOpacity={0.7}
             >
               <Ionicons name="chevron-back" size={22} color={CinemaColors.textPrimary} />
@@ -146,31 +172,52 @@ export default function ForgotPasswordScreen() {
             <View style={{ width: 40 }} />
           </View>
 
+          {/* Step Indicator Badges */}
+          <View style={styles.stepIndicatorContainer}>
+            <View style={[styles.stepDot, styles.stepDotActive]} />
+            <View style={[styles.stepLine, step >= 2 && styles.stepLineActive]} />
+            <View style={[styles.stepDot, step >= 2 && styles.stepDotActive]} />
+            <View style={[styles.stepLine, step === 3 && styles.stepLineActive]} />
+            <View style={[styles.stepDot, step === 3 && styles.stepDotActive]} />
+          </View>
+
           {/* Icon Badge */}
           <View style={styles.iconBadgeContainer}>
             <View style={styles.iconBadge}>
               <Ionicons
-                name={step === 1 ? 'key-outline' : 'shield-checkmark-outline'}
+                name={
+                  step === 1
+                    ? 'mail-outline'
+                    : step === 2
+                    ? 'shield-checkmark-outline'
+                    : 'key-outline'
+                }
                 size={34}
                 color={CinemaColors.primary}
               />
             </View>
           </View>
 
-          {/* Header */}
+          {/* Header Section */}
           <View style={styles.headerSection}>
             <Text style={styles.title}>
-              {step === 1 ? 'Quên Mật Khẩu?' : 'Xác Thực & Đặt Lại'}
+              {step === 1
+                ? 'Quên Mật Khẩu?'
+                : step === 2
+                ? 'Xác Thực Mã OTP'
+                : 'Tạo Mật Khẩu Mới'}
             </Text>
             <Text style={styles.subtitle}>
               {step === 1
-                ? 'Đừng lo lắng! Hãy nhập email đăng ký để nhận mã OTP thiết lập lại mật khẩu của bạn.'
-                : `Mã OTP đã được gửi tới ${email}. Vui lòng nhập mã và thiết lập mật khẩu mới.`}
+                ? 'Nhập địa chỉ email đã đăng ký của bạn. Chúng tôi sẽ gửi mã OTP 4 số để đặt lại mật khẩu.'
+                : step === 2
+                ? `Mã OTP gồm 4 số đã được gửi tới ${email}. Vui lòng nhập mã để tiếp tục.`
+                : 'Vui lòng nhập mật khẩu mới và xác nhận để hoàn tất quá trình khôi phục tài khoản.'}
             </Text>
           </View>
 
-          {/* Step 1: Enter Email */}
-          {step === 1 ? (
+          {/* ----------------- STEP 1: NHẬP EMAIL ----------------- */}
+          {step === 1 && (
             <View style={styles.formContainer}>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Địa chỉ Email</Text>
@@ -188,7 +235,7 @@ export default function ForgotPasswordScreen() {
                   />
                   <TextInput
                     style={styles.input}
-                    placeholder="Nhập email của bạn"
+                    placeholder="Nhập email đã đăng ký"
                     placeholderTextColor={CinemaColors.textMuted}
                     keyboardType="email-address"
                     autoCapitalize="none"
@@ -221,31 +268,38 @@ export default function ForgotPasswordScreen() {
                 )}
               </TouchableOpacity>
             </View>
-          ) : (
-            /* Step 2: OTP & New Password */
+          )}
+
+          {/* ----------------- STEP 2: NHẬP MÃ OTP ----------------- */}
+          {step === 2 && (
             <View style={styles.formContainer}>
-              {/* OTP Inputs */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Mã xác nhận (4 số)</Text>
-                <View style={styles.otpRow}>
+              <View style={styles.otpSection}>
+                <Text style={styles.inputLabelCentered}>Nhập mã OTP 4 số</Text>
+
+                {/* 4 Formatted OTP Boxes */}
+                <View style={styles.otpContainer}>
                   {otp.map((digit, index) => (
                     <TextInput
                       key={index}
                       ref={(ref) => {
                         otpInputRefs.current[index] = ref;
                       }}
-                      style={[styles.otpBox, digit.length > 0 && styles.otpBoxFilled]}
+                      style={[
+                        styles.otpBox,
+                        digit.length > 0 && styles.otpBoxFilled,
+                      ]}
                       keyboardType="number-pad"
                       maxLength={1}
                       value={digit}
                       onChangeText={(val) => handleOtpChange(val, index)}
                       onKeyPress={(e) => handleOtpKeyPress(e, index)}
                       textAlign="center"
+                      selectTextOnFocus
                     />
                   ))}
                 </View>
 
-                {/* Resend Timer */}
+                {/* Resend Countdown */}
                 <View style={styles.resendRow}>
                   <Text style={styles.resendText}>Chưa nhận được mã? </Text>
                   <TouchableOpacity
@@ -265,6 +319,27 @@ export default function ForgotPasswordScreen() {
                 </View>
               </View>
 
+              <TouchableOpacity
+                style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
+                onPress={handleVerifyOtp}
+                disabled={isLoading}
+                activeOpacity={0.85}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={CinemaColors.textPrimary} size="small" />
+                ) : (
+                  <>
+                    <Text style={styles.primaryButtonText}>Xác Nhận Mã OTP</Text>
+                    <Ionicons name="shield-checkmark" size={18} color={CinemaColors.textPrimary} style={styles.buttonIcon} />
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* ----------------- STEP 3: ĐẶT LẠI MẬT KHẨU MỚI ----------------- */}
+          {step === 3 && (
+            <View style={styles.formContainer}>
               {/* New Password */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Mật khẩu mới</Text>
@@ -282,7 +357,7 @@ export default function ForgotPasswordScreen() {
                   />
                   <TextInput
                     style={styles.input}
-                    placeholder="Nhập mật khẩu mới"
+                    placeholder="Tối thiểu 6 ký tự"
                     placeholderTextColor={CinemaColors.textMuted}
                     secureTextEntry={!showPassword}
                     value={newPassword}
@@ -322,12 +397,25 @@ export default function ForgotPasswordScreen() {
                     style={styles.input}
                     placeholder="Nhập lại mật khẩu mới"
                     placeholderTextColor={CinemaColors.textMuted}
-                    secureTextEntry={!showPassword}
+                    secureTextEntry={!showConfirmPassword}
                     value={confirmNewPassword}
                     onChangeText={setConfirmNewPassword}
                     onFocus={() => setFocusedInput('confirmNewPassword')}
                     onBlur={() => setFocusedInput(null)}
                   />
+                  {confirmNewPassword.length > 0 && confirmNewPassword === newPassword && (
+                    <Ionicons name="checkmark-circle" size={20} color={CinemaColors.success} style={{ marginRight: 6 }} />
+                  )}
+                  <TouchableOpacity
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons
+                      name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color={CinemaColors.textSecondary}
+                    />
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -341,7 +429,7 @@ export default function ForgotPasswordScreen() {
                   <ActivityIndicator color={CinemaColors.textPrimary} size="small" />
                 ) : (
                   <>
-                    <Text style={styles.primaryButtonText}>Đặt Lại Mật Khẩu</Text>
+                    <Text style={styles.primaryButtonText}>Lưu Mật Khẩu Mới</Text>
                     <Ionicons name="checkmark-circle" size={18} color={CinemaColors.textPrimary} style={styles.buttonIcon} />
                   </>
                 )}
@@ -398,7 +486,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   backButton: {
     width: 40,
@@ -421,14 +509,41 @@ const styles = StyleSheet.create({
     color: CinemaColors.textPrimary,
     letterSpacing: 1.5,
   },
-  iconBadgeContainer: {
+  stepIndicatorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
   },
+  stepDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: CinemaColors.borderLight,
+  },
+  stepDotActive: {
+    backgroundColor: CinemaColors.primary,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  stepLine: {
+    width: 28,
+    height: 2,
+    backgroundColor: CinemaColors.borderLight,
+    marginHorizontal: 6,
+  },
+  stepLineActive: {
+    backgroundColor: CinemaColors.primary,
+  },
+  iconBadgeContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   iconBadge: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
+    width: 68,
+    height: 68,
+    borderRadius: 22,
     backgroundColor: CinemaColors.primaryLight,
     borderWidth: 1.5,
     borderColor: CinemaColors.primaryBorder,
@@ -437,7 +552,7 @@ const styles = StyleSheet.create({
   },
   headerSection: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 26,
     paddingHorizontal: 12,
   },
   title: {
@@ -465,6 +580,13 @@ const styles = StyleSheet.create({
     color: CinemaColors.textTertiary,
     marginBottom: 8,
   },
+  inputLabelCentered: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: CinemaColors.textTertiary,
+    textAlign: 'center',
+    marginBottom: 14,
+  },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -487,22 +609,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: CinemaColors.textPrimary,
   },
-  otpRow: {
+  otpSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  otpContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 12,
-    marginTop: 4,
+    width: '100%',
   },
   otpBox: {
-    flex: 1,
-    height: 56,
+    width: 58,
+    height: 58,
     borderRadius: 14,
     backgroundColor: CinemaColors.surface,
     borderWidth: 1.5,
     borderColor: CinemaColors.border,
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
     color: CinemaColors.textPrimary,
+    textAlign: 'center',
   },
   otpBoxFilled: {
     borderColor: CinemaColors.borderActive,
@@ -512,7 +640,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 14,
+    marginTop: 18,
   },
   resendText: {
     fontSize: 13,
@@ -533,7 +661,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
     shadowColor: CinemaColors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,

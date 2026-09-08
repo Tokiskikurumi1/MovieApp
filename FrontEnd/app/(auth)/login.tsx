@@ -307,6 +307,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: CinemaColors.textPrimary,
     marginBottom: 6,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,

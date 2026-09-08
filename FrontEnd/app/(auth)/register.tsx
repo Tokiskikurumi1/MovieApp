@@ -20,6 +20,7 @@ export default function RegisterScreen() {
   const router = useRouter();
 
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,6 +43,14 @@ export default function RegisterScreen() {
   const handleRegister = () => {
     if (!fullName.trim()) {
       Alert.alert('Thông báo', 'Vui lòng nhập họ và tên');
+      return;
+    }
+    if (!phone.trim()) {
+      Alert.alert('Thông báo', 'Vui lòng nhập số điện thoại');
+      return;
+    }
+    if (phone.trim().length < 10) {
+      Alert.alert('Thông báo', 'Số điện thoại không hợp lệ (tối thiểu 10 chữ số)');
       return;
     }
     if (!email.trim() || !email.includes('@')) {
@@ -140,6 +149,34 @@ export default function RegisterScreen() {
                   value={fullName}
                   onChangeText={setFullName}
                   onFocus={() => setFocusedInput('fullName')}
+                  onBlur={() => setFocusedInput(null)}
+                />
+              </View>
+            </View>
+
+            {/* Phone Number */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Số điện thoại</Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  focusedInput === 'phone' && styles.inputWrapperFocused,
+                ]}
+              >
+                <Ionicons
+                  name="call-outline"
+                  size={20}
+                  color={focusedInput === 'phone' ? CinemaColors.primary : CinemaColors.textMuted}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="0912 345 678"
+                  placeholderTextColor={CinemaColors.textMuted}
+                  keyboardType="phone-pad"
+                  value={phone}
+                  onChangeText={setPhone}
+                  onFocus={() => setFocusedInput('phone')}
                   onBlur={() => setFocusedInput(null)}
                 />
               </View>
@@ -414,6 +451,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: CinemaColors.textPrimary,
     marginBottom: 6,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
