@@ -5,6 +5,8 @@ import {
   StyleSheet,
   SafeAreaView,
   FlatList,
+  ScrollView,
+  TextInput,
   TouchableOpacity,
   Image,
   useWindowDimensions,
@@ -13,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
+import { BrandLogo } from '@/components/brand-logo';
 import { Pagination } from '@/components/pagination';
 
 const INITIAL_FAVORITES = [
@@ -195,16 +198,29 @@ export default function FavoriteScreen() {
   const [favorites, setFavorites] = useState(INITIAL_FAVORITES);
   const [selectedTab, setSelectedTab] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Reset current page when tab changes
+  // Reset current page when tab or search query changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedTab]);
+  }, [selectedTab, searchQuery]);
 
   const filteredFavorites = useMemo(() => {
-    if (selectedTab === 'all') return favorites;
-    return favorites.filter((item) => item.type === selectedTab);
-  }, [favorites, selectedTab]);
+    let list = favorites;
+    if (selectedTab !== 'all') {
+      list = list.filter((item) => item.type === selectedTab);
+    }
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (item) =>
+          item.title.toLowerCase().includes(q) ||
+          item.genres.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [favorites, selectedTab, searchQuery]);
 
   const totalPages = Math.ceil(filteredFavorites.length / PAGE_SIZE);
 
@@ -222,126 +238,223 @@ export default function FavoriteScreen() {
     flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
   };
 
+  const handleCloseSearch = () => {
+    setIsSearching(false);
+    setSearchQuery('');
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={CinemaColors.background} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Phim Yêu Thích</Text>
-          <Text style={styles.headerSubtitle}>{filteredFavorites.length} bộ phim đã lưu</Text>
-        </View>
+      {/* ----------------- TOP APP BAR ----------------- */}
+      <View style={styles.appBar}>
+        <BrandLogo layout="horizontal" size="small" showTagline={false} />
 
-        <TouchableOpacity style={styles.searchButton} activeOpacity={0.75}>
-          <Ionicons name="search" size={20} color={CinemaColors.textPrimary} />
+        <TouchableOpacity
+          style={styles.avatarButton}
+          activeOpacity={0.8}
+          onPress={() => router.push('/(tabs)/profile' as any)}
+        >
+          <Image
+            source={{
+              uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
+            }}
+            style={styles.avatarImage}
+          />
         </TouchableOpacity>
       </View>
 
-      {/* Filter Tabs */}
-      <View style={styles.filterTabsContainer}>
-        {FILTER_TABS.map((tab) => {
-          const isSelected = selectedTab === tab.id;
-          return (
-            <TouchableOpacity
-              key={tab.id}
-              style={[styles.filterTab, isSelected && styles.filterTabActive]}
-              onPress={() => setSelectedTab(tab.id)}
-              activeOpacity={0.75}
-            >
-              <Text style={[styles.filterTabText, isSelected && styles.filterTabTextActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Favorite Movie Grid */}
-      {filteredFavorites.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <View style={styles.emptyIconCircle}>
-            <Ionicons name="heart-dislike-outline" size={48} color={CinemaColors.primary} />
-          </View>
-          <Text style={styles.emptyTitle}>Chưa có phim yêu thích</Text>
-          <Text style={styles.emptySubtitle}>
-            Hãy khám phá kho phim và bấm nút "Danh Sách" để lưu lại những bộ phim bạn yêu thích.
-          </Text>
-          <TouchableOpacity
-            style={styles.exploreButton}
-            onPress={() => router.replace('/(tabs)' as any)}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="film-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.exploreButtonText}>Khám Phá Ngay</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          ref={flatListRef}
-          key={`grid-${numColumns}`}
-          data={paginatedFavorites}
-          keyExtractor={(item) => item.id}
-          numColumns={numColumns}
-          contentContainerStyle={styles.gridContainer}
-          columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[styles.movieCard, { width: cardWidth }]}
-              activeOpacity={0.85}
-              onPress={() => router.push({ pathname: '/movie/[id]', params: { id: item.id } })}
-            >
-              {/* Poster Image */}
-              <View style={[styles.posterWrapper, { width: cardWidth, height: cardHeight }]}>
-                <Image source={{ uri: item.image }} style={styles.posterImage} />
-
-                {/* Quality Tag */}
-                <View style={styles.qualityTag}>
-                  <Text style={styles.qualityText}>{item.quality}</Text>
+      {/* ----------------- SCROLLABLE FAVORITES GRID (FLATLIST) ----------------- */}
+      <FlatList
+        ref={flatListRef}
+        key={`grid-${numColumns}`}
+        data={paginatedFavorites}
+        keyExtractor={(item) => item.id}
+        numColumns={numColumns}
+        contentContainerStyle={styles.gridContainer}
+        columnWrapperStyle={numColumns > 1 && paginatedFavorites.length > 0 ? styles.columnWrapper : undefined}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <View>
+            {/* Header / Inline Search Header */}
+            {isSearching ? (
+              <View style={styles.searchHeaderWrapper}>
+                <View style={styles.searchInputContainer}>
+                  <Ionicons
+                    name="search"
+                    size={18}
+                    color={CinemaColors.textMuted}
+                    style={styles.searchIcon}
+                  />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Tìm trong phim yêu thích..."
+                    placeholderTextColor={CinemaColors.textMuted}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    autoFocus
+                    returnKeyType="search"
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => setSearchQuery('')}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="close-circle" size={18} color={CinemaColors.textMuted} />
+                    </TouchableOpacity>
+                  )}
                 </View>
 
-                {/* Remove Bookmark Button */}
                 <TouchableOpacity
-                  style={styles.heartButton}
-                  onPress={() => removeFavorite(item.id)}
+                  style={styles.cancelSearchButton}
+                  onPress={handleCloseSearch}
                   activeOpacity={0.75}
                 >
-                  <Ionicons name="heart" size={16} color={CinemaColors.primary} />
+                  <Text style={styles.cancelSearchText}>Hủy</Text>
                 </TouchableOpacity>
-
-                {/* Play Icon Overlay on press */}
-                <View style={styles.playButtonMini}>
-                  <Ionicons name="play" size={14} color="#FFFFFF" />
-                </View>
               </View>
+            ) : (
+              <View style={styles.header}>
+                <View>
+                  <Text style={styles.headerTitle}>Phim Yêu Thích</Text>
+                  <Text style={styles.headerSubtitle}>
+                    {filteredFavorites.length} bộ phim đã lưu
+                  </Text>
+                </View>
 
-              {/* Title & Info */}
-              <Text style={styles.movieTitle} numberOfLines={1}>
-                {item.title}
+                <TouchableOpacity
+                  style={styles.searchButton}
+                  activeOpacity={0.75}
+                  onPress={() => setIsSearching(true)}
+                >
+                  <Ionicons name="search" size={20} color={CinemaColors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Filter Tabs */}
+            <View style={styles.filterTabsContainer}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterTabsContent}
+              >
+                {FILTER_TABS.map((tab) => {
+                  const isSelected = selectedTab === tab.id;
+                  return (
+                    <TouchableOpacity
+                      key={tab.id}
+                      style={[styles.filterTab, isSelected && styles.filterTabActive]}
+                      onPress={() => setSelectedTab(tab.id)}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={[styles.filterTabText, isSelected && styles.filterTabTextActive]}>
+                        {tab.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        }
+        ListEmptyComponent={
+          searchQuery.trim() !== '' ? (
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="search-outline" size={44} color={CinemaColors.primary} />
+              </View>
+              <Text style={styles.emptyTitle}>Không tìm thấy phim</Text>
+              <Text style={styles.emptySubtitle}>
+                Không có phim yêu thích nào khớp với "{searchQuery}".
               </Text>
-
-              <View style={styles.metaRow}>
-                <Text style={styles.movieYear}>{item.year}</Text>
-                <View style={styles.ratingBadge}>
-                  <Ionicons name="star" size={11} color="#FFD700" />
-                  <Text style={styles.ratingText}>{item.rating}</Text>
-                </View>
+              <TouchableOpacity
+                style={styles.clearSearchButton}
+                onPress={() => setSearchQuery('')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="refresh-outline" size={16} color={CinemaColors.textPrimary} />
+                <Text style={styles.clearSearchButtonText}>Xóa Tìm Kiếm</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="heart-dislike-outline" size={48} color={CinemaColors.primary} />
               </View>
-            </TouchableOpacity>
-          )}
-          ListFooterComponent={
-            totalPages > 1 ? (
+              <Text style={styles.emptyTitle}>Chưa có phim yêu thích</Text>
+              <Text style={styles.emptySubtitle}>
+                Hãy khám phá kho phim và bấm nút "Danh Sách" để lưu lại những bộ phim bạn yêu thích.
+              </Text>
+              <TouchableOpacity
+                style={styles.exploreButton}
+                onPress={() => router.replace('/(tabs)' as any)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="film-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.exploreButtonText}>Khám Phá Ngay</Text>
+              </TouchableOpacity>
+            </View>
+          )
+        }
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={[styles.movieCard, { width: cardWidth }]}
+            activeOpacity={0.85}
+            onPress={() => router.push({ pathname: '/movie/[id]', params: { id: item.id } })}
+          >
+            {/* Poster Image */}
+            <View style={[styles.posterWrapper, { width: cardWidth, height: cardHeight }]}>
+              <Image source={{ uri: item.image }} style={styles.posterImage} />
+
+              {/* Quality Tag */}
+              <View style={styles.qualityTag}>
+                <Text style={styles.qualityText}>{item.quality}</Text>
+              </View>
+
+              {/* Remove Bookmark Button */}
+              <TouchableOpacity
+                style={styles.heartButton}
+                onPress={() => removeFavorite(item.id)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="heart" size={16} color={CinemaColors.primary} />
+              </TouchableOpacity>
+
+              {/* Play Icon Overlay on press */}
+              <View style={styles.playButtonMini}>
+                <Ionicons name="play" size={14} color="#FFFFFF" />
+              </View>
+            </View>
+
+            {/* Title & Info */}
+            <Text style={styles.movieTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+
+            <View style={styles.metaRow}>
+              <Text style={styles.movieYear}>{item.year}</Text>
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={11} color="#FFD700" />
+                <Text style={styles.ratingText}>{item.rating}</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+        ListFooterComponent={
+          totalPages > 1 ? (
+            <View style={styles.paginationFooterWrapper}>
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={handlePageChange}
                 siblingCount={1}
               />
-            ) : null
-          }
-        />
-      )}
+            </View>
+          ) : null
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -350,6 +463,28 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: CinemaColors.background,
+  },
+  /* Top App Bar */
+  appBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  avatarButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: CinemaColors.primary,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   header: {
     flexDirection: 'row',
@@ -360,6 +495,60 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  searchHeaderWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    gap: 10,
+  },
+  searchInputContainer: {
+    flex: 1,
+    height: 42,
+    backgroundColor: CinemaColors.surface,
+    borderRadius: 21,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: CinemaColors.border,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: CinemaColors.textPrimary,
+  },
+  cancelSearchButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+  },
+  cancelSearchText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: CinemaColors.primary,
+  },
+  clearSearchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CinemaColors.surface,
+    borderWidth: 1,
+    borderColor: CinemaColors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+  },
+  clearSearchButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: CinemaColors.textPrimary,
   },
   headerTitle: {
     fontSize: 22,
@@ -383,14 +572,15 @@ const styles = StyleSheet.create({
     borderColor: CinemaColors.border,
   },
   filterTabsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
     paddingVertical: 12,
+  },
+  filterTabsContent: {
+    paddingHorizontal: 20,
     gap: 8,
   },
   filterTab: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 20,
     backgroundColor: CinemaColors.surface,
     borderWidth: 1,
@@ -401,19 +591,19 @@ const styles = StyleSheet.create({
     borderColor: CinemaColors.primary,
   },
   filterTabText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '600',
     color: CinemaColors.textSecondary,
   },
   filterTabTextActive: {
     color: '#FFFFFF',
+    fontWeight: '700',
   },
   gridContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
     paddingBottom: 24,
   },
   columnWrapper: {
+    paddingHorizontal: 20,
     justifyContent: 'space-between',
     marginBottom: 18,
   },
@@ -542,5 +732,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  paginationFooterWrapper: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

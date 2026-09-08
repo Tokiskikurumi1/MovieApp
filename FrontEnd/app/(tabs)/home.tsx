@@ -270,9 +270,9 @@ export default function HomeScreen() {
         <BrandLogo layout="horizontal" size="small" showTagline={false} />
 
         <View style={styles.appBarActions}>
-          <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
+          {/* <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
             <Ionicons name="search" size={22} color={CinemaColors.textPrimary} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
             <Ionicons name="notifications-outline" size={22} color={CinemaColors.textPrimary} />

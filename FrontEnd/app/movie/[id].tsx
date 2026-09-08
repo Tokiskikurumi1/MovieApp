@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -30,91 +30,76 @@ const CAST_DATA = [
   },
   {
     id: 'cast-2',
-    name: 'Rebecca Solis',
-    role: 'TS. Lyra',
+    name: 'Elena Rostova',
+    role: 'Tiến sĩ Anya',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop',
   },
   {
     id: 'cast-3',
-    name: 'Kenji Sato',
-    role: 'Chỉ huy Kael',
+    name: 'Marcus Thorne',
+    role: 'Chỉ huy Kane',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300&auto=format&fit=crop',
   },
   {
     id: 'cast-4',
-    name: 'Aria Chen',
+    name: 'Sarah Connor',
     role: 'Kỹ sư Maya',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=300&auto=format&fit=crop',
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=300&auto=format&fit=crop',
   },
   {
     id: 'cast-5',
-    name: 'Dmitri Volkov',
-    role: 'Phi công Alex',
-    avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=300&auto=format&fit=crop',
+    name: 'Kenji Sato',
+    role: 'Phi công Ren',
+    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=300&auto=format&fit=crop',
   },
 ];
 
 // -------------------------------------------------------------
-// DỮ LIỆU TÁC PHẨM TƯƠNG TỰ (SIMILAR MOVIES)
+// DỮ LIỆU PHIM TƯƠNG TỰ (SIMILAR MOVIES MOCK DATA)
 // -------------------------------------------------------------
 const SIMILAR_MOVIES = [
   {
     id: 'sim-1',
-    title: 'Chân Trời Vô Tận',
-    rating: '8.7',
-    quality: '4K UHD',
-    image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop',
+    title: 'Interstellar: Hố Đen',
+    rating: '9.2',
+    image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=400&auto=format&fit=crop',
   },
   {
     id: 'sim-2',
-    title: 'Nhật Thực Nhân Tạo',
-    rating: '8.4',
-    quality: '4K HDR',
-    image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop',
+    title: 'Dune: Hành Tinh Cát 2',
+    rating: '8.8',
+    image: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=400&auto=format&fit=crop',
   },
   {
     id: 'sim-3',
-    title: 'Nghịch Lý Lượng Tử',
-    rating: '9.1',
-    quality: '4K IMAX',
-    image: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=600&auto=format&fit=crop',
+    title: 'Vùng Đất Câm Lặng',
+    rating: '8.5',
+    image: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=400&auto=format&fit=crop',
   },
   {
     id: 'sim-4',
-    title: 'Bí Ẩn Thiên Hà Đen',
-    rating: '8.8',
-    quality: '4K',
-    image: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop',
+    title: 'Blade Runner 2049',
+    rating: '8.9',
+    image: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=400&auto=format&fit=crop',
   },
   {
     id: 'sim-5',
-    title: 'Vùng Đất Câm Lặng 3',
-    rating: '8.6',
-    quality: '4K UHD',
-    image: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'sim-6',
-    title: 'Vết Rạn Thời Gian',
-    rating: '8.9',
-    quality: 'Dolby Vision',
-    image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop',
+    title: 'Cyberpunk 2077',
+    rating: '8.7',
+    image: 'https://images.unsplash.com/photo-1568832359672-e36cf5d74f54?q=80&w=400&auto=format&fit=crop',
   },
 ];
 
-const GENRES = [
-  'Hành động',
-  'Khoa học viễn tưởng',
-  'Giật gân kịch tính',
-  'Phiêu lưu vũ trụ',
-  'Bí ẩn siêu nhiên',
-  'Khám phá thiên hà',
-];
+const GENRES = ['Khoa Học Viễn Tưởng', 'Hành Động', 'Phiêu Lưu', 'Không Gian Vũ Trụ'];
 
 export default function MovieDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width } = useWindowDimensions();
+
+  const mainScrollRef = useRef<ScrollView>(null);
+  const [infoSectionY, setInfoSectionY] = useState(0);
+  const [commentsOffsetY, setCommentsOffsetY] = useState(0);
 
   const [isFavorite, setIsFavorite] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
@@ -150,6 +135,13 @@ export default function MovieDetailScreen() {
 
   const handleWatchTogether = () => {
     Alert.alert('Xem Chung (Watch Party)', 'Tạo phòng xem chung và chia sẻ liên kết với bạn bè!');
+  };
+
+  const handleScrollToComments = () => {
+    mainScrollRef.current?.scrollTo({
+      y: Math.max(0, infoSectionY + commentsOffsetY - 10),
+      animated: true,
+    });
   };
 
   return (
@@ -196,6 +188,7 @@ export default function MovieDetailScreen() {
       </View>
 
       <ScrollView
+        ref={mainScrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
@@ -226,7 +219,10 @@ export default function MovieDetailScreen() {
         </View>
 
         {/* ----------------- TITLE & METADATA ----------------- */}
-        <View style={styles.infoSection}>
+        <View
+          style={styles.infoSection}
+          onLayout={(e) => setInfoSectionY(e.nativeEvent.layout.y)}
+        >
           {/* Badge Row */}
           <View style={styles.badgeRow}>
             <View style={styles.originalBadge}>
@@ -256,10 +252,14 @@ export default function MovieDetailScreen() {
               <Text style={styles.audioText}>Dolby Atmos</Text>
             </View>
             <Text style={styles.metaDot}>•</Text>
-            <View style={styles.ratingRow}>
+            <TouchableOpacity
+              style={styles.ratingRow}
+              onPress={handleScrollToComments}
+              activeOpacity={0.7}
+            >
               <Ionicons name="star" size={13} color={CinemaColors.primary} />
               <Text style={styles.ratingText}>8.9</Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* Genre Pills (Horizontal Scroll) */}
@@ -340,7 +340,7 @@ export default function MovieDetailScreen() {
 
             <TouchableOpacity
               style={styles.quickActionItem}
-              onPress={() => Alert.alert('Đánh giá', 'Đánh giá 5 sao cho siêu phẩm này!')}
+              onPress={handleScrollToComments}
               activeOpacity={0.75}
             >
               <View style={styles.quickActionIconCircle}>
@@ -432,12 +432,14 @@ export default function MovieDetailScreen() {
           </View>
 
           {/* ----------------- COMMENTS & REVIEWS SECTION ----------------- */}
-          <CommentsSection
-            targetId={id}
-            targetType="movie"
-            title="Bình luận & Đánh giá"
-            showRatingPicker={true}
-          />
+          <View onLayout={(e) => setCommentsOffsetY(e.nativeEvent.layout.y)}>
+            <CommentsSection
+              targetId={id}
+              targetType="movie"
+              title="Bình luận & Đánh giá"
+              showRatingPicker={true}
+            />
+          </View>
 
           {/* ----------------- SIMILAR MOVIES (TÁC PHẨM TƯƠNG TỰ) ----------------- */}
           <View style={styles.similarSection}>
