@@ -368,7 +368,7 @@ export default function HomeScreen() {
                       <TouchableOpacity
                         style={styles.playButton}
                         activeOpacity={0.85}
-                        onPress={() => {}}
+                        onPress={() => router.push({ pathname: '/movie/[id]', params: { id: item.id } })}
                       >
                         <Ionicons name="play" size={20} color="#FFFFFF" />
                         <Text style={styles.playButtonText}>Xem Ngay</Text>
@@ -389,7 +389,11 @@ export default function HomeScreen() {
                         </Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity style={styles.infoCircleButton} activeOpacity={0.8}>
+                      <TouchableOpacity
+                        style={styles.infoCircleButton}
+                        activeOpacity={0.8}
+                        onPress={() => router.push({ pathname: '/movie/[id]', params: { id: item.id } })}
+                      >
                         <Ionicons name="information-circle-outline" size={24} color={CinemaColors.textPrimary} />
                       </TouchableOpacity>
                     </View>
@@ -461,7 +465,11 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalListContent}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.continueCard} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={styles.continueCard}
+                activeOpacity={0.85}
+                onPress={() => router.push({ pathname: '/movie/[id]', params: { id: item.id } })}
+              >
                 <View style={styles.continueImageWrapper}>
                   <Image source={{ uri: item.image }} style={styles.continueImage} />
                   <View style={styles.playOverlay}>
@@ -503,7 +511,11 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalListContent}
             renderItem={({ item, index }) => (
-              <TouchableOpacity style={styles.trendingCard} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={styles.trendingCard}
+                activeOpacity={0.85}
+                onPress={() => router.push({ pathname: '/movie/[id]', params: { id: item.id } })}
+              >
                 {/* Poster Image */}
                 <Image source={{ uri: item.image }} style={styles.trendingPosterImage} />
 
@@ -557,7 +569,11 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalListContent}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.moviePosterCard} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={styles.moviePosterCard}
+                activeOpacity={0.85}
+                onPress={() => router.push({ pathname: '/movie/[id]', params: { id: item.id } })}
+              >
                 <View style={styles.moviePosterWrapper}>
                   <Image source={{ uri: item.image }} style={styles.moviePosterImage} />
                   <View style={styles.movieQualityTag}>
@@ -596,7 +612,11 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalListContent}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.moviePosterCard} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={styles.moviePosterCard}
+                activeOpacity={0.85}
+                onPress={() => router.push({ pathname: '/movie/[id]', params: { id: item.id } })}
+              >
                 <View style={styles.moviePosterWrapper}>
                   <Image source={{ uri: item.image }} style={styles.moviePosterImage} />
                   <View style={styles.movieQualityTag}>

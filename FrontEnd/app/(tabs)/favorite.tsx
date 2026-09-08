@@ -287,7 +287,11 @@ export default function FavoriteScreen() {
           columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
-            <TouchableOpacity style={[styles.movieCard, { width: cardWidth }]} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={[styles.movieCard, { width: cardWidth }]}
+              activeOpacity={0.85}
+              onPress={() => router.push({ pathname: '/movie/[id]', params: { id: item.id } })}
+            >
               {/* Poster Image */}
               <View style={[styles.posterWrapper, { width: cardWidth, height: cardHeight }]}>
                 <Image source={{ uri: item.image }} style={styles.posterImage} />

@@ -7,12 +7,14 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  ScrollView,
   Image,
   useWindowDimensions,
   StatusBar,
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { Pagination } from '@/components/pagination';
@@ -224,10 +226,11 @@ const SORT_OPTIONS = [
 ];
 
 export default function ExploreScreen() {
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
   const numColumns = isTablet ? 4 : 2;
-  const PAGE_SIZE = isTablet ? 12 : 6;
+  const PAGE_SIZE = isTablet ? 12 : 8;
   const GAP = 14;
   const HORIZONTAL_PADDING = 20 * 2;
   const cardWidth = (width - HORIZONTAL_PADDING - (numColumns - 1) * GAP) / numColumns;
@@ -302,142 +305,150 @@ export default function ExploreScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ----------------- SEARCH INPUT BAR ----------------- */}
-      <View style={styles.searchBarWrapper}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color={CinemaColors.textMuted} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Tìm phim, diễn viên, đạo diễn..."
-            placeholderTextColor={CinemaColors.textMuted}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close-circle" size={18} color={CinemaColors.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <TouchableOpacity
-          style={styles.filterButton}
-          activeOpacity={0.75}
-          onPress={() => setShowSortModal(true)}
-        >
-          <Ionicons name="options-outline" size={20} color={CinemaColors.textPrimary} />
-          <View style={styles.filterDot} />
-        </TouchableOpacity>
-      </View>
-
-      {/* ----------------- CATEGORY FILTER PILLS ----------------- */}
-      <View style={styles.categoriesWrapper}>
-        <FlatList
-          data={CATEGORY_PILLS}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesContent}
-          renderItem={({ item }) => {
-            const isSelected = selectedCategory === item.id;
-            return (
-              <TouchableOpacity
-                style={[
-                  styles.categoryPill,
-                  isSelected && styles.categoryPillSelected,
-                ]}
-                onPress={() => setSelectedCategory(item.id)}
-                activeOpacity={0.75}
-              >
-                <Text
-                  style={[
-                    styles.categoryPillText,
-                    isSelected && styles.categoryPillTextSelected,
-                  ]}
-                >
-                  {item.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          }}
-        />
-      </View>
-
-      {/* ----------------- SECTION HEADER: KẾT QUẢ GỢI Ý ----------------- */}
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>Kết quả gợi ý</Text>
-          <Text style={styles.resultCountText}>({filteredMovies.length} phim)</Text>
-        </View>
-
-        <TouchableOpacity
-          style={styles.sortDropdownButton}
-          onPress={() => setShowSortModal(true)}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.sortDropdownText}>{currentSortLabel}</Text>
-          <Ionicons name="chevron-down" size={14} color={CinemaColors.textSecondary} />
-        </TouchableOpacity>
-      </View>
-
-      {/* ----------------- MOVIE GRID RESULTS WITH PAGINATION ----------------- */}
-      {filteredMovies.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="search-outline" size={56} color={CinemaColors.textMuted} style={{ marginBottom: 12 }} />
-          <Text style={styles.emptyTitle}>Không tìm thấy phim phù hợp</Text>
-          <Text style={styles.emptySubtitle}>
-            Hãy thử tìm kiếm với từ khóa khác hoặc xóa bộ lọc thể loại.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          ref={flatListRef}
-          key={`grid-${numColumns}`}
-          data={paginatedMovies}
-          keyExtractor={(item) => item.id}
-          numColumns={numColumns}
-          contentContainerStyle={styles.gridContainer}
-          columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={[styles.movieCard, { width: cardWidth }]} activeOpacity={0.85}>
-              {/* Poster Container */}
-              <View style={[styles.posterContainer, { width: cardWidth, height: cardHeight }]}>
-                <Image source={{ uri: item.image }} style={styles.posterImage} />
-
-                {/* Top-Left: Star Rating Badge */}
-                <View style={styles.ratingBadge}>
-                  <Ionicons name="star" size={11} color="#FFD700" />
-                  <Text style={styles.ratingText}>{item.rating}</Text>
-                </View>
-
-                {/* Top-Right: Quality Badge */}
-                <View style={styles.qualityBadge}>
-                  <Text style={styles.qualityText}>{item.quality}</Text>
-                </View>
+      {/* ----------------- MAIN SCROLLABLE CONTENT (FLATLIST) ----------------- */}
+      <FlatList
+        ref={flatListRef}
+        key={`grid-${numColumns}`}
+        data={paginatedMovies}
+        keyExtractor={(item) => item.id}
+        numColumns={numColumns}
+        contentContainerStyle={styles.gridContainer}
+        columnWrapperStyle={numColumns > 1 && paginatedMovies.length > 0 ? styles.columnWrapper : undefined}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <View>
+            {/* ----------------- SEARCH INPUT BAR ----------------- */}
+            <View style={styles.searchBarWrapper}>
+              <View style={styles.searchInputContainer}>
+                <Ionicons name="search" size={20} color={CinemaColors.textMuted} style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Tìm phim, diễn viên, đạo diễn..."
+                  placeholderTextColor={CinemaColors.textMuted}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="close-circle" size={18} color={CinemaColors.textMuted} />
+                  </TouchableOpacity>
+                )}
               </View>
 
-              {/* Title & Metadata */}
-              <Text style={styles.movieTitle} numberOfLines={1}>
-                {item.title}
-              </Text>
-              <Text style={styles.movieMeta} numberOfLines={1}>
-                {item.year}  •  {item.genres}
-              </Text>
-            </TouchableOpacity>
-          )}
-          ListFooterComponent={
-            totalPages > 1 ? (
+              <TouchableOpacity
+                style={styles.filterButton}
+                activeOpacity={0.75}
+                onPress={() => setShowSortModal(true)}
+              >
+                <Ionicons name="options-outline" size={20} color={CinemaColors.textPrimary} />
+                <View style={styles.filterDot} />
+              </TouchableOpacity>
+            </View>
+
+            {/* ----------------- CATEGORY FILTER PILLS ----------------- */}
+            <View style={styles.categoriesWrapper}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoriesContent}
+              >
+                {CATEGORY_PILLS.map((item) => {
+                  const isSelected = selectedCategory === item.id;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[
+                        styles.categoryPill,
+                        isSelected && styles.categoryPillSelected,
+                      ]}
+                      onPress={() => setSelectedCategory(item.id)}
+                      activeOpacity={0.75}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryPillText,
+                          isSelected && styles.categoryPillTextSelected,
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* ----------------- SECTION HEADER: KẾT QUẢ GỢI Ý ----------------- */}
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitle}>Kết quả gợi ý</Text>
+                <Text style={styles.resultCountText}>({filteredMovies.length} phim)</Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.sortDropdownButton}
+                onPress={() => setShowSortModal(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.sortDropdownText}>{currentSortLabel}</Text>
+                <Ionicons name="chevron-down" size={14} color={CinemaColors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="search-outline" size={56} color={CinemaColors.textMuted} style={{ marginBottom: 12 }} />
+            <Text style={styles.emptyTitle}>Không tìm thấy phim phù hợp</Text>
+            <Text style={styles.emptySubtitle}>
+              Hãy thử tìm kiếm với từ khóa khác hoặc xóa bộ lọc thể loại.
+            </Text>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={[styles.movieCard, { width: cardWidth }]}
+            activeOpacity={0.85}
+            onPress={() => router.push({ pathname: '/movie/[id]', params: { id: item.id } })}
+          >
+            {/* Poster Container */}
+            <View style={[styles.posterContainer, { width: cardWidth, height: cardHeight }]}>
+              <Image source={{ uri: item.image }} style={styles.posterImage} />
+
+              {/* Top-Left: Star Rating Badge */}
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={11} color="#FFD700" />
+                <Text style={styles.ratingText}>{item.rating}</Text>
+              </View>
+
+              {/* Top-Right: Quality Badge */}
+              <View style={styles.qualityBadge}>
+                <Text style={styles.qualityText}>{item.quality}</Text>
+              </View>
+            </View>
+
+            {/* Title & Metadata */}
+            <Text style={styles.movieTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+            <Text style={styles.movieMeta} numberOfLines={1}>
+              {item.year}  •  {item.genres}
+            </Text>
+          </TouchableOpacity>
+        )}
+        ListFooterComponent={
+          totalPages > 1 ? (
+            <View style={styles.paginationFooterWrapper}>
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={handlePageChange}
                 siblingCount={1}
               />
-            ) : null
-          }
-        />
-      )}
+            </View>
+          ) : null
+        }
+      />
 
       {/* ----------------- SORT MODAL ----------------- */}
       <Modal
@@ -626,12 +637,15 @@ const styles = StyleSheet.create({
 
   /* Movie Grid */
   gridContainer: {
-    paddingHorizontal: 20,
     paddingBottom: 24,
   },
   columnWrapper: {
+    paddingHorizontal: 20,
     justifyContent: 'space-between',
     marginBottom: 18,
+  },
+  paginationFooterWrapper: {
+    paddingHorizontal: 20,
   },
   movieCard: {},
   posterContainer: {
