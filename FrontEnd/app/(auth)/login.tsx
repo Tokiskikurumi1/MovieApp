@@ -10,37 +10,71 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { CinemaColors } from '@/constants/theme';
+import { BrandLogo } from '@/components/brand-logo';
+
+// Fake test account credentials
+const TEST_ACCOUNT = {
+  usernames: ['kurumi124@gmail.com', '0987654321'],
+  password: 'Kurumi1234@',
+};
 
 export default function LoginScreen() {
   const router = useRouter();
 
-  const [email, setEmail] = useState('');
+  const [account, setAccount] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
 
+  // Inline Validation Errors
+  const [errors, setErrors] = useState<{ account?: string; password?: string; general?: string }>({});
+
   const handleLogin = () => {
-    if (!email.trim()) {
-      Alert.alert('Thông báo', 'Vui lòng nhập email hoặc tên đăng nhập');
-      return;
+    const trimmedAccount = account.trim();
+    const newErrors: { account?: string; password?: string; general?: string } = {};
+
+    // 1. Kiểm tra để trống
+    if (!trimmedAccount) {
+      newErrors.account = 'Vui lòng nhập email hoặc số điện thoại';
     }
     if (!password) {
-      Alert.alert('Thông báo', 'Vui lòng nhập mật khẩu');
+      newErrors.password = 'Vui lòng nhập mật khẩu';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
+    // 2. Kiểm tra tài khoản và mật khẩu
     setIsLoading(true);
+    setErrors({});
+
     setTimeout(() => {
       setIsLoading(false);
+
+      const isValidUser = TEST_ACCOUNT.usernames.some(
+        (u) => u.toLowerCase() === trimmedAccount.toLowerCase()
+      );
+      const isValidPassword = password === TEST_ACCOUNT.password;
+
+      if (!isValidUser || !isValidPassword) {
+        setErrors({
+          account: 'Tài khoản hoặc mật khẩu không chính xác',
+          password: 'Tài khoản hoặc mật khẩu không chính xác',
+        });
+        return;
+      }
+
+      // Đăng nhập thành công
       router.replace('/(tabs)');
-    }, 1000);
+    }, 600);
   };
 
   return (
@@ -59,15 +93,7 @@ export default function LoginScreen() {
           <View style={styles.glowBottomLeft} />
 
           {/* Logo & Brand Header */}
-          <View style={styles.brandContainer}>
-            <View style={styles.logoBadge}>
-              <Ionicons name="film" size={28} color={CinemaColors.primary} />
-            </View>
-            <Text style={styles.brandTitle}>
-              CINE<Text style={styles.brandTitleAccent}>STREAM</Text>
-            </Text>
-            <Text style={styles.brandTagline}>Kho phim chất lượng cao 4K & HDR</Text>
-          </View>
+          <BrandLogo layout="vertical" size="medium" showTagline={true} style={{ marginBottom: 20 }} />
 
           {/* Welcome Text */}
           <View style={styles.headerSection}>
@@ -77,40 +103,71 @@ export default function LoginScreen() {
             </Text>
           </View>
 
+          {/* General Hint/Error Box */}
+          {errors.general && (
+            <View style={styles.generalErrorBox}>
+              <Ionicons name="information-circle" size={16} color={CinemaColors.primary} />
+              <Text style={styles.generalErrorText}>{errors.general}</Text>
+            </View>
+          )}
+
           {/* Form */}
           <View style={styles.formContainer}>
-            {/* Email Input */}
+            {/* Account Input (Email / Phone) */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Email hoặc Số điện thoại</Text>
               <View
                 style={[
                   styles.inputWrapper,
-                  focusedInput === 'email' && styles.inputWrapperFocused,
+                  focusedInput === 'account' && styles.inputWrapperFocused,
+                  errors.account ? styles.inputWrapperError : null,
                 ]}
               >
                 <Ionicons
-                  name="mail-outline"
+                  name="person-outline"
                   size={20}
-                  color={focusedInput === 'email' ? CinemaColors.primary : CinemaColors.textMuted}
+                  color={
+                    errors.account
+                      ? CinemaColors.error
+                      : focusedInput === 'account'
+                      ? CinemaColors.primary
+                      : CinemaColors.textMuted
+                  }
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="Nhập email của bạn"
+                  placeholder="kurumi124@gmail.com hoặc 0987654321"
                   placeholderTextColor={CinemaColors.textMuted}
-                  keyboardType="email-address"
                   autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                  onFocus={() => setFocusedInput('email')}
+                  value={account}
+                  onChangeText={(val) => {
+                    setAccount(val);
+                    if (errors.account || errors.general) {
+                      setErrors((prev) => ({ ...prev, account: undefined, general: undefined }));
+                    }
+                  }}
+                  onFocus={() => setFocusedInput('account')}
                   onBlur={() => setFocusedInput(null)}
                 />
-                {email.length > 0 && (
-                  <TouchableOpacity onPress={() => setEmail('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                {account.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setAccount('');
+                      setErrors((prev) => ({ ...prev, account: undefined }));
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
                     <Ionicons name="close-circle" size={18} color={CinemaColors.textMuted} />
                   </TouchableOpacity>
                 )}
               </View>
+              {errors.account && (
+                <View style={styles.errorRow}>
+                  <Ionicons name="alert-circle" size={13} color={CinemaColors.error} />
+                  <Text style={styles.errorText}>{errors.account}</Text>
+                </View>
+              )}
             </View>
 
             {/* Password Input */}
@@ -120,21 +177,33 @@ export default function LoginScreen() {
                 style={[
                   styles.inputWrapper,
                   focusedInput === 'password' && styles.inputWrapperFocused,
+                  errors.password ? styles.inputWrapperError : null,
                 ]}
               >
                 <Ionicons
                   name="lock-closed-outline"
                   size={20}
-                  color={focusedInput === 'password' ? CinemaColors.primary : CinemaColors.textMuted}
+                  color={
+                    errors.password
+                      ? CinemaColors.error
+                      : focusedInput === 'password'
+                      ? CinemaColors.primary
+                      : CinemaColors.textMuted
+                  }
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="Nhập mật khẩu"
+                  placeholder="Nhập mật khẩu (Kurumi1234@)"
                   placeholderTextColor={CinemaColors.textMuted}
                   secureTextEntry={!showPassword}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(val) => {
+                    setPassword(val);
+                    if (errors.password || errors.general) {
+                      setErrors((prev) => ({ ...prev, password: undefined, general: undefined }));
+                    }
+                  }}
                   onFocus={() => setFocusedInput('password')}
                   onBlur={() => setFocusedInput(null)}
                 />
@@ -149,6 +218,12 @@ export default function LoginScreen() {
                   />
                 </TouchableOpacity>
               </View>
+              {errors.password && (
+                <View style={styles.errorRow}>
+                  <Ionicons name="alert-circle" size={13} color={CinemaColors.error} />
+                  <Text style={styles.errorText}>{errors.password}</Text>
+                </View>
+              )}
             </View>
 
             {/* Remember Me & Forgot Password */}
@@ -269,38 +344,8 @@ const styles = StyleSheet.create({
     borderRadius: 130,
     backgroundColor: CinemaColors.glowBottomLeft,
   },
-  brandContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  logoBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: CinemaColors.primaryLight,
-    borderWidth: 1.5,
-    borderColor: CinemaColors.primaryBorder,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  brandTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: 2,
-    color: CinemaColors.textPrimary,
-  },
-  brandTitleAccent: {
-    color: CinemaColors.primary,
-  },
-  brandTagline: {
-    fontSize: 12,
-    color: CinemaColors.textSecondary,
-    marginTop: 4,
-    letterSpacing: 0.5,
-  },
   headerSection: {
-    marginBottom: 28,
+    marginBottom: 20,
   },
   title: {
     fontSize: 26,
@@ -313,12 +358,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: CinemaColors.textSecondary,
     lineHeight: 20,
+    textAlign: 'center',
+  },
+  generalErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 51, 75, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 51, 75, 0.3)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+    gap: 8,
+  },
+  generalErrorText: {
+    fontSize: 12,
+    color: CinemaColors.textPrimary,
+    flex: 1,
+    lineHeight: 16,
   },
   formContainer: {
     width: '100%',
   },
   inputGroup: {
-    marginBottom: 18,
+    marginBottom: 16,
   },
   inputLabel: {
     fontSize: 13,
@@ -340,6 +404,22 @@ const styles = StyleSheet.create({
     borderColor: CinemaColors.borderActive,
     backgroundColor: CinemaColors.surfaceFocused,
   },
+  inputWrapperError: {
+    borderColor: CinemaColors.error,
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 4,
+    paddingHorizontal: 4,
+  },
+  errorText: {
+    fontSize: 12,
+    color: CinemaColors.error,
+    fontWeight: '500',
+  },
   inputIcon: {
     marginRight: 10,
   },
@@ -352,8 +432,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 2,
-    marginBottom: 24,
+    marginTop: 4,
+    marginBottom: 20,
   },
   rememberMeContainer: {
     flexDirection: 'row',

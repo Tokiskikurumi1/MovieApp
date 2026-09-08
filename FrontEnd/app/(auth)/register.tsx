@@ -10,11 +10,11 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { CinemaColors } from '@/constants/theme';
+import { BrandLogo } from '@/components/brand-logo';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -30,56 +30,89 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
 
+  // Inline Validation Errors
+  const [errors, setErrors] = useState<{
+    fullName?: string;
+    phone?: string;
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+    agreeTerms?: string;
+    success?: string;
+  }>({});
+
   // Password strength calculation
   const getPasswordStrength = () => {
     if (password.length === 0) return { label: '', color: CinemaColors.textMuted, score: 0 };
-    if (password.length < 6) return { label: 'Yếu', color: CinemaColors.error, score: 1 };
-    if (password.length < 10) return { label: 'Trung bình', color: CinemaColors.warning, score: 2 };
+    if (password.length < 8) return { label: 'Yếu (Cần ≥ 8 ký tự)', color: CinemaColors.error, score: 1 };
+    if (password.length < 12) return { label: 'Trung bình', color: CinemaColors.warning, score: 2 };
     return { label: 'Mạnh', color: CinemaColors.success, score: 3 };
   };
 
   const strength = getPasswordStrength();
 
   const handleRegister = () => {
-    if (!fullName.trim()) {
-      Alert.alert('Thông báo', 'Vui lòng nhập họ và tên');
-      return;
+    const trimmedName = fullName.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedEmail = email.trim();
+    const newErrors: typeof errors = {};
+
+    // 1. Kiểm tra Họ và tên
+    if (!trimmedName) {
+      newErrors.fullName = 'Vui lòng nhập họ và tên';
     }
-    if (!phone.trim()) {
-      Alert.alert('Thông báo', 'Vui lòng nhập số điện thoại');
-      return;
+
+    // 2. Kiểm tra Số điện thoại (đầu 0, đủ 10 số)
+    const phoneRegex = /^0[0-9]{9}$/;
+    if (!trimmedPhone) {
+      newErrors.phone = 'Vui lòng nhập số điện thoại';
+    } else if (!phoneRegex.test(trimmedPhone)) {
+      newErrors.phone = 'Số điện thoại phải bắt đầu bằng số 0 và đủ 10 chữ số';
     }
-    if (phone.trim().length < 10) {
-      Alert.alert('Thông báo', 'Số điện thoại không hợp lệ (tối thiểu 10 chữ số)');
-      return;
+
+    // 3. Kiểm tra Email
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!trimmedEmail) {
+      newErrors.email = 'Vui lòng nhập địa chỉ email';
+    } else if (!emailRegex.test(trimmedEmail)) {
+      newErrors.email = 'Email không đúng định dạng (vd: kurumi124@gmail.com)';
     }
-    if (!email.trim() || !email.includes('@')) {
-      Alert.alert('Thông báo', 'Vui lòng nhập email hợp lệ');
-      return;
+
+    // 4. Kiểm tra Mật khẩu (từ 8 ký tự)
+    if (!password) {
+      newErrors.password = 'Vui lòng nhập mật khẩu';
+    } else if (password.length < 8) {
+      newErrors.password = 'Mật khẩu phải có từ 8 ký tự trở lên';
     }
-    if (password.length < 6) {
-      Alert.alert('Thông báo', 'Mật khẩu phải có ít nhất 6 ký tự');
-      return;
+
+    // 5. Kiểm tra Xác nhận mật khẩu
+    if (!confirmPassword) {
+      newErrors.confirmPassword = 'Vui lòng nhập lại mật khẩu xác nhận';
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = 'Mật khẩu xác nhận không trùng khớp';
     }
-    if (password !== confirmPassword) {
-      Alert.alert('Thông báo', 'Mật khẩu xác nhận không khớp');
-      return;
-    }
+
+    // 6. Kiểm tra Đồng ý điều khoản
     if (!agreeTerms) {
-      Alert.alert('Thông báo', 'Vui lòng đồng ý với Điều khoản sử dụng & Chính sách bảo mật');
+      newErrors.agreeTerms = 'Bạn cần đồng ý với Điều khoản sử dụng & Chính sách bảo mật';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
+    // Đăng ký thành công
     setIsLoading(true);
+    setErrors({});
+
     setTimeout(() => {
       setIsLoading(false);
-      Alert.alert('Thành công', 'Đăng ký tài khoản thành công!', [
-        {
-          text: 'Đăng nhập ngay',
-          onPress: () => router.push('/(auth)/login' as any),
-        },
-      ]);
-    }, 1200);
+      setErrors({ success: 'Đăng ký tài khoản thành công! Đang chuyển đến Đăng nhập...' });
+      setTimeout(() => {
+        router.push('/(auth)/login' as any);
+      }, 1200);
+    }, 800);
   };
 
   return (
@@ -107,12 +140,7 @@ export default function RegisterScreen() {
               <Ionicons name="chevron-back" size={22} color={CinemaColors.textPrimary} />
             </TouchableOpacity>
 
-            <View style={styles.topBrand}>
-              <Ionicons name="film" size={18} color={CinemaColors.primary} />
-              <Text style={styles.topBrandText}>
-                CINE<Text style={{ color: CinemaColors.primary }}>STREAM</Text>
-              </Text>
-            </View>
+            <BrandLogo layout="horizontal" size="small" showTagline={false} />
 
             <View style={{ width: 40 }} />
           </View>
@@ -125,6 +153,14 @@ export default function RegisterScreen() {
             </Text>
           </View>
 
+          {/* Success Banner */}
+          {errors.success && (
+            <View style={styles.successBox}>
+              <Ionicons name="checkmark-circle" size={18} color={CinemaColors.success} />
+              <Text style={styles.successText}>{errors.success}</Text>
+            </View>
+          )}
+
           {/* Form */}
           <View style={styles.formContainer}>
             {/* Full Name */}
@@ -134,12 +170,19 @@ export default function RegisterScreen() {
                 style={[
                   styles.inputWrapper,
                   focusedInput === 'fullName' && styles.inputWrapperFocused,
+                  errors.fullName ? styles.inputWrapperError : null,
                 ]}
               >
                 <Ionicons
                   name="person-outline"
                   size={20}
-                  color={focusedInput === 'fullName' ? CinemaColors.primary : CinemaColors.textMuted}
+                  color={
+                    errors.fullName
+                      ? CinemaColors.error
+                      : focusedInput === 'fullName'
+                      ? CinemaColors.primary
+                      : CinemaColors.textMuted
+                  }
                   style={styles.inputIcon}
                 />
                 <TextInput
@@ -147,39 +190,68 @@ export default function RegisterScreen() {
                   placeholder="Nguyễn Văn A"
                   placeholderTextColor={CinemaColors.textMuted}
                   value={fullName}
-                  onChangeText={setFullName}
+                  onChangeText={(val) => {
+                    setFullName(val);
+                    if (errors.fullName) setErrors((prev) => ({ ...prev, fullName: undefined }));
+                  }}
                   onFocus={() => setFocusedInput('fullName')}
                   onBlur={() => setFocusedInput(null)}
                 />
               </View>
+              {errors.fullName && (
+                <View style={styles.errorRow}>
+                  <Ionicons name="alert-circle" size={13} color={CinemaColors.error} />
+                  <Text style={styles.errorText}>{errors.fullName}</Text>
+                </View>
+              )}
             </View>
 
             {/* Phone Number */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Số điện thoại</Text>
+              <Text style={styles.inputLabel}>Số điện thoại (10 số, đầu 0)</Text>
               <View
                 style={[
                   styles.inputWrapper,
                   focusedInput === 'phone' && styles.inputWrapperFocused,
+                  errors.phone ? styles.inputWrapperError : null,
                 ]}
               >
                 <Ionicons
                   name="call-outline"
                   size={20}
-                  color={focusedInput === 'phone' ? CinemaColors.primary : CinemaColors.textMuted}
+                  color={
+                    errors.phone
+                      ? CinemaColors.error
+                      : focusedInput === 'phone'
+                      ? CinemaColors.primary
+                      : CinemaColors.textMuted
+                  }
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="0912 345 678"
+                  placeholder="0987654321"
                   placeholderTextColor={CinemaColors.textMuted}
                   keyboardType="phone-pad"
+                  maxLength={10}
                   value={phone}
-                  onChangeText={setPhone}
+                  onChangeText={(val) => {
+                    setPhone(val);
+                    if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
+                  }}
                   onFocus={() => setFocusedInput('phone')}
                   onBlur={() => setFocusedInput(null)}
                 />
+                {phone.length === 10 && phone.startsWith('0') && !errors.phone && (
+                  <Ionicons name="checkmark-circle" size={18} color={CinemaColors.success} />
+                )}
               </View>
+              {errors.phone && (
+                <View style={styles.errorRow}>
+                  <Ionicons name="alert-circle" size={13} color={CinemaColors.error} />
+                  <Text style={styles.errorText}>{errors.phone}</Text>
+                </View>
+              )}
             </View>
 
             {/* Email */}
@@ -189,32 +261,48 @@ export default function RegisterScreen() {
                 style={[
                   styles.inputWrapper,
                   focusedInput === 'email' && styles.inputWrapperFocused,
+                  errors.email ? styles.inputWrapperError : null,
                 ]}
               >
                 <Ionicons
                   name="mail-outline"
                   size={20}
-                  color={focusedInput === 'email' ? CinemaColors.primary : CinemaColors.textMuted}
+                  color={
+                    errors.email
+                      ? CinemaColors.error
+                      : focusedInput === 'email'
+                      ? CinemaColors.primary
+                      : CinemaColors.textMuted
+                  }
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="example@movie.com"
+                  placeholder="kurumi124@gmail.com"
                   placeholderTextColor={CinemaColors.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(val) => {
+                    setEmail(val);
+                    if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                  }}
                   onFocus={() => setFocusedInput('email')}
                   onBlur={() => setFocusedInput(null)}
                 />
               </View>
+              {errors.email && (
+                <View style={styles.errorRow}>
+                  <Ionicons name="alert-circle" size={13} color={CinemaColors.error} />
+                  <Text style={styles.errorText}>{errors.email}</Text>
+                </View>
+              )}
             </View>
 
             {/* Password */}
             <View style={styles.inputGroup}>
               <View style={styles.labelRow}>
-                <Text style={styles.inputLabel}>Mật khẩu</Text>
+                <Text style={styles.inputLabel}>Mật khẩu (Tối thiểu 8 ký tự)</Text>
                 {strength.label ? (
                   <Text style={[styles.strengthText, { color: strength.color }]}>
                     {strength.label}
@@ -225,21 +313,31 @@ export default function RegisterScreen() {
                 style={[
                   styles.inputWrapper,
                   focusedInput === 'password' && styles.inputWrapperFocused,
+                  errors.password ? styles.inputWrapperError : null,
                 ]}
               >
                 <Ionicons
                   name="lock-closed-outline"
                   size={20}
-                  color={focusedInput === 'password' ? CinemaColors.primary : CinemaColors.textMuted}
+                  color={
+                    errors.password
+                      ? CinemaColors.error
+                      : focusedInput === 'password'
+                      ? CinemaColors.primary
+                      : CinemaColors.textMuted
+                  }
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="Tối thiểu 6 ký tự"
+                  placeholder="Nhập từ 8 ký tự trở lên"
                   placeholderTextColor={CinemaColors.textMuted}
                   secureTextEntry={!showPassword}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(val) => {
+                    setPassword(val);
+                    if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                  }}
                   onFocus={() => setFocusedInput('password')}
                   onBlur={() => setFocusedInput(null)}
                 />
@@ -274,6 +372,13 @@ export default function RegisterScreen() {
                   />
                 </View>
               )}
+
+              {errors.password && (
+                <View style={styles.errorRow}>
+                  <Ionicons name="alert-circle" size={13} color={CinemaColors.error} />
+                  <Text style={styles.errorText}>{errors.password}</Text>
+                </View>
+              )}
             </View>
 
             {/* Confirm Password */}
@@ -283,12 +388,19 @@ export default function RegisterScreen() {
                 style={[
                   styles.inputWrapper,
                   focusedInput === 'confirmPassword' && styles.inputWrapperFocused,
+                  errors.confirmPassword ? styles.inputWrapperError : null,
                 ]}
               >
                 <Ionicons
                   name="shield-checkmark-outline"
                   size={20}
-                  color={focusedInput === 'confirmPassword' ? CinemaColors.primary : CinemaColors.textMuted}
+                  color={
+                    errors.confirmPassword
+                      ? CinemaColors.error
+                      : focusedInput === 'confirmPassword'
+                      ? CinemaColors.primary
+                      : CinemaColors.textMuted
+                  }
                   style={styles.inputIcon}
                 />
                 <TextInput
@@ -297,11 +409,14 @@ export default function RegisterScreen() {
                   placeholderTextColor={CinemaColors.textMuted}
                   secureTextEntry={!showConfirmPassword}
                   value={confirmPassword}
-                  onChangeText={setConfirmPassword}
+                  onChangeText={(val) => {
+                    setConfirmPassword(val);
+                    if (errors.confirmPassword) setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+                  }}
                   onFocus={() => setFocusedInput('confirmPassword')}
                   onBlur={() => setFocusedInput(null)}
                 />
-                {confirmPassword.length > 0 && confirmPassword === password && (
+                {confirmPassword.length >= 8 && confirmPassword === password && !errors.confirmPassword && (
                   <Ionicons name="checkmark-circle" size={20} color={CinemaColors.success} style={{ marginRight: 6 }} />
                 )}
                 <TouchableOpacity
@@ -315,15 +430,33 @@ export default function RegisterScreen() {
                   />
                 </TouchableOpacity>
               </View>
+              {errors.confirmPassword && (
+                <View style={styles.errorRow}>
+                  <Ionicons name="alert-circle" size={13} color={CinemaColors.error} />
+                  <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+                </View>
+              )}
             </View>
 
             {/* Terms Agreement */}
             <TouchableOpacity
               style={styles.termsRow}
               activeOpacity={0.7}
-              onPress={() => setAgreeTerms(!agreeTerms)}
+              onPress={() => {
+                const next = !agreeTerms;
+                setAgreeTerms(next);
+                if (next && errors.agreeTerms) {
+                  setErrors((prev) => ({ ...prev, agreeTerms: undefined }));
+                }
+              }}
             >
-              <View style={[styles.checkbox, agreeTerms && styles.checkboxChecked]}>
+              <View
+                style={[
+                  styles.checkbox,
+                  agreeTerms && styles.checkboxChecked,
+                  errors.agreeTerms ? styles.checkboxError : null,
+                ]}
+              >
                 {agreeTerms && <Ionicons name="checkmark" size={14} color={CinemaColors.textPrimary} />}
               </View>
               <Text style={styles.termsText}>
@@ -332,6 +465,12 @@ export default function RegisterScreen() {
                 <Text style={styles.termsHighlight}>Chính sách bảo mật</Text>
               </Text>
             </TouchableOpacity>
+            {errors.agreeTerms && (
+              <View style={[styles.errorRow, { marginTop: -14, marginBottom: 16 }]}>
+                <Ionicons name="alert-circle" size={13} color={CinemaColors.error} />
+                <Text style={styles.errorText}>{errors.agreeTerms}</Text>
+              </View>
+            )}
 
             {/* Submit Button */}
             <TouchableOpacity
@@ -432,19 +571,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  topBrand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  topBrandText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: CinemaColors.textPrimary,
-    letterSpacing: 1.5,
-  },
   headerSection: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   title: {
     fontSize: 26,
@@ -457,6 +585,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: CinemaColors.textSecondary,
     lineHeight: 20,
+    textAlign: 'center',
+  },
+  successBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 18,
+    gap: 8,
+  },
+  successText: {
+    fontSize: 13,
+    color: CinemaColors.success,
+    fontWeight: '600',
+    flex: 1,
   },
   formContainer: {
     width: '100%',
@@ -494,6 +641,22 @@ const styles = StyleSheet.create({
     borderColor: CinemaColors.borderActive,
     backgroundColor: CinemaColors.surfaceFocused,
   },
+  inputWrapperError: {
+    borderColor: CinemaColors.error,
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 4,
+    paddingHorizontal: 4,
+  },
+  errorText: {
+    fontSize: 12,
+    color: CinemaColors.error,
+    fontWeight: '500',
+  },
   inputIcon: {
     marginRight: 10,
   },
@@ -517,7 +680,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginTop: 6,
-    marginBottom: 22,
+    marginBottom: 20,
   },
   checkbox: {
     width: 20,
@@ -534,6 +697,9 @@ const styles = StyleSheet.create({
   checkboxChecked: {
     backgroundColor: CinemaColors.primary,
     borderColor: CinemaColors.primary,
+  },
+  checkboxError: {
+    borderColor: CinemaColors.error,
   },
   termsText: {
     flex: 1,
