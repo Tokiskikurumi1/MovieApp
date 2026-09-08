@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
+import { Pagination } from '@/components/pagination';
 
 // -------------------------------------------------------------
 // DỮ LIỆU THỂ LOẠI
@@ -31,7 +32,7 @@ const CATEGORY_PILLS = [
 ];
 
 // -------------------------------------------------------------
-// DỮ LIỆU PHIM KHÁM PHÁ & TÌM KIẾM
+// DỮ LIỆU PHIM KHÁM PHÁ & TÌM KIẾM (MOCK DATA ĐA DẠNG)
 // -------------------------------------------------------------
 const EXPLORE_MOVIES = [
   {
@@ -114,6 +115,106 @@ const EXPLORE_MOVIES = [
     genres: 'Hành Động, Hài Hước',
     image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop',
   },
+  {
+    id: 'exp-9',
+    title: 'Cyberpunk: Đêm Định Mệnh',
+    rating: '9.0',
+    quality: '4K HDR',
+    year: '2024',
+    category: 'scifi',
+    genres: 'Sci-Fi, Hành Động',
+    image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'exp-10',
+    title: 'John Wick: Sát Thủ Bất Tử',
+    rating: '8.8',
+    quality: '4K UHD',
+    year: '2023',
+    category: 'action',
+    genres: 'Hành Động, Tội Phạm',
+    image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'exp-11',
+    title: 'Biệt Đội Quái Thú',
+    rating: '8.4',
+    quality: 'Full HD',
+    year: '2024',
+    category: 'action',
+    genres: 'Hành Động, Quái Vật',
+    image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'exp-12',
+    title: 'Bí Ẩn Hành Tinh Đen',
+    rating: '8.7',
+    quality: '4K IMAX',
+    year: '2023',
+    category: 'horror',
+    genres: 'Kinh Dị, Viễn Tưởng',
+    image: 'https://images.unsplash.com/photo-1514306191717-452ec28c7814?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'exp-13',
+    title: 'Truy Tìm Kẻ Phản Bội',
+    rating: '8.3',
+    quality: '4K',
+    year: '2023',
+    category: 'drama',
+    genres: 'Kịch Tính, Hình Sự',
+    image: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'exp-14',
+    title: 'Võ Thần Tái Sinh',
+    rating: '8.6',
+    quality: 'HD',
+    year: '2024',
+    category: 'martial',
+    genres: 'Võ Thuật, Hành Động',
+    image: 'https://images.unsplash.com/photo-1635805737707-575885ab0820?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'exp-15',
+    title: 'Đường Đua Tử Thần 2',
+    rating: '8.5',
+    quality: '4K HDR',
+    year: '2024',
+    category: 'racing',
+    genres: 'Đua Xe, Kịch Tính',
+    image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'exp-16',
+    title: 'Kẻ Săn Bóng Tối',
+    rating: '8.9',
+    quality: '4K UHD',
+    year: '2024',
+    category: 'horror',
+    genres: 'Kinh Dị, Hành Động',
+    image: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'exp-17',
+    title: 'Vương Triều Sụp Đổ',
+    rating: '8.7',
+    quality: '4K',
+    year: '2023',
+    category: 'drama',
+    genres: 'Kịch Tính, Cổ Trang',
+    image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'exp-18',
+    title: 'Đại Chiến Đa Vũ Trụ',
+    rating: '9.2',
+    quality: '4K IMAX',
+    year: '2024',
+    category: 'scifi',
+    genres: 'Sci-Fi, Hành Động',
+    image: 'https://images.unsplash.com/photo-1568832359672-e36cf5d74f54?q=80&w=600&auto=format&fit=crop',
+  },
 ];
 
 const SORT_OPTIONS = [
@@ -126,15 +227,24 @@ export default function ExploreScreen() {
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
   const numColumns = isTablet ? 4 : 2;
+  const PAGE_SIZE = isTablet ? 12 : 6;
   const GAP = 14;
   const HORIZONTAL_PADDING = 20 * 2;
   const cardWidth = (width - HORIZONTAL_PADDING - (numColumns - 1) * GAP) / numColumns;
   const cardHeight = cardWidth * 1.45;
 
+  const flatListRef = useRef<FlatList>(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedSort, setSelectedSort] = useState('latest');
   const [showSortModal, setShowSortModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset page when filter / search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, selectedSort]);
 
   // Filter & Search Logic
   const filteredMovies = useMemo(() => {
@@ -159,8 +269,20 @@ export default function ExploreScreen() {
     return result;
   }, [searchQuery, selectedCategory, selectedSort]);
 
+  // Phân trang dữ liệu
+  const totalPages = Math.ceil(filteredMovies.length / PAGE_SIZE);
+  const paginatedMovies = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return filteredMovies.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredMovies, currentPage, PAGE_SIZE]);
+
   const currentSortLabel =
     SORT_OPTIONS.find((s) => s.id === selectedSort)?.label || 'MỚI NHẤT';
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -258,7 +380,7 @@ export default function ExploreScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ----------------- MOVIE GRID RESULTS (RESPONSIVE) ----------------- */}
+      {/* ----------------- MOVIE GRID RESULTS WITH PAGINATION ----------------- */}
       {filteredMovies.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="search-outline" size={56} color={CinemaColors.textMuted} style={{ marginBottom: 12 }} />
@@ -269,8 +391,9 @@ export default function ExploreScreen() {
         </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           key={`grid-${numColumns}`}
-          data={filteredMovies}
+          data={paginatedMovies}
           keyExtractor={(item) => item.id}
           numColumns={numColumns}
           contentContainerStyle={styles.gridContainer}
@@ -303,6 +426,16 @@ export default function ExploreScreen() {
               </Text>
             </TouchableOpacity>
           )}
+          ListFooterComponent={
+            totalPages > 1 ? (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                siblingCount={1}
+              />
+            ) : null
+          }
         />
       )}
 

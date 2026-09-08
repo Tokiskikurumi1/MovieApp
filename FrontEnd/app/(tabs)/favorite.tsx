@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
+import { Pagination } from '@/components/pagination';
 
 const INITIAL_FAVORITES = [
   {
@@ -21,6 +22,7 @@ const INITIAL_FAVORITES = [
     rating: '8.9',
     quality: '4K Ultra HD',
     year: '2024',
+    type: 'movies',
     genres: 'Khoa Học Viễn Tưởng',
     duration: '3h 12m',
     image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop',
@@ -31,6 +33,7 @@ const INITIAL_FAVORITES = [
     rating: '9.2',
     quality: '4K HDR',
     year: '2024',
+    type: 'movies',
     genres: 'Khoa Học Viễn Tưởng',
     duration: '2h 49m',
     image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop',
@@ -41,6 +44,7 @@ const INITIAL_FAVORITES = [
     rating: '8.9',
     quality: '4K HDR',
     year: '2024',
+    type: 'movies',
     genres: 'Hành Động • Hài',
     duration: '2h 08m',
     image: 'https://images.unsplash.com/photo-1568832359672-e36cf5d74f54?q=80&w=600&auto=format&fit=crop',
@@ -51,6 +55,7 @@ const INITIAL_FAVORITES = [
     rating: '8.8',
     quality: 'Dolby Vision',
     year: '2024',
+    type: 'series',
     genres: 'Kinh Dị • Bí Ẩn',
     duration: 'Tập Mới',
     image: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop',
@@ -61,6 +66,7 @@ const INITIAL_FAVORITES = [
     rating: '8.6',
     quality: '4K HDR',
     year: '2023',
+    type: 'movies',
     genres: 'Hành Động',
     duration: '2h 49m',
     image: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=600&auto=format&fit=crop',
@@ -71,9 +77,98 @@ const INITIAL_FAVORITES = [
     rating: '8.7',
     quality: '4K IMAX',
     year: '2024',
+    type: 'movies',
     genres: 'Viễn Tưởng',
     duration: '2h 46m',
     image: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'fav-7',
+    title: 'The Last of Us',
+    rating: '9.0',
+    quality: '4K HDR',
+    year: '2023',
+    type: 'series',
+    genres: 'Hành Động • Sinh Tồn',
+    duration: 'Season 1',
+    image: 'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'fav-8',
+    title: 'Oppenheimer',
+    rating: '9.1',
+    quality: '4K IMAX',
+    year: '2023',
+    type: 'downloaded',
+    genres: 'Lịch Sử • Kịch Tính',
+    duration: '3h 00m',
+    image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'fav-9',
+    title: 'Cyberpunk: Edgerunners',
+    rating: '8.9',
+    quality: 'Full HD',
+    year: '2023',
+    type: 'series',
+    genres: 'Hoạt Hình • Viễn Tưởng',
+    duration: '10 Tập',
+    image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'fav-10',
+    title: 'Spider-Man: Across Spider-Verse',
+    rating: '9.0',
+    quality: '4K UHD',
+    year: '2023',
+    type: 'downloaded',
+    genres: 'Hoạt Hình • Siêu Anh Hùng',
+    duration: '2h 20m',
+    image: 'https://images.unsplash.com/photo-1635805737707-575885ab0820?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'fav-11',
+    title: 'House of the Dragon',
+    rating: '8.8',
+    quality: '4K HDR',
+    year: '2024',
+    type: 'series',
+    genres: 'Giả Tưởng • Kịch Tính',
+    duration: 'Season 2',
+    image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'fav-12',
+    title: 'The Batman',
+    rating: '8.5',
+    quality: '4K UHD',
+    year: '2022',
+    type: 'movies',
+    genres: 'Hành Động • Trinh Thám',
+    duration: '2h 56m',
+    image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'fav-13',
+    title: 'Loki Season 2',
+    rating: '8.7',
+    quality: '4K HDR',
+    year: '2023',
+    type: 'series',
+    genres: 'Hành Động • Phiêu Lưu',
+    duration: '6 Tập',
+    image: 'https://images.unsplash.com/photo-1514306191717-452ec28c7814?q=80&w=600&auto=format&fit=crop',
+  },
+  {
+    id: 'fav-14',
+    title: 'Top Gun: Maverick',
+    rating: '8.9',
+    quality: '4K IMAX',
+    year: '2022',
+    type: 'downloaded',
+    genres: 'Hành Động • Đua Bay',
+    duration: '2h 10m',
+    image: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=600&auto=format&fit=crop',
   },
 ];
 
@@ -89,16 +184,42 @@ export default function FavoriteScreen() {
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
   const numColumns = isTablet ? 4 : 2;
+  const PAGE_SIZE = isTablet ? 12 : 6;
   const GAP = 14;
   const HORIZONTAL_PADDING = 20 * 2;
   const cardWidth = (width - HORIZONTAL_PADDING - (numColumns - 1) * GAP) / numColumns;
   const cardHeight = cardWidth * 1.45;
 
+  const flatListRef = useRef<FlatList>(null);
+
   const [favorites, setFavorites] = useState(INITIAL_FAVORITES);
   const [selectedTab, setSelectedTab] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset current page when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedTab]);
+
+  const filteredFavorites = useMemo(() => {
+    if (selectedTab === 'all') return favorites;
+    return favorites.filter((item) => item.type === selectedTab);
+  }, [favorites, selectedTab]);
+
+  const totalPages = Math.ceil(filteredFavorites.length / PAGE_SIZE);
+
+  const paginatedFavorites = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return filteredFavorites.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredFavorites, currentPage, PAGE_SIZE]);
 
   const removeFavorite = (id: string) => {
     setFavorites((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
   };
 
   return (
@@ -109,7 +230,7 @@ export default function FavoriteScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Phim Yêu Thích</Text>
-          <Text style={styles.headerSubtitle}>{favorites.length} bộ phim đã lưu</Text>
+          <Text style={styles.headerSubtitle}>{filteredFavorites.length} bộ phim đã lưu</Text>
         </View>
 
         <TouchableOpacity style={styles.searchButton} activeOpacity={0.75}>
@@ -137,7 +258,7 @@ export default function FavoriteScreen() {
       </View>
 
       {/* Favorite Movie Grid */}
-      {favorites.length === 0 ? (
+      {filteredFavorites.length === 0 ? (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIconCircle}>
             <Ionicons name="heart-dislike-outline" size={48} color={CinemaColors.primary} />
@@ -157,8 +278,9 @@ export default function FavoriteScreen() {
         </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           key={`grid-${numColumns}`}
-          data={favorites}
+          data={paginatedFavorites}
           keyExtractor={(item) => item.id}
           numColumns={numColumns}
           contentContainerStyle={styles.gridContainer}
@@ -204,6 +326,16 @@ export default function FavoriteScreen() {
               </View>
             </TouchableOpacity>
           )}
+          ListFooterComponent={
+            totalPages > 1 ? (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                siblingCount={1}
+              />
+            ) : null
+          }
         />
       )}
     </SafeAreaView>
