@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { CinemaColors } from '@/constants/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -36,7 +37,6 @@ export default function LoginScreen() {
     }
 
     setIsLoading(true);
-    // Simulate auth flow
     setTimeout(() => {
       setIsLoading(false);
       router.replace('/(tabs)');
@@ -61,7 +61,7 @@ export default function LoginScreen() {
           {/* Logo & Brand Header */}
           <View style={styles.brandContainer}>
             <View style={styles.logoBadge}>
-              <Ionicons name="film" size={28} color="#FF334B" />
+              <Ionicons name="film" size={28} color={CinemaColors.primary} />
             </View>
             <Text style={styles.brandTitle}>
               CINE<Text style={styles.brandTitleAccent}>STREAM</Text>
@@ -91,13 +91,13 @@ export default function LoginScreen() {
                 <Ionicons
                   name="mail-outline"
                   size={20}
-                  color={focusedInput === 'email' ? '#FF334B' : '#7D8494'}
+                  color={focusedInput === 'email' ? CinemaColors.primary : CinemaColors.textMuted}
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
                   placeholder="Nhập email của bạn"
-                  placeholderTextColor="#5A6175"
+                  placeholderTextColor={CinemaColors.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
@@ -107,7 +107,7 @@ export default function LoginScreen() {
                 />
                 {email.length > 0 && (
                   <TouchableOpacity onPress={() => setEmail('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Ionicons name="close-circle" size={18} color="#5A6175" />
+                    <Ionicons name="close-circle" size={18} color={CinemaColors.textMuted} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -125,13 +125,13 @@ export default function LoginScreen() {
                 <Ionicons
                   name="lock-closed-outline"
                   size={20}
-                  color={focusedInput === 'password' ? '#FF334B' : '#7D8494'}
+                  color={focusedInput === 'password' ? CinemaColors.primary : CinemaColors.textMuted}
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
                   placeholder="Nhập mật khẩu"
-                  placeholderTextColor="#5A6175"
+                  placeholderTextColor={CinemaColors.textMuted}
                   secureTextEntry={!showPassword}
                   value={password}
                   onChangeText={setPassword}
@@ -145,7 +145,7 @@ export default function LoginScreen() {
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
-                    color="#7D8494"
+                    color={CinemaColors.textSecondary}
                   />
                 </TouchableOpacity>
               </View>
@@ -159,7 +159,7 @@ export default function LoginScreen() {
                 onPress={() => setRememberMe(!rememberMe)}
               >
                 <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                  {rememberMe && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                  {rememberMe && <Ionicons name="checkmark" size={14} color={CinemaColors.textPrimary} />}
                 </View>
                 <Text style={styles.rememberMeText}>Ghi nhớ đăng nhập</Text>
               </TouchableOpacity>
@@ -180,11 +180,11 @@ export default function LoginScreen() {
               activeOpacity={0.85}
             >
               {isLoading ? (
-                <ActivityIndicator color="#FFF" size="small" />
+                <ActivityIndicator color={CinemaColors.textPrimary} size="small" />
               ) : (
                 <>
                   <Text style={styles.primaryButtonText}>Đăng Nhập</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#FFF" style={styles.buttonIcon} />
+                  <Ionicons name="arrow-forward" size={18} color={CinemaColors.textPrimary} style={styles.buttonIcon} />
                 </>
               )}
             </TouchableOpacity>
@@ -199,17 +199,17 @@ export default function LoginScreen() {
             {/* Social Logins */}
             <View style={styles.socialRow}>
               <TouchableOpacity style={styles.socialButton} activeOpacity={0.75}>
-                <Ionicons name="logo-google" size={20} color="#EA4335" />
+                <Ionicons name="logo-google" size={20} color={CinemaColors.google} />
                 <Text style={styles.socialButtonText}>Google</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.socialButton} activeOpacity={0.75}>
-                <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
+                <Ionicons name="logo-apple" size={20} color={CinemaColors.apple} />
                 <Text style={styles.socialButtonText}>Apple</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.socialButton} activeOpacity={0.75}>
-                <Ionicons name="logo-facebook" size={20} color="#1877F2" />
+                <Ionicons name="logo-facebook" size={20} color={CinemaColors.facebook} />
                 <Text style={styles.socialButtonText}>Facebook</Text>
               </TouchableOpacity>
             </View>
@@ -240,7 +240,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#090A0F',
+    backgroundColor: CinemaColors.background,
   },
   keyboardView: {
     flex: 1,
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: 'rgba(255, 51, 75, 0.12)',
+    backgroundColor: CinemaColors.glowTopRight,
   },
   glowBottomLeft: {
     position: 'absolute',
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     width: 260,
     height: 260,
     borderRadius: 130,
-    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+    backgroundColor: CinemaColors.glowBottomLeft,
   },
   brandContainer: {
     alignItems: 'center',
@@ -277,9 +277,9 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 51, 75, 0.12)',
+    backgroundColor: CinemaColors.primaryLight,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 51, 75, 0.3)',
+    borderColor: CinemaColors.primaryBorder,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -288,14 +288,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     letterSpacing: 2,
-    color: '#FFFFFF',
+    color: CinemaColors.textPrimary,
   },
   brandTitleAccent: {
-    color: '#FF334B',
+    color: CinemaColors.primary,
   },
   brandTagline: {
     fontSize: 12,
-    color: '#7D8494',
+    color: CinemaColors.textSecondary,
     marginTop: 4,
     letterSpacing: 0.5,
   },
@@ -305,12 +305,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: CinemaColors.textPrimary,
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
-    color: '#8E95A5',
+    color: CinemaColors.textSecondary,
     lineHeight: 20,
   },
   formContainer: {
@@ -322,22 +322,22 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#C5C9D5',
+    color: CinemaColors.textTertiary,
     marginBottom: 8,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#12141C',
+    backgroundColor: CinemaColors.surface,
     borderRadius: 14,
     borderWidth: 1.2,
-    borderColor: '#1F2433',
+    borderColor: CinemaColors.border,
     paddingHorizontal: 14,
     height: 52,
   },
   inputWrapperFocused: {
-    borderColor: '#FF334B',
-    backgroundColor: '#151824',
+    borderColor: CinemaColors.borderActive,
+    backgroundColor: CinemaColors.surfaceFocused,
   },
   inputIcon: {
     marginRight: 10,
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CinemaColors.textPrimary,
   },
   optionsRow: {
     flexDirection: 'row',
@@ -363,33 +363,33 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: '#363D52',
+    borderColor: CinemaColors.borderLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 8,
-    backgroundColor: '#12141C',
+    backgroundColor: CinemaColors.surface,
   },
   checkboxChecked: {
-    backgroundColor: '#FF334B',
-    borderColor: '#FF334B',
+    backgroundColor: CinemaColors.primary,
+    borderColor: CinemaColors.primary,
   },
   rememberMeText: {
     fontSize: 13,
-    color: '#9BA1B2',
+    color: CinemaColors.textCheckbox,
   },
   forgotPasswordText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#FF4D63',
+    color: CinemaColors.primary,
   },
   primaryButton: {
     height: 52,
     borderRadius: 14,
-    backgroundColor: '#FF334B',
+    backgroundColor: CinemaColors.primary,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF334B',
+    shadowColor: CinemaColors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: CinemaColors.textPrimary,
     letterSpacing: 0.5,
   },
   buttonIcon: {
@@ -415,12 +415,12 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#1E2332',
+    backgroundColor: CinemaColors.border,
   },
   dividerText: {
     marginHorizontal: 12,
     fontSize: 12,
-    color: '#656D82',
+    color: CinemaColors.textDivider,
     fontWeight: '500',
   },
   socialRow: {
@@ -434,16 +434,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 48,
-    backgroundColor: '#141722',
+    backgroundColor: CinemaColors.surfaceSocial,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#222838',
+    borderColor: CinemaColors.borderLight,
     gap: 8,
   },
   socialButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#E1E4EC',
+    color: CinemaColors.textTertiary,
   },
   guestButton: {
     alignItems: 'center',
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
   },
   guestButtonText: {
     fontSize: 13,
-    color: '#767F94',
+    color: CinemaColors.textGuest,
     fontWeight: '500',
   },
   footer: {
@@ -464,11 +464,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#8E95A5',
+    color: CinemaColors.textSecondary,
   },
   footerLink: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FF334B',
+    color: CinemaColors.primary,
   },
 });

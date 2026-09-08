@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { CinemaColors } from '@/constants/theme';
 
 export default function AuthLayout() {
   return (
@@ -8,7 +9,7 @@ export default function AuthLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#090A0F' },
+          contentStyle: { backgroundColor: CinemaColors.background },
           animation: 'fade_from_bottom',
         }}
       >

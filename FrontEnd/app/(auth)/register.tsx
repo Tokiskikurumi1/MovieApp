@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { CinemaColors } from '@/constants/theme';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -30,10 +31,10 @@ export default function RegisterScreen() {
 
   // Password strength calculation
   const getPasswordStrength = () => {
-    if (password.length === 0) return { label: '', color: '#5A6175', score: 0 };
-    if (password.length < 6) return { label: 'Yếu', color: '#EF4444', score: 1 };
-    if (password.length < 10) return { label: 'Trung bình', color: '#F59E0B', score: 2 };
-    return { label: 'Mạnh', color: '#10B981', score: 3 };
+    if (password.length === 0) return { label: '', color: CinemaColors.textMuted, score: 0 };
+    if (password.length < 6) return { label: 'Yếu', color: CinemaColors.error, score: 1 };
+    if (password.length < 10) return { label: 'Trung bình', color: CinemaColors.warning, score: 2 };
+    return { label: 'Mạnh', color: CinemaColors.success, score: 3 };
   };
 
   const strength = getPasswordStrength();
@@ -94,13 +95,13 @@ export default function RegisterScreen() {
               onPress={() => router.back()}
               activeOpacity={0.7}
             >
-              <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+              <Ionicons name="chevron-back" size={22} color={CinemaColors.textPrimary} />
             </TouchableOpacity>
 
             <View style={styles.topBrand}>
-              <Ionicons name="film" size={18} color="#FF334B" />
+              <Ionicons name="film" size={18} color={CinemaColors.primary} />
               <Text style={styles.topBrandText}>
-                CINE<Text style={{ color: '#FF334B' }}>STREAM</Text>
+                CINE<Text style={{ color: CinemaColors.primary }}>STREAM</Text>
               </Text>
             </View>
 
@@ -129,13 +130,13 @@ export default function RegisterScreen() {
                 <Ionicons
                   name="person-outline"
                   size={20}
-                  color={focusedInput === 'fullName' ? '#FF334B' : '#7D8494'}
+                  color={focusedInput === 'fullName' ? CinemaColors.primary : CinemaColors.textMuted}
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
                   placeholder="Nguyễn Văn A"
-                  placeholderTextColor="#5A6175"
+                  placeholderTextColor={CinemaColors.textMuted}
                   value={fullName}
                   onChangeText={setFullName}
                   onFocus={() => setFocusedInput('fullName')}
@@ -156,13 +157,13 @@ export default function RegisterScreen() {
                 <Ionicons
                   name="mail-outline"
                   size={20}
-                  color={focusedInput === 'email' ? '#FF334B' : '#7D8494'}
+                  color={focusedInput === 'email' ? CinemaColors.primary : CinemaColors.textMuted}
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
                   placeholder="example@movie.com"
-                  placeholderTextColor="#5A6175"
+                  placeholderTextColor={CinemaColors.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
@@ -192,13 +193,13 @@ export default function RegisterScreen() {
                 <Ionicons
                   name="lock-closed-outline"
                   size={20}
-                  color={focusedInput === 'password' ? '#FF334B' : '#7D8494'}
+                  color={focusedInput === 'password' ? CinemaColors.primary : CinemaColors.textMuted}
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
                   placeholder="Tối thiểu 6 ký tự"
-                  placeholderTextColor="#5A6175"
+                  placeholderTextColor={CinemaColors.textMuted}
                   secureTextEntry={!showPassword}
                   value={password}
                   onChangeText={setPassword}
@@ -212,7 +213,7 @@ export default function RegisterScreen() {
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
-                    color="#7D8494"
+                    color={CinemaColors.textSecondary}
                   />
                 </TouchableOpacity>
               </View>
@@ -250,13 +251,13 @@ export default function RegisterScreen() {
                 <Ionicons
                   name="shield-checkmark-outline"
                   size={20}
-                  color={focusedInput === 'confirmPassword' ? '#FF334B' : '#7D8494'}
+                  color={focusedInput === 'confirmPassword' ? CinemaColors.primary : CinemaColors.textMuted}
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
                   placeholder="Nhập lại mật khẩu"
-                  placeholderTextColor="#5A6175"
+                  placeholderTextColor={CinemaColors.textMuted}
                   secureTextEntry={!showConfirmPassword}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -264,7 +265,7 @@ export default function RegisterScreen() {
                   onBlur={() => setFocusedInput(null)}
                 />
                 {confirmPassword.length > 0 && confirmPassword === password && (
-                  <Ionicons name="checkmark-circle" size={20} color="#10B981" style={{ marginRight: 6 }} />
+                  <Ionicons name="checkmark-circle" size={20} color={CinemaColors.success} style={{ marginRight: 6 }} />
                 )}
                 <TouchableOpacity
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -273,7 +274,7 @@ export default function RegisterScreen() {
                   <Ionicons
                     name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
-                    color="#7D8494"
+                    color={CinemaColors.textSecondary}
                   />
                 </TouchableOpacity>
               </View>
@@ -286,7 +287,7 @@ export default function RegisterScreen() {
               onPress={() => setAgreeTerms(!agreeTerms)}
             >
               <View style={[styles.checkbox, agreeTerms && styles.checkboxChecked]}>
-                {agreeTerms && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                {agreeTerms && <Ionicons name="checkmark" size={14} color={CinemaColors.textPrimary} />}
               </View>
               <Text style={styles.termsText}>
                 Tôi đồng ý với{' '}
@@ -303,11 +304,11 @@ export default function RegisterScreen() {
               activeOpacity={0.85}
             >
               {isLoading ? (
-                <ActivityIndicator color="#FFF" size="small" />
+                <ActivityIndicator color={CinemaColors.textPrimary} size="small" />
               ) : (
                 <>
                   <Text style={styles.primaryButtonText}>Đăng Ký Tài Khoản</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#FFF" style={styles.buttonIcon} />
+                  <Ionicons name="arrow-forward" size={18} color={CinemaColors.textPrimary} style={styles.buttonIcon} />
                 </>
               )}
             </TouchableOpacity>
@@ -322,12 +323,12 @@ export default function RegisterScreen() {
             {/* Quick Social */}
             <View style={styles.socialRow}>
               <TouchableOpacity style={styles.socialButton} activeOpacity={0.75}>
-                <Ionicons name="logo-google" size={20} color="#EA4335" />
+                <Ionicons name="logo-google" size={20} color={CinemaColors.google} />
                 <Text style={styles.socialButtonText}>Google</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.socialButton} activeOpacity={0.75}>
-                <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
+                <Ionicons name="logo-apple" size={20} color={CinemaColors.apple} />
                 <Text style={styles.socialButtonText}>Apple</Text>
               </TouchableOpacity>
             </View>
@@ -349,7 +350,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#090A0F',
+    backgroundColor: CinemaColors.background,
   },
   keyboardView: {
     flex: 1,
@@ -367,7 +368,7 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: 'rgba(255, 51, 75, 0.12)',
+    backgroundColor: CinemaColors.glowTopRight,
   },
   glowBottomLeft: {
     position: 'absolute',
@@ -376,7 +377,7 @@ const styles = StyleSheet.create({
     width: 240,
     height: 240,
     borderRadius: 120,
-    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+    backgroundColor: CinemaColors.glowBottomLeft,
   },
   topBar: {
     flexDirection: 'row',
@@ -388,9 +389,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#141722',
+    backgroundColor: CinemaColors.surfaceSocial,
     borderWidth: 1,
-    borderColor: '#222838',
+    borderColor: CinemaColors.borderLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -402,7 +403,7 @@ const styles = StyleSheet.create({
   topBrandText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: CinemaColors.textPrimary,
     letterSpacing: 1.5,
   },
   headerSection: {
@@ -411,12 +412,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: CinemaColors.textPrimary,
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
-    color: '#8E95A5',
+    color: CinemaColors.textSecondary,
     lineHeight: 20,
   },
   formContainer: {
@@ -433,7 +434,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#C5C9D5',
+    color: CinemaColors.textTertiary,
     marginBottom: 8,
   },
   strengthText: {
@@ -444,16 +445,16 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#12141C',
+    backgroundColor: CinemaColors.surface,
     borderRadius: 14,
     borderWidth: 1.2,
-    borderColor: '#1F2433',
+    borderColor: CinemaColors.border,
     paddingHorizontal: 14,
     height: 52,
   },
   inputWrapperFocused: {
-    borderColor: '#FF334B',
-    backgroundColor: '#151824',
+    borderColor: CinemaColors.borderActive,
+    backgroundColor: CinemaColors.surfaceFocused,
   },
   inputIcon: {
     marginRight: 10,
@@ -461,11 +462,11 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CinemaColors.textPrimary,
   },
   strengthBarContainer: {
     height: 4,
-    backgroundColor: '#1E2332',
+    backgroundColor: CinemaColors.border,
     borderRadius: 2,
     marginTop: 6,
     overflow: 'hidden',
@@ -485,35 +486,35 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: '#363D52',
+    borderColor: CinemaColors.borderLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
     marginTop: 2,
-    backgroundColor: '#12141C',
+    backgroundColor: CinemaColors.surface,
   },
   checkboxChecked: {
-    backgroundColor: '#FF334B',
-    borderColor: '#FF334B',
+    backgroundColor: CinemaColors.primary,
+    borderColor: CinemaColors.primary,
   },
   termsText: {
     flex: 1,
     fontSize: 13,
-    color: '#9BA1B2',
+    color: CinemaColors.textCheckbox,
     lineHeight: 18,
   },
   termsHighlight: {
-    color: '#FF4D63',
+    color: CinemaColors.primary,
     fontWeight: '600',
   },
   primaryButton: {
     height: 52,
     borderRadius: 14,
-    backgroundColor: '#FF334B',
+    backgroundColor: CinemaColors.primary,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF334B',
+    shadowColor: CinemaColors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
@@ -525,7 +526,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: CinemaColors.textPrimary,
     letterSpacing: 0.5,
   },
   buttonIcon: {
@@ -539,12 +540,12 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#1E2332',
+    backgroundColor: CinemaColors.border,
   },
   dividerText: {
     marginHorizontal: 12,
     fontSize: 12,
-    color: '#656D82',
+    color: CinemaColors.textDivider,
     fontWeight: '500',
   },
   socialRow: {
@@ -557,16 +558,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 48,
-    backgroundColor: '#141722',
+    backgroundColor: CinemaColors.surfaceSocial,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#222838',
+    borderColor: CinemaColors.borderLight,
     gap: 8,
   },
   socialButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#E1E4EC',
+    color: CinemaColors.textTertiary,
   },
   footer: {
     flexDirection: 'row',
@@ -576,11 +577,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#8E95A5',
+    color: CinemaColors.textSecondary,
   },
   footerLink: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FF334B',
+    color: CinemaColors.primary,
   },
 });

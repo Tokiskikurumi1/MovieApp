@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { CinemaColors } from '@/constants/theme';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -132,13 +133,13 @@ export default function ForgotPasswordScreen() {
               }}
               activeOpacity={0.7}
             >
-              <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+              <Ionicons name="chevron-back" size={22} color={CinemaColors.textPrimary} />
             </TouchableOpacity>
 
             <View style={styles.topBrand}>
-              <Ionicons name="film" size={18} color="#FF334B" />
+              <Ionicons name="film" size={18} color={CinemaColors.primary} />
               <Text style={styles.topBrandText}>
-                CINE<Text style={{ color: '#FF334B' }}>STREAM</Text>
+                CINE<Text style={{ color: CinemaColors.primary }}>STREAM</Text>
               </Text>
             </View>
 
@@ -151,7 +152,7 @@ export default function ForgotPasswordScreen() {
               <Ionicons
                 name={step === 1 ? 'key-outline' : 'shield-checkmark-outline'}
                 size={34}
-                color="#FF334B"
+                color={CinemaColors.primary}
               />
             </View>
           </View>
@@ -182,13 +183,13 @@ export default function ForgotPasswordScreen() {
                   <Ionicons
                     name="mail-outline"
                     size={20}
-                    color={focusedInput === 'email' ? '#FF334B' : '#7D8494'}
+                    color={focusedInput === 'email' ? CinemaColors.primary : CinemaColors.textMuted}
                     style={styles.inputIcon}
                   />
                   <TextInput
                     style={styles.input}
                     placeholder="Nhập email của bạn"
-                    placeholderTextColor="#5A6175"
+                    placeholderTextColor={CinemaColors.textMuted}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     value={email}
@@ -198,7 +199,7 @@ export default function ForgotPasswordScreen() {
                   />
                   {email.length > 0 && (
                     <TouchableOpacity onPress={() => setEmail('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                      <Ionicons name="close-circle" size={18} color="#5A6175" />
+                      <Ionicons name="close-circle" size={18} color={CinemaColors.textMuted} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -211,11 +212,11 @@ export default function ForgotPasswordScreen() {
                 activeOpacity={0.85}
               >
                 {isLoading ? (
-                  <ActivityIndicator color="#FFF" size="small" />
+                  <ActivityIndicator color={CinemaColors.textPrimary} size="small" />
                 ) : (
                   <>
                     <Text style={styles.primaryButtonText}>Gửi Mã Xác Nhận</Text>
-                    <Ionicons name="arrow-forward" size={18} color="#FFF" style={styles.buttonIcon} />
+                    <Ionicons name="arrow-forward" size={18} color={CinemaColors.textPrimary} style={styles.buttonIcon} />
                   </>
                 )}
               </TouchableOpacity>
@@ -276,13 +277,13 @@ export default function ForgotPasswordScreen() {
                   <Ionicons
                     name="lock-closed-outline"
                     size={20}
-                    color={focusedInput === 'newPassword' ? '#FF334B' : '#7D8494'}
+                    color={focusedInput === 'newPassword' ? CinemaColors.primary : CinemaColors.textMuted}
                     style={styles.inputIcon}
                   />
                   <TextInput
                     style={styles.input}
                     placeholder="Nhập mật khẩu mới"
-                    placeholderTextColor="#5A6175"
+                    placeholderTextColor={CinemaColors.textMuted}
                     secureTextEntry={!showPassword}
                     value={newPassword}
                     onChangeText={setNewPassword}
@@ -296,7 +297,7 @@ export default function ForgotPasswordScreen() {
                     <Ionicons
                       name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                       size={20}
-                      color="#7D8494"
+                      color={CinemaColors.textSecondary}
                     />
                   </TouchableOpacity>
                 </View>
@@ -314,13 +315,13 @@ export default function ForgotPasswordScreen() {
                   <Ionicons
                     name="shield-checkmark-outline"
                     size={20}
-                    color={focusedInput === 'confirmNewPassword' ? '#FF334B' : '#7D8494'}
+                    color={focusedInput === 'confirmNewPassword' ? CinemaColors.primary : CinemaColors.textMuted}
                     style={styles.inputIcon}
                   />
                   <TextInput
                     style={styles.input}
                     placeholder="Nhập lại mật khẩu mới"
-                    placeholderTextColor="#5A6175"
+                    placeholderTextColor={CinemaColors.textMuted}
                     secureTextEntry={!showPassword}
                     value={confirmNewPassword}
                     onChangeText={setConfirmNewPassword}
@@ -337,11 +338,11 @@ export default function ForgotPasswordScreen() {
                 activeOpacity={0.85}
               >
                 {isLoading ? (
-                  <ActivityIndicator color="#FFF" size="small" />
+                  <ActivityIndicator color={CinemaColors.textPrimary} size="small" />
                 ) : (
                   <>
                     <Text style={styles.primaryButtonText}>Đặt Lại Mật Khẩu</Text>
-                    <Ionicons name="checkmark-circle" size={18} color="#FFF" style={styles.buttonIcon} />
+                    <Ionicons name="checkmark-circle" size={18} color={CinemaColors.textPrimary} style={styles.buttonIcon} />
                   </>
                 )}
               </TouchableOpacity>
@@ -364,7 +365,7 @@ export default function ForgotPasswordScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#090A0F',
+    backgroundColor: CinemaColors.background,
   },
   keyboardView: {
     flex: 1,
@@ -382,7 +383,7 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: 'rgba(255, 51, 75, 0.12)',
+    backgroundColor: CinemaColors.glowTopRight,
   },
   glowBottomLeft: {
     position: 'absolute',
@@ -391,7 +392,7 @@ const styles = StyleSheet.create({
     width: 240,
     height: 240,
     borderRadius: 120,
-    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+    backgroundColor: CinemaColors.glowBottomLeft,
   },
   topBar: {
     flexDirection: 'row',
@@ -403,9 +404,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#141722',
+    backgroundColor: CinemaColors.surfaceSocial,
     borderWidth: 1,
-    borderColor: '#222838',
+    borderColor: CinemaColors.borderLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -417,7 +418,7 @@ const styles = StyleSheet.create({
   topBrandText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: CinemaColors.textPrimary,
     letterSpacing: 1.5,
   },
   iconBadgeContainer: {
@@ -428,9 +429,9 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 24,
-    backgroundColor: 'rgba(255, 51, 75, 0.12)',
+    backgroundColor: CinemaColors.primaryLight,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 51, 75, 0.3)',
+    borderColor: CinemaColors.primaryBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -442,13 +443,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: CinemaColors.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#8E95A5',
+    color: CinemaColors.textSecondary,
     lineHeight: 20,
     textAlign: 'center',
   },
@@ -461,22 +462,22 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#C5C9D5',
+    color: CinemaColors.textTertiary,
     marginBottom: 8,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#12141C',
+    backgroundColor: CinemaColors.surface,
     borderRadius: 14,
     borderWidth: 1.2,
-    borderColor: '#1F2433',
+    borderColor: CinemaColors.border,
     paddingHorizontal: 14,
     height: 52,
   },
   inputWrapperFocused: {
-    borderColor: '#FF334B',
-    backgroundColor: '#151824',
+    borderColor: CinemaColors.borderActive,
+    backgroundColor: CinemaColors.surfaceFocused,
   },
   inputIcon: {
     marginRight: 10,
@@ -484,7 +485,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: CinemaColors.textPrimary,
   },
   otpRow: {
     flexDirection: 'row',
@@ -496,16 +497,16 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 56,
     borderRadius: 14,
-    backgroundColor: '#12141C',
+    backgroundColor: CinemaColors.surface,
     borderWidth: 1.5,
-    borderColor: '#1F2433',
+    borderColor: CinemaColors.border,
     fontSize: 22,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: CinemaColors.textPrimary,
   },
   otpBoxFilled: {
-    borderColor: '#FF334B',
-    backgroundColor: '#151824',
+    borderColor: CinemaColors.borderActive,
+    backgroundColor: CinemaColors.surfaceFocused,
   },
   resendRow: {
     flexDirection: 'row',
@@ -515,25 +516,25 @@ const styles = StyleSheet.create({
   },
   resendText: {
     fontSize: 13,
-    color: '#8E95A5',
+    color: CinemaColors.textSecondary,
   },
   resendLink: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#FF334B',
+    color: CinemaColors.primary,
   },
   resendLinkDisabled: {
-    color: '#5A6175',
+    color: CinemaColors.textMuted,
   },
   primaryButton: {
     height: 52,
     borderRadius: 14,
-    backgroundColor: '#FF334B',
+    backgroundColor: CinemaColors.primary,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: '#FF334B',
+    shadowColor: CinemaColors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
@@ -545,7 +546,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: CinemaColors.textPrimary,
     letterSpacing: 0.5,
   },
   buttonIcon: {
@@ -559,11 +560,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#8E95A5',
+    color: CinemaColors.textSecondary,
   },
   footerLink: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FF334B',
+    color: CinemaColors.primary,
   },
 });
