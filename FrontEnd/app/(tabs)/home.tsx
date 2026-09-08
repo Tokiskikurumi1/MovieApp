@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -228,6 +228,25 @@ export default function HomeScreen() {
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
 
+  const heroFlatListRef = useRef<FlatList>(null);
+  const activeHeroIndexRef = useRef(activeHeroIndex);
+  activeHeroIndexRef.current = activeHeroIndex;
+
+  // Tự động cuộn sang phim tiếp theo sau mỗi 5 giây
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!FEATURED_MOVIES.length) return;
+      const nextIndex = (activeHeroIndexRef.current + 1) % FEATURED_MOVIES.length;
+      heroFlatListRef.current?.scrollToIndex({
+        index: nextIndex,
+        animated: true,
+      });
+      setActiveHeroIndex(nextIndex);
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const toggleBookmark = (id: string) => {
     setBookmarkedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
@@ -277,6 +296,7 @@ export default function HomeScreen() {
         {/* ----------------- HERO FEATURED BANNER (SWIPEABLE CAROUSEL) ----------------- */}
         <View style={styles.heroCarouselContainer}>
           <FlatList
+            ref={heroFlatListRef}
             data={FEATURED_MOVIES}
             keyExtractor={(item) => item.id}
             horizontal
@@ -287,6 +307,19 @@ export default function HomeScreen() {
             decelerationRate="fast"
             snapToInterval={SCREEN_WIDTH}
             snapToAlignment="center"
+            getItemLayout={(_, index) => ({
+              length: SCREEN_WIDTH,
+              offset: SCREEN_WIDTH * index,
+              index,
+            })}
+            onScrollToIndexFailed={(info) => {
+              setTimeout(() => {
+                heroFlatListRef.current?.scrollToIndex({
+                  index: info.index,
+                  animated: true,
+                });
+              }, 100);
+            }}
             renderItem={({ item }) => {
               const isSaved = bookmarkedIds.includes(item.id);
               return (
@@ -595,7 +628,7 @@ const styles = StyleSheet.create({
     backgroundColor: CinemaColors.background,
   },
   scrollContent: {
-    paddingBottom: 24,
+    paddingBottom: 15,
   },
   /* Top App Bar */
   appBar: {

@@ -46,6 +46,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="favorite"
+        options={{
+          title: 'Yêu thích',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'heart' : 'heart-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Tài khoản',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="home"
         options={{
           href: null, // Ẩn tab trùng lặp, index đã trỏ vào home
