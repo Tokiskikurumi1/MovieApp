@@ -9,6 +9,7 @@ import {
   Image,
   Switch,
   StatusBar,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -20,8 +21,10 @@ export default function ProfileScreen() {
   const [wifiOnlyDownload, setWifiOnlyDownload] = useState(true);
   const [autoPlayNext, setAutoPlayNext] = useState(true);
   const [notifications, setNotifications] = useState(true);
+  const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
 
-  const handleLogout = () => {
+  const handleConfirmLogout = () => {
+    setIsLogoutModalVisible(false);
     router.replace('/(auth)/login' as any);
   };
 
@@ -114,7 +117,11 @@ export default function ProfileScreen() {
         </View>
 
         {/* Premium Upgrade Banner */}
-        <TouchableOpacity style={styles.premiumBanner} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={styles.premiumBanner}
+          activeOpacity={0.85}
+          onPress={() => router.push('/billing-subscription' as any)}
+        >
           <View style={styles.premiumLeft}>
             <View style={styles.premiumIconBox}>
               <Ionicons name="sparkles" size={22} color="#FFD700" />
@@ -207,7 +214,11 @@ export default function ProfileScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.settingLinkRow} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.settingLinkRow}
+              activeOpacity={0.7}
+              onPress={() => router.push('/billing-subscription' as any)}
+            >
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>
                   <Ionicons name="card-outline" size={18} color={CinemaColors.primary} />
@@ -224,7 +235,11 @@ export default function ProfileScreen() {
           <Text style={styles.sectionHeading}>HỖ TRỢ & ĐIỀU KHOẢN</Text>
 
           <View style={styles.settingCard}>
-            <TouchableOpacity style={styles.settingLinkRow} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.settingLinkRow}
+              activeOpacity={0.7}
+              onPress={() => router.push('/help-center' as any)}
+            >
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>
                   <Ionicons name="help-circle-outline" size={18} color={CinemaColors.primary} />
@@ -236,7 +251,11 @@ export default function ProfileScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.settingLinkRow} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.settingLinkRow}
+              activeOpacity={0.7}
+              onPress={() => router.push('/terms-privacy' as any)}
+            >
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>
                   <Ionicons name="document-text-outline" size={18} color={CinemaColors.primary} />
@@ -251,7 +270,7 @@ export default function ProfileScreen() {
         {/* Logout Button */}
         <TouchableOpacity
           style={styles.logoutButton}
-          onPress={handleLogout}
+          onPress={() => setIsLogoutModalVisible(true)}
           activeOpacity={0.85}
         >
           <Ionicons name="log-out-outline" size={20} color={CinemaColors.error} />
@@ -261,6 +280,57 @@ export default function ProfileScreen() {
         {/* Version */}
         <Text style={styles.versionText}>CINESTREAM v2.4.0 (Build 2026)</Text>
       </ScrollView>
+
+      {/* ============================================================= */}
+      {/* MODAL: XÁC NHẬN ĐĂNG XUẤT (CENTERED POPUP MODAL)             */}
+      {/* ============================================================= */}
+      <Modal
+        visible={isLogoutModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsLogoutModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setIsLogoutModalVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.logoutModalCard}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Top Red Glow Icon */}
+            <View style={styles.logoutIconGlow}>
+              <Ionicons name="log-out-outline" size={28} color={CinemaColors.error} />
+            </View>
+
+            <Text style={styles.logoutModalTitle}>Đăng Xuất</Text>
+            <Text style={styles.logoutModalMessage}>
+              Bạn có chắc chắn muốn đăng xuất khỏi tài khoản không?
+            </Text>
+
+            {/* Action Buttons */}
+            <View style={styles.logoutModalButtonsRow}>
+              <TouchableOpacity
+                style={styles.cancelLogoutBtn}
+                activeOpacity={0.8}
+                onPress={() => setIsLogoutModalVisible(false)}
+              >
+                <Text style={styles.cancelLogoutText}>Hủy</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmLogoutBtn}
+                activeOpacity={0.85}
+                onPress={handleConfirmLogout}
+              >
+                <Text style={styles.confirmLogoutText}>Đăng Xuất</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -537,5 +607,83 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 11,
     color: CinemaColors.textMuted,
+  },
+
+  /* Centered Logout Modal Styles */
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 28,
+  },
+  logoutModalCard: {
+    width: '100%',
+    backgroundColor: CinemaColors.surface,
+    borderRadius: 22,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+  logoutIconGlow: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  logoutModalTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  logoutModalMessage: {
+    fontSize: 13.5,
+    color: CinemaColors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 22,
+  },
+  logoutModalButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  cancelLogoutBtn: {
+    flex: 1,
+    backgroundColor: CinemaColors.surfaceElevated,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: CinemaColors.border,
+  },
+  cancelLogoutText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: CinemaColors.textPrimary,
+  },
+  confirmLogoutBtn: {
+    flex: 1,
+    backgroundColor: CinemaColors.error,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  confirmLogoutText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
