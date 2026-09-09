@@ -295,7 +295,7 @@ export default function ExploreScreen() {
       <View style={styles.appBar}>
         <BrandLogo layout="horizontal" size="small" showTagline={false} />
 
-        <TouchableOpacity style={styles.avatarButton} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.avatarButton} activeOpacity={0.8} onPress={() => router.push('/(tabs)/profile' as any)}>
           <Image
             source={{
               uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',

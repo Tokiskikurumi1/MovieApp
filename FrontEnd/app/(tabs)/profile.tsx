@@ -68,6 +68,43 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* User Stats Card (Số giờ xem, Phim đã xem, Yêu thích) */}
+        <View style={styles.statsCard}>
+          <View style={styles.statItem}>
+            <View style={styles.statIconBadge}>
+              <Ionicons name="time" size={16} color={CinemaColors.primary} />
+            </View>
+            <Text style={styles.statValue}>
+              184<Text style={styles.statUnit}>h</Text>
+            </Text>
+            <Text style={styles.statLabel}>Số giờ xem</Text>
+          </View>
+
+          <View style={styles.statDivider} />
+
+          <View style={styles.statItem}>
+            <View style={styles.statIconBadge}>
+              <Ionicons name="play-circle" size={17} color={CinemaColors.primary} />
+            </View>
+            <Text style={styles.statValue}>96</Text>
+            <Text style={styles.statLabel}>Phim đã xem</Text>
+          </View>
+
+          <View style={styles.statDivider} />
+
+          <TouchableOpacity
+            style={styles.statItem}
+            activeOpacity={0.75}
+            onPress={() => router.push('/(tabs)/favorite' as any)}
+          >
+            <View style={styles.statIconBadge}>
+              <Ionicons name="heart" size={16} color={CinemaColors.primary} />
+            </View>
+            <Text style={styles.statValue}>34</Text>
+            <Text style={styles.statLabel}>Yêu thích</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Premium Upgrade Banner */}
         <TouchableOpacity style={styles.premiumBanner} activeOpacity={0.85}>
           <View style={styles.premiumLeft}>
@@ -337,6 +374,58 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: CinemaColors.primary,
     fontWeight: '600',
+  },
+  /* Stats Card */
+  statsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: CinemaColors.surface,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: CinemaColors.border,
+    marginBottom: 16,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 51, 75, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 51, 75, 0.25)',
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: CinemaColors.textPrimary,
+    letterSpacing: 0.2,
+    marginBottom: 2,
+  },
+  statUnit: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: CinemaColors.textSecondary,
+  },
+  statLabel: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: CinemaColors.textSecondary,
+    textAlign: 'center',
+  },
+  statDivider: {
+    width: 1,
+    height: 38,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   premiumBanner: {
     flexDirection: 'row',

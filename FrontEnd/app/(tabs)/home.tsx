@@ -279,10 +279,11 @@ export default function HomeScreen() {
             <View style={styles.notificationBadge} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.avatarButton} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.avatarButton} activeOpacity={0.8} onPress={() => router.push('/(tabs)/profile' as any)}>
             <Image
               source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop' }}
               style={styles.avatarImage}
+              
             />
           </TouchableOpacity>
         </View>
@@ -499,7 +500,10 @@ export default function HomeScreen() {
               <View style={styles.sectionBarAccent} />
               <Text style={styles.sectionTitle}>Phim Thịnh Hành</Text>
             </View>
-            <TouchableOpacity activeOpacity={0.7}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/trending' as any)}
+            >
               <Text style={styles.seeAllText}>Xem tất cả</Text>
             </TouchableOpacity>
           </View>
