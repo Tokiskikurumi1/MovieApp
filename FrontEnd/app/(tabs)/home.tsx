@@ -454,7 +454,10 @@ export default function HomeScreen() {
               <View style={styles.sectionBarAccent} />
               <Text style={styles.sectionTitle}>Tiếp Tục Xem</Text>
             </View>
-            <TouchableOpacity activeOpacity={0.7}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/continue-watching' as any)}
+            >
               <Text style={styles.seeAllText}>Xem tất cả</Text>
             </TouchableOpacity>
           </View>
@@ -561,7 +564,19 @@ export default function HomeScreen() {
               <View style={styles.sectionBarAccent} />
               <Text style={styles.sectionTitle}>Phim Mới Ra</Text>
             </View>
-            <TouchableOpacity activeOpacity={0.7}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() =>
+                router.push({
+                  pathname: '/collection',
+                  params: {
+                    type: 'new-releases',
+                    title: 'Phim Mới Ra Mắt',
+                    subtitle: 'Cập nhật những siêu phẩm mới nhất hôm nay',
+                  },
+                })
+              }
+            >
               <Text style={styles.seeAllText}>Xem tất cả</Text>
             </TouchableOpacity>
           </View>
@@ -604,7 +619,19 @@ export default function HomeScreen() {
               <View style={styles.sectionBarAccent} />
               <Text style={styles.sectionTitle}>Gợi Ý Phim</Text>
             </View>
-            <TouchableOpacity activeOpacity={0.7}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() =>
+                router.push({
+                  pathname: '/collection',
+                  params: {
+                    type: 'recommended',
+                    title: 'Gợi Ý Phim Hay',
+                    subtitle: 'Tuyển chọn dành riêng cho bạn dựa trên lịch sử xem',
+                  },
+                })
+              }
+            >
               <Text style={styles.seeAllText}>Xem tất cả</Text>
             </TouchableOpacity>
           </View>
