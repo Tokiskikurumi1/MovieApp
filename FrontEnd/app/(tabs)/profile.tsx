@@ -32,7 +32,11 @@ export default function ProfileScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Tài Khoản</Text>
-        <TouchableOpacity style={styles.headerActionBtn} activeOpacity={0.75}>
+        <TouchableOpacity
+          style={styles.headerActionBtn}
+          activeOpacity={0.75}
+          onPress={() => router.push('/account-security' as any)}
+        >
           <Ionicons name="settings-outline" size={20} color={CinemaColors.textPrimary} />
         </TouchableOpacity>
       </View>
@@ -50,7 +54,11 @@ export default function ProfileScreen() {
               }}
               style={styles.avatarImage}
             />
-            <TouchableOpacity style={styles.editAvatarBadge} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.editAvatarBadge}
+              activeOpacity={0.8}
+              onPress={() => router.push('/account-security' as any)}
+            >
               <Ionicons name="camera" size={12} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
@@ -183,24 +191,16 @@ export default function ProfileScreen() {
           <Text style={styles.sectionHeading}>TÀI KHOẢN & BẢO MẬT</Text>
 
           <View style={styles.settingCard}>
-            <TouchableOpacity style={styles.settingLinkRow} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.settingLinkRow}
+              activeOpacity={0.7}
+              onPress={() => router.push('/account-security' as any)}
+            >
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>
-                  <Ionicons name="person-circle-outline" size={18} color={CinemaColors.primary} />
+                  <Ionicons name="shield-checkmark-outline" size={18} color={CinemaColors.primary} />
                 </View>
-                <Text style={styles.settingLabel}>Chỉnh sửa thông tin cá nhân</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={CinemaColors.textMuted} />
-            </TouchableOpacity>
-
-            <View style={styles.divider} />
-
-            <TouchableOpacity style={styles.settingLinkRow} activeOpacity={0.7}>
-              <View style={styles.settingRowLeft}>
-                <View style={styles.settingIconCircle}>
-                  <Ionicons name="lock-closed-outline" size={18} color={CinemaColors.primary} />
-                </View>
-                <Text style={styles.settingLabel}>Đổi mật khẩu</Text>
+                <Text style={styles.settingLabel}>Tài khoản & Bảo mật (Chi tiết)</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={CinemaColors.textMuted} />
             </TouchableOpacity>

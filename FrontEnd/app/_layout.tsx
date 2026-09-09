@@ -22,6 +22,7 @@ export default function RootLayout() {
         <Stack.Screen name="trending" options={{ headerShown: false }} />
         <Stack.Screen name="collection" options={{ headerShown: false }} />
         <Stack.Screen name="continue-watching" options={{ headerShown: false }} />
+        <Stack.Screen name="account-security" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />
