@@ -120,7 +120,10 @@ export default function MovieDetailScreen() {
   };
 
   const handleWatchMovie = () => {
-    Alert.alert('Bắt đầu xem', 'Đang kết nối luồng phát 4K Ultra HD...');
+    router.push({
+      pathname: '/watch/[id]',
+      params: { id: id || 'movie-1' },
+    });
   };
 
   const handleDownload = () => {

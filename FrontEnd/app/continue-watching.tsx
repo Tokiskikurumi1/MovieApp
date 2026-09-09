@@ -162,7 +162,7 @@ export default function ContinueWatchingScreen() {
               activeOpacity={0.8}
               onPress={() =>
                 router.push({
-                  pathname: '/movie/[id]',
+                  pathname: '/watch/[id]',
                   params: { id: item.movieId || item.id },
                 })
               }

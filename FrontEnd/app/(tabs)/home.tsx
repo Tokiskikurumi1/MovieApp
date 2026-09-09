@@ -369,7 +369,7 @@ export default function HomeScreen() {
                       <TouchableOpacity
                         style={styles.playButton}
                         activeOpacity={0.85}
-                        onPress={() => router.push({ pathname: '/movie/[id]', params: { id: item.id } })}
+                        onPress={() => router.push({ pathname: '/watch/[id]', params: { id: item.id } })}
                       >
                         <Ionicons name="play" size={20} color="#FFFFFF" />
                         <Text style={styles.playButtonText}>Xem Ngay</Text>
@@ -472,7 +472,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={styles.continueCard}
                 activeOpacity={0.85}
-                onPress={() => router.push({ pathname: '/movie/[id]', params: { id: item.id } })}
+                onPress={() => router.push({ pathname: '/watch/[id]', params: { id: item.id } })}
               >
                 <View style={styles.continueImageWrapper}>
                   <Image source={{ uri: item.image }} style={styles.continueImage} />
