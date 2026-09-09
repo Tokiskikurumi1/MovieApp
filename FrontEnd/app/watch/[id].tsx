@@ -16,7 +16,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  useWindowDimensions,
 } from 'react-native';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
@@ -252,11 +254,12 @@ const INITIAL_COMMENTS: CommentItemData[] = [
 export default function WatchMovieScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   // Tabs: 'overview' | 'comments'
   const [activeTab, setActiveTab] = useState<'overview' | 'comments'>('overview');
 
-  // Video Player State
+  // Video Player & Orientation State
   const [isPlaying, setIsPlaying] = useState(true);
   const [showControls, setShowControls] = useState(true);
   const [currentTime, setCurrentTime] = useState('04:35');
@@ -264,6 +267,57 @@ export default function WatchMovieScreen() {
   const [progressRatio, setProgressRatio] = useState(0.2); // 20%
   const [selectedQuality, setSelectedQuality] = useState('1080P');
   const [isQualityModalVisible, setIsQualityModalVisible] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Orientation listener & cleanup
+  useEffect(() => {
+    const subscription = ScreenOrientation.addOrientationChangeListener((event) => {
+      const orientation = event.orientationInfo.orientation;
+      if (
+        orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
+        orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT
+      ) {
+        setIsFullscreen(true);
+      } else if (
+        orientation === ScreenOrientation.Orientation.PORTRAIT_UP ||
+        orientation === ScreenOrientation.Orientation.PORTRAIT_DOWN
+      ) {
+        setIsFullscreen(false);
+      }
+    });
+
+    return () => {
+      ScreenOrientation.removeOrientationChangeListener(subscription);
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    };
+  }, []);
+
+  const handleToggleFullscreen = async () => {
+    try {
+      if (isFullscreen) {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+        setIsFullscreen(false);
+      } else {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT);
+        setIsFullscreen(true);
+      }
+    } catch (error) {
+      console.warn('Error toggling screen orientation:', error);
+    }
+  };
+
+  const handlePlayerBack = async () => {
+    if (isFullscreen) {
+      try {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+        setIsFullscreen(false);
+      } catch (error) {
+        console.warn('Error resetting orientation:', error);
+      }
+    } else {
+      router.back();
+    }
+  };
 
   // Episodes & Season State
   const [selectedSeason, setSelectedSeason] = useState<'Mùa 1' | 'Mùa 2'>('Mùa 2');
@@ -474,12 +528,26 @@ export default function WatchMovieScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
-      <StatusBar barStyle="light-content" backgroundColor="#000000" />
+      <StatusBar hidden={isFullscreen} barStyle="light-content" backgroundColor="#000000" />
 
       {/* ============================================================= */}
-      {/* 1. TOP VIDEO PLAYER CONTAINER (16:9 RATIO - STAYS ON TOP)     */}
+      {/* 1. TOP VIDEO PLAYER CONTAINER (16:9 RATIO / FULLSCREEN)       */}
       {/* ============================================================= */}
-      <View style={styles.videoPlayerContainer}>
+      <View
+        style={[
+          styles.videoPlayerContainer,
+          isFullscreen && {
+            width: windowWidth,
+            height: windowHeight,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 999,
+          },
+        ]}
+      >
         {/* Main Video Scene Background Image */}
         <Image
           source={{
@@ -500,7 +568,7 @@ export default function WatchMovieScreen() {
               <View style={styles.playerTopBar}>
                 <TouchableOpacity
                   style={styles.playerIconButton}
-                  onPress={() => router.back()}
+                  onPress={handlePlayerBack}
                   activeOpacity={0.7}
                 >
                   <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
@@ -511,14 +579,6 @@ export default function WatchMovieScreen() {
                 </Text>
 
                 <View style={styles.playerTopRight}>
-                  <TouchableOpacity
-                    style={styles.playerIconButton}
-                    activeOpacity={0.7}
-                    onPress={() => Alert.alert('Truyền màn hình', 'Đang quét thiết bị AirPlay / Chromecast...')}
-                  >
-                    <Ionicons name="tv-outline" size={20} color="#FFFFFF" />
-                  </TouchableOpacity>
-
                   <TouchableOpacity
                     style={styles.playerIconButton}
                     activeOpacity={0.7}
@@ -586,9 +646,13 @@ export default function WatchMovieScreen() {
                 <TouchableOpacity
                   style={styles.fullscreenBtn}
                   activeOpacity={0.75}
-                  onPress={() => Alert.alert('Toàn màn hình', 'Đang xoay ngang màn hình phát 4K...')}
+                  onPress={handleToggleFullscreen}
                 >
-                  <Ionicons name="scan-outline" size={18} color="#FFFFFF" />
+                  <Ionicons
+                    name={isFullscreen ? 'contract-outline' : 'scan-outline'}
+                    size={isFullscreen ? 20 : 18}
+                    color="#FFFFFF"
+                  />
                 </TouchableOpacity>
               </View>
             </View>
@@ -596,460 +660,462 @@ export default function WatchMovieScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ============================================================= */}
-      {/* 2. TAB HEADER: GIỚI THIỆU / BÌNH LUẬN 761                     */}
-      {/* ============================================================= */}
-      <View style={styles.tabHeader}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'overview' && styles.tabButtonActive]}
-          onPress={() => setActiveTab('overview')}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.tabButtonText, activeTab === 'overview' && styles.tabButtonTextActive]}>
-            Giới thiệu
-          </Text>
-          {activeTab === 'overview' && <View style={styles.activeTabIndicator} />}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'comments' && styles.tabButtonActive]}
-          onPress={() => setActiveTab('comments')}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.tabButtonText, activeTab === 'comments' && styles.tabButtonTextActive]}>
-            Bình luận <Text style={styles.commentCountText}>761</Text>
-          </Text>
-          {activeTab === 'comments' && <View style={styles.activeTabIndicator} />}
-        </TouchableOpacity>
-      </View>
-
-      {/* ============================================================= */}
-      {/* 3. TAB 1 CONTENT: GIỚI THIỆU & TẬP PHIM & ĐỀ XUẤT             */}
-      {/* ============================================================= */}
-      {activeTab === 'overview' ? (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {/* Main Title & Views Row */}
-          <View style={styles.titleSection}>
-            <Text style={styles.mainTitle}>Nông Dân Nhàn Nhã Ở Dị Giới - Mùa 2</Text>
-
+      {!isFullscreen && (
+        <>
+          {/* ============================================================= */}
+          {/* 2. TAB HEADER: GIỚI THIỆU / BÌNH LUẬN 761                     */}
+          {/* ============================================================= */}
+          <View style={styles.tabHeader}>
             <TouchableOpacity
-              style={styles.viewsAndMoreRow}
-              activeOpacity={0.7}
-              onPress={() => setIsSynopsisExpanded(!isSynopsisExpanded)}
-            >
-              <View style={styles.viewsLeft}>
-                <Ionicons name="play-outline" size={14} color={CinemaColors.textSecondary} />
-                <Text style={styles.viewsText}>5.1M</Text>
-              </View>
-              <Ionicons
-                name={isSynopsisExpanded ? 'chevron-up' : 'chevron-forward'}
-                size={16}
-                color={CinemaColors.textSecondary}
-              />
-            </TouchableOpacity>
-
-            {/* Expandable Synopsis / Details */}
-            {isSynopsisExpanded && (
-              <View style={styles.synopsisCard}>
-                <Text style={styles.synopsisText}>
-                  Sau khi qua đời vì bạo bệnh, Machio Hiraku được thần linh hồi sinh tại một dị giới xa xôi với một cơ
-                  thể khỏe mạnh và công cụ nông nghiệp toàn năng. Mùa 2 tiếp tục câu chuyện mở rộng ngôi làng, tiếp đón
-                  thêm các cư dân tộc Elf, Beastman và tộc Dwarf Trưởng lão Donoban!
-                </Text>
-                <View style={styles.metaTagsRow}>
-                  <Text style={styles.metaTagText}>Thể loại: Anime, Hài hước, Giả tưởng, Isekai</Text>
-                  <Text style={styles.metaTagText}>Phát hành: 2024 • Studio: Zero-G</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Pink Premium Pill Badge */}
-            <View style={styles.badgeRow}>
-              <View style={styles.pinkPremiumBadge}>
-                <Ionicons name="diamond" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
-                <Text style={styles.pinkPremiumText}>Premium</Text>
-              </View>
-            </View>
-
-            {/* 4 Action Buttons in a Row (Like, Favorite, Download, Share) */}
-            <View style={styles.actionButtonsRow}>
-              {/* 1. Like */}
-              <TouchableOpacity
-                style={styles.actionCol}
-                activeOpacity={0.7}
-                onPress={handleToggleLike}
-              >
-                <Ionicons
-                  name={isLiked ? 'thumbs-up' : 'thumbs-up-outline'}
-                  size={22}
-                  color={isLiked ? CinemaColors.primary : CinemaColors.textPrimary}
-                />
-                <Text style={[styles.actionLabel, isLiked && { color: CinemaColors.primary }]}>
-                  {likeCount >= 1000 ? `${(likeCount / 1000).toFixed(1)}K` : likeCount}
-                </Text>
-              </TouchableOpacity>
-
-              {/* 2. Favorite */}
-              <TouchableOpacity
-                style={styles.actionCol}
-                activeOpacity={0.7}
-                onPress={handleToggleFavorite}
-              >
-                <Ionicons
-                  name={isFavorite ? 'bookmark' : 'bookmark-outline'}
-                  size={22}
-                  color={isFavorite ? CinemaColors.primary : CinemaColors.textPrimary}
-                />
-                <Text style={[styles.actionLabel, isFavorite && { color: CinemaColors.primary }]}>
-                  Yêu thích
-                </Text>
-              </TouchableOpacity>
-
-              {/* 3. Download */}
-              <TouchableOpacity
-                style={styles.actionCol}
-                activeOpacity={0.7}
-                onPress={handleDownload}
-              >
-                <Ionicons
-                  name={isDownloaded ? 'cloud-done' : 'download-outline'}
-                  size={22}
-                  color={isDownloaded ? '#10B981' : CinemaColors.textPrimary}
-                />
-                <Text style={[styles.actionLabel, isDownloaded && { color: '#10B981' }]}>
-                  {isDownloaded ? 'Đã tải' : 'Tải xuống'}
-                </Text>
-              </TouchableOpacity>
-
-              {/* 4. Share */}
-              <TouchableOpacity
-                style={styles.actionCol}
-                activeOpacity={0.7}
-                onPress={handleShare}
-              >
-                <Ionicons name="arrow-redo-outline" size={22} color={CinemaColors.textPrimary} />
-                <Text style={styles.actionLabel}>Chia sẻ</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* ============================================================= */}
-          {/* EPISODES SECTION ("TẬP")                                      */}
-          {/* ============================================================= */}
-          <View style={styles.episodesSection}>
-            <View style={styles.episodesHeaderRow}>
-              <Text style={styles.episodesHeading}>Tập</Text>
-              <TouchableOpacity
-                style={styles.allEpisodesBtn}
-                activeOpacity={0.75}
-                onPress={() => setIsAllEpisodesModalVisible(true)}
-              >
-                <Text style={styles.allEpisodesText}>Trọn bộ</Text>
-                <Ionicons name="chevron-forward" size={14} color={CinemaColors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Season Selector Tabs */}
-            <View style={styles.seasonsRow}>
-              <TouchableOpacity
-                style={[styles.seasonTab, selectedSeason === 'Mùa 1' && styles.seasonTabActive]}
-                onPress={() => setSelectedSeason('Mùa 1')}
-                activeOpacity={0.75}
-              >
-                <Text style={[styles.seasonTabText, selectedSeason === 'Mùa 1' && styles.seasonTabTextActive]}>
-                  Mùa 1
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.seasonTab, selectedSeason === 'Mùa 2' && styles.seasonTabActive]}
-                onPress={() => setSelectedSeason('Mùa 2')}
-                activeOpacity={0.75}
-              >
-                <Text style={[styles.seasonTabText, selectedSeason === 'Mùa 2' && styles.seasonTabTextActive]}>
-                  Mùa 2
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Horizontal Episode Numbered Buttons */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.episodesHorizontalList}
-            >
-              {SEASON_2_EPISODES.map((ep) => {
-                const isActive = ep.id === selectedEpisodeId;
-                return (
-                  <TouchableOpacity
-                    key={ep.id}
-                    style={[
-                      styles.episodeBox,
-                      isActive && styles.episodeBoxActive,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => handleSelectEpisode(ep)}
-                  >
-                    <Text style={[styles.episodeBoxNumber, isActive && styles.episodeBoxNumberActive]}>
-                      {ep.id}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {/* ============================================================= */}
-          {/* RECOMMENDATIONS SECTION ("ĐỀ XUẤT CHO BẠN")                   */}
-          {/* ============================================================= */}
-          <View style={styles.recommendationsSection}>
-            <Text style={styles.recommendationsHeading}>Đề xuất cho bạn</Text>
-
-            {RECOMMENDATIONS.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.recCard}
-                activeOpacity={0.8}
-                onPress={() => {
-                  Alert.alert('Chuyển phim', `Đang tải ${item.title}`);
-                }}
-              >
-                {/* Left Thumbnail with badges */}
-                <View style={styles.recThumbnailWrapper}>
-                  <Image source={{ uri: item.image }} style={styles.recThumbnailImage} />
-
-                  
-
-                  {/* Bottom-Right Episodes Badge */}
-                  <View style={styles.recBottomBadge}>
-                    <Text style={styles.recBottomBadgeText}>{item.episodesBadge}</Text>
-                  </View>
-                </View>
-
-                {/* Right Info Column */}
-                <View style={styles.recInfoCol}>
-                  <Text style={styles.recTitle} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-
-                  {/* Genre Tags */}
-                  <View style={styles.recTagsRow}>
-                    {item.tags.map((tag, idx) => (
-                      <View key={idx} style={styles.recTagBadge}>
-                        <Text style={styles.recTagText}>{tag}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  {/* Views Count */}
-                  <View style={styles.recViewsRow}>
-                    <Ionicons name="play-outline" size={13} color={CinemaColors.textMuted} />
-                    <Text style={styles.recViewsText}>{item.views}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
-      ) : (
-        /* ============================================================= */
-        /* 4. TAB 2: BÌNH LUẬN & PHẢN HỒI KIỂU FACEBOOK                 */
-        /* ============================================================= */
-        <KeyboardAvoidingView
-          style={styles.commentsKeyboardContainer}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-        >
-          {/* Comments List (Facebook Style Nested Threads) */}
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.commentsListContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            {comments.map((comment) => (
-              <View key={comment.id} style={styles.fbCommentThreadContainer}>
-                {/* 1. TOP-LEVEL PARENT COMMENT */}
-                <View style={styles.fbCommentRow}>
-                  {/* Left User Avatar */}
-                  <Image source={{ uri: comment.avatar }} style={styles.fbAvatar} />
-
-                  <View style={styles.fbCommentBody}>
-                    {/* Dark Rounded Comment Bubble */}
-                    <View style={styles.fbBubble}>
-                      <Text style={styles.fbUsername}>{comment.user}</Text>
-                      <Text style={styles.fbCommentText}>{comment.content}</Text>
-                    </View>
-
-                    {/* Bottom Action Row (Time, Thích, Phản hồi) */}
-                    <View style={styles.fbActionRow}>
-                      <Text style={styles.fbTimeText}>{comment.time}</Text>
-
-                      <TouchableOpacity
-                        style={styles.fbActionBtn}
-                        activeOpacity={0.7}
-                        onPress={() => handleLikeComment(comment.id)}
-                      >
-                        <Text
-                          style={[
-                            styles.fbActionText,
-                            comment.isLiked && styles.fbActionTextLiked,
-                          ]}
-                        >
-                          Thích {comment.likes > 0 ? `(${comment.likes})` : ''}
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.fbActionBtn}
-                        activeOpacity={0.7}
-                        onPress={() => handleStartReply(comment.id, comment.user)}
-                      >
-                        <Text style={styles.fbActionText}>Phản hồi</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-
-                {/* 2. NESTED CHILD REPLIES (FACEBOOK THREAD) */}
-                {comment.replies && comment.replies.length > 0 && (
-                  <View style={styles.fbRepliesContainer}>
-                    {/* Replies count toggle button if folded */}
-                    {comment.replies.length > 1 && !comment.isRepliesExpanded && (
-                      <TouchableOpacity
-                        style={styles.fbViewRepliesToggle}
-                        activeOpacity={0.7}
-                        onPress={() => handleToggleExpandReplies(comment.id)}
-                      >
-                        <Ionicons name="arrow-undo-sharp" size={14} color="rgba(255, 255, 255, 0.55)" style={{ transform: [{ rotate: '180deg' }] }} />
-                        <Text style={styles.fbViewRepliesToggleText}>
-                          Xem tất cả {comment.replies.length} phản hồi
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-
-                    {/* Render Reply Items when expanded */}
-                    {(comment.isRepliesExpanded !== false) &&
-                      comment.replies.map((reply) => (
-                        <View key={reply.id} style={styles.fbReplyRow}>
-                          <Image source={{ uri: reply.avatar }} style={styles.fbReplyAvatar} />
-
-                          <View style={styles.fbCommentBody}>
-                            {/* Reply Bubble */}
-                            <View style={styles.fbBubble}>
-                              <Text style={styles.fbUsername}>{reply.user}</Text>
-                              <Text style={styles.fbCommentText}>{reply.content}</Text>
-                            </View>
-
-                            {/* Reply Actions */}
-                            <View style={styles.fbActionRow}>
-                              <Text style={styles.fbTimeText}>{reply.time}</Text>
-
-                              <TouchableOpacity
-                                style={styles.fbActionBtn}
-                                activeOpacity={0.7}
-                                onPress={() => handleLikeReply(comment.id, reply.id)}
-                              >
-                                <Text
-                                  style={[
-                                    styles.fbActionText,
-                                    reply.isLiked && styles.fbActionTextLiked,
-                                  ]}
-                                >
-                                  Thích {reply.likes > 0 ? `(${reply.likes})` : ''}
-                                </Text>
-                              </TouchableOpacity>
-
-                              <TouchableOpacity
-                                style={styles.fbActionBtn}
-                                activeOpacity={0.7}
-                                onPress={() => handleStartReply(comment.id, reply.user)}
-                              >
-                                <Text style={styles.fbActionText}>Phản hồi</Text>
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        </View>
-                      ))}
-
-                    {/* Hide replies button */}
-                    {comment.replies.length > 1 && comment.isRepliesExpanded && (
-                      <TouchableOpacity
-                        style={styles.fbHideRepliesToggle}
-                        activeOpacity={0.7}
-                        onPress={() => handleToggleExpandReplies(comment.id)}
-                      >
-                        <Text style={styles.fbHideRepliesToggleText}>— Ẩn bớt phản hồi</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                )}
-              </View>
-            ))}
-          </ScrollView>
-
-          {/* Replying To Banner (Facebook Style) */}
-          {replyingTo && (
-            <View style={styles.replyingBanner}>
-              <Text style={styles.replyingText}>
-                Đang trả lời <Text style={styles.replyingUsername}>{replyingTo.username}</Text>
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setReplyingTo(null);
-                  setCommentInput('');
-                }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="close-circle" size={18} color="rgba(255, 255, 255, 0.6)" />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Bottom Floating Comment Input Bar */}
-          <View style={styles.commentInputBar}>
-            {/* Input Pill Container with Emoji Button */}
-            <View style={styles.commentPillWrapper}>
-              <TextInput
-                ref={commentInputRef}
-                style={styles.commentTextInput}
-                value={commentInput}
-                onChangeText={setCommentInput}
-                placeholder={
-                  replyingTo
-                    ? `Trả lời ${replyingTo.username}...`
-                    : 'Để lại bình luận thân thiện(°▽°)~'
-                }
-                placeholderTextColor="rgba(255, 255, 255, 0.45)"
-                multiline={false}
-                returnKeyType="send"
-                onSubmitEditing={handleSendComment}
-              />
-              <TouchableOpacity
-                style={styles.emojiBtn}
-                activeOpacity={0.7}
-                onPress={() => setCommentInput((prev) => prev + ' (◠‿◠) ')}
-              >
-                <Ionicons name="happy-outline" size={21} color="rgba(255, 255, 255, 0.65)" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Circular Blue Send Button */}
-            <TouchableOpacity
-              style={[
-                styles.sendCircleBtn,
-                !commentInput.trim() && styles.sendCircleBtnDisabled,
-              ]}
-              disabled={!commentInput.trim()}
-              onPress={handleSendComment}
+              style={[styles.tabButton, activeTab === 'overview' && styles.tabButtonActive]}
+              onPress={() => setActiveTab('overview')}
               activeOpacity={0.8}
             >
-              <Ionicons name="paper-plane" size={17} color="#FFFFFF" style={{ marginLeft: 2 }} />
+              <Text style={[styles.tabButtonText, activeTab === 'overview' && styles.tabButtonTextActive]}>
+                Giới thiệu
+              </Text>
+              {activeTab === 'overview' && <View style={styles.activeTabIndicator} />}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tabButton, activeTab === 'comments' && styles.tabButtonActive]}
+              onPress={() => setActiveTab('comments')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.tabButtonText, activeTab === 'comments' && styles.tabButtonTextActive]}>
+                Bình luận <Text style={styles.commentCountText}>761</Text>
+              </Text>
+              {activeTab === 'comments' && <View style={styles.activeTabIndicator} />}
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+
+          {/* ============================================================= */}
+          {/* 3. TAB 1 CONTENT: GIỚI THIỆU & TẬP PHIM & ĐỀ XUẤT             */}
+          {/* ============================================================= */}
+          {activeTab === 'overview' ? (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
+            >
+              {/* Main Title & Views Row */}
+              <View style={styles.titleSection}>
+                <Text style={styles.mainTitle}>Nông Dân Nhàn Nhã Ở Dị Giới - Mùa 2</Text>
+
+                <TouchableOpacity
+                  style={styles.viewsAndMoreRow}
+                  activeOpacity={0.7}
+                  onPress={() => setIsSynopsisExpanded(!isSynopsisExpanded)}
+                >
+                  <View style={styles.viewsLeft}>
+                    <Ionicons name="play-outline" size={14} color={CinemaColors.textSecondary} />
+                    <Text style={styles.viewsText}>5.1M</Text>
+                  </View>
+                  <Ionicons
+                    name={isSynopsisExpanded ? 'chevron-up' : 'chevron-forward'}
+                    size={16}
+                    color={CinemaColors.textSecondary}
+                  />
+                </TouchableOpacity>
+
+                {/* Expandable Synopsis / Details */}
+                {isSynopsisExpanded && (
+                  <View style={styles.synopsisCard}>
+                    <Text style={styles.synopsisText}>
+                      Sau khi qua đời vì bạo bệnh, Machio Hiraku được thần linh hồi sinh tại một dị giới xa xôi với một cơ
+                      thể khỏe mạnh và công cụ nông nghiệp toàn năng. Mùa 2 tiếp tục câu chuyện mở rộng ngôi làng, tiếp đón
+                      thêm các cư dân tộc Elf, Beastman và tộc Dwarf Trưởng lão Donoban!
+                    </Text>
+                    <View style={styles.metaTagsRow}>
+                      <Text style={styles.metaTagText}>Thể loại: Anime, Hài hước, Giả tưởng, Isekai</Text>
+                      <Text style={styles.metaTagText}>Phát hành: 2024 • Studio: Zero-G</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Pink Premium Pill Badge */}
+                <View style={styles.badgeRow}>
+                  <View style={styles.pinkPremiumBadge}>
+                    <Ionicons name="diamond" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
+                    <Text style={styles.pinkPremiumText}>Premium</Text>
+                  </View>
+                </View>
+
+                {/* 4 Action Buttons in a Row (Like, Favorite, Download, Share) */}
+                <View style={styles.actionButtonsRow}>
+                  {/* 1. Like */}
+                  <TouchableOpacity
+                    style={styles.actionCol}
+                    activeOpacity={0.7}
+                    onPress={handleToggleLike}
+                  >
+                    <Ionicons
+                      name={isLiked ? 'thumbs-up' : 'thumbs-up-outline'}
+                      size={22}
+                      color={isLiked ? CinemaColors.primary : CinemaColors.textPrimary}
+                    />
+                    <Text style={[styles.actionLabel, isLiked && { color: CinemaColors.primary }]}>
+                      {likeCount >= 1000 ? `${(likeCount / 1000).toFixed(1)}K` : likeCount}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* 2. Favorite */}
+                  <TouchableOpacity
+                    style={styles.actionCol}
+                    activeOpacity={0.7}
+                    onPress={handleToggleFavorite}
+                  >
+                    <Ionicons
+                      name={isFavorite ? 'bookmark' : 'bookmark-outline'}
+                      size={22}
+                      color={isFavorite ? CinemaColors.primary : CinemaColors.textPrimary}
+                    />
+                    <Text style={[styles.actionLabel, isFavorite && { color: CinemaColors.primary }]}>
+                      Yêu thích
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* 3. Download */}
+                  <TouchableOpacity
+                    style={styles.actionCol}
+                    activeOpacity={0.7}
+                    onPress={handleDownload}
+                  >
+                    <Ionicons
+                      name={isDownloaded ? 'cloud-done' : 'download-outline'}
+                      size={22}
+                      color={isDownloaded ? '#10B981' : CinemaColors.textPrimary}
+                    />
+                    <Text style={[styles.actionLabel, isDownloaded && { color: '#10B981' }]}>
+                      {isDownloaded ? 'Đã tải' : 'Tải xuống'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* 4. Share */}
+                  <TouchableOpacity
+                    style={styles.actionCol}
+                    activeOpacity={0.7}
+                    onPress={handleShare}
+                  >
+                    <Ionicons name="arrow-redo-outline" size={22} color={CinemaColors.textPrimary} />
+                    <Text style={styles.actionLabel}>Chia sẻ</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* ============================================================= */}
+              {/* EPISODES SECTION ("TẬP")                                      */}
+              {/* ============================================================= */}
+              <View style={styles.episodesSection}>
+                <View style={styles.episodesHeaderRow}>
+                  <Text style={styles.episodesHeading}>Tập</Text>
+                  <TouchableOpacity
+                    style={styles.allEpisodesBtn}
+                    activeOpacity={0.75}
+                    onPress={() => setIsAllEpisodesModalVisible(true)}
+                  >
+                    <Text style={styles.allEpisodesText}>Trọn bộ</Text>
+                    <Ionicons name="chevron-forward" size={14} color={CinemaColors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Season Selector Tabs */}
+                <View style={styles.seasonsRow}>
+                  <TouchableOpacity
+                    style={[styles.seasonTab, selectedSeason === 'Mùa 1' && styles.seasonTabActive]}
+                    onPress={() => setSelectedSeason('Mùa 1')}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.seasonTabText, selectedSeason === 'Mùa 1' && styles.seasonTabTextActive]}>
+                      Mùa 1
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.seasonTab, selectedSeason === 'Mùa 2' && styles.seasonTabActive]}
+                    onPress={() => setSelectedSeason('Mùa 2')}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.seasonTabText, selectedSeason === 'Mùa 2' && styles.seasonTabTextActive]}>
+                      Mùa 2
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Horizontal Episode Numbered Buttons */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.episodesHorizontalList}
+                >
+                  {SEASON_2_EPISODES.map((ep) => {
+                    const isActive = ep.id === selectedEpisodeId;
+                    return (
+                      <TouchableOpacity
+                        key={ep.id}
+                        style={[
+                          styles.episodeBox,
+                          isActive && styles.episodeBoxActive,
+                        ]}
+                        activeOpacity={0.8}
+                        onPress={() => handleSelectEpisode(ep)}
+                      >
+                        <Text style={[styles.episodeBoxNumber, isActive && styles.episodeBoxNumberActive]}>
+                          {ep.id}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              {/* ============================================================= */}
+              {/* RECOMMENDATIONS SECTION ("ĐỀ XUẤT CHO BẠN")                   */}
+              {/* ============================================================= */}
+              <View style={styles.recommendationsSection}>
+                <Text style={styles.recommendationsHeading}>Đề xuất cho bạn</Text>
+
+                {RECOMMENDATIONS.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.recCard}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      Alert.alert('Chuyển phim', `Đang tải ${item.title}`);
+                    }}
+                  >
+                    {/* Left Thumbnail with badges */}
+                    <View style={styles.recThumbnailWrapper}>
+                      <Image source={{ uri: item.image }} style={styles.recThumbnailImage} />
+
+                      {/* Bottom-Right Episodes Badge */}
+                      <View style={styles.recBottomBadge}>
+                        <Text style={styles.recBottomBadgeText}>{item.episodesBadge}</Text>
+                      </View>
+                    </View>
+
+                    {/* Right Info Column */}
+                    <View style={styles.recInfoCol}>
+                      <Text style={styles.recTitle} numberOfLines={2}>
+                        {item.title}
+                      </Text>
+
+                      {/* Genre Tags */}
+                      <View style={styles.recTagsRow}>
+                        {item.tags.map((tag, idx) => (
+                          <View key={idx} style={styles.recTagBadge}>
+                            <Text style={styles.recTagText}>{tag}</Text>
+                          </View>
+                        ))}
+                      </View>
+
+                      {/* Views Count */}
+                      <View style={styles.recViewsRow}>
+                        <Ionicons name="play-outline" size={13} color={CinemaColors.textMuted} />
+                        <Text style={styles.recViewsText}>{item.views}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          ) : (
+            /* ============================================================= */
+            /* 4. TAB 2: BÌNH LUẬN & PHẢN HỒI KIỂU FACEBOOK                 */
+            /* ============================================================= */
+            <KeyboardAvoidingView
+              style={styles.commentsKeyboardContainer}
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            >
+              {/* Comments List (Facebook Style Nested Threads) */}
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.commentsListContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                {comments.map((comment) => (
+                  <View key={comment.id} style={styles.fbCommentThreadContainer}>
+                    {/* 1. TOP-LEVEL PARENT COMMENT */}
+                    <View style={styles.fbCommentRow}>
+                      {/* Left User Avatar */}
+                      <Image source={{ uri: comment.avatar }} style={styles.fbAvatar} />
+
+                      <View style={styles.fbCommentBody}>
+                        {/* Dark Rounded Comment Bubble */}
+                        <View style={styles.fbBubble}>
+                          <Text style={styles.fbUsername}>{comment.user}</Text>
+                          <Text style={styles.fbCommentText}>{comment.content}</Text>
+                        </View>
+
+                        {/* Bottom Action Row (Time, Thích, Phản hồi) */}
+                        <View style={styles.fbActionRow}>
+                          <Text style={styles.fbTimeText}>{comment.time}</Text>
+
+                          <TouchableOpacity
+                            style={styles.fbActionBtn}
+                            activeOpacity={0.7}
+                            onPress={() => handleLikeComment(comment.id)}
+                          >
+                            <Text
+                              style={[
+                                styles.fbActionText,
+                                comment.isLiked && styles.fbActionTextLiked,
+                              ]}
+                            >
+                              Thích {comment.likes > 0 ? `(${comment.likes})` : ''}
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.fbActionBtn}
+                            activeOpacity={0.7}
+                            onPress={() => handleStartReply(comment.id, comment.user)}
+                          >
+                            <Text style={styles.fbActionText}>Phản hồi</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* 2. NESTED CHILD REPLIES (FACEBOOK THREAD) */}
+                    {comment.replies && comment.replies.length > 0 && (
+                      <View style={styles.fbRepliesContainer}>
+                        {/* Replies count toggle button if folded */}
+                        {comment.replies.length > 1 && !comment.isRepliesExpanded && (
+                          <TouchableOpacity
+                            style={styles.fbViewRepliesToggle}
+                            activeOpacity={0.7}
+                            onPress={() => handleToggleExpandReplies(comment.id)}
+                          >
+                            <Ionicons name="arrow-undo-sharp" size={14} color="rgba(255, 255, 255, 0.55)" style={{ transform: [{ rotate: '180deg' }] }} />
+                            <Text style={styles.fbViewRepliesToggleText}>
+                              Xem tất cả {comment.replies.length} phản hồi
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+
+                        {/* Render Reply Items when expanded */}
+                        {(comment.isRepliesExpanded !== false) &&
+                          comment.replies.map((reply) => (
+                            <View key={reply.id} style={styles.fbReplyRow}>
+                              <Image source={{ uri: reply.avatar }} style={styles.fbReplyAvatar} />
+
+                              <View style={styles.fbCommentBody}>
+                                {/* Reply Bubble */}
+                                <View style={styles.fbBubble}>
+                                  <Text style={styles.fbUsername}>{reply.user}</Text>
+                                  <Text style={styles.fbCommentText}>{reply.content}</Text>
+                                </View>
+
+                                {/* Reply Actions */}
+                                <View style={styles.fbActionRow}>
+                                  <Text style={styles.fbTimeText}>{reply.time}</Text>
+
+                                  <TouchableOpacity
+                                    style={styles.fbActionBtn}
+                                    activeOpacity={0.7}
+                                    onPress={() => handleLikeReply(comment.id, reply.id)}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.fbActionText,
+                                        reply.isLiked && styles.fbActionTextLiked,
+                                      ]}
+                                    >
+                                      Thích {reply.likes > 0 ? `(${reply.likes})` : ''}
+                                    </Text>
+                                  </TouchableOpacity>
+
+                                  <TouchableOpacity
+                                    style={styles.fbActionBtn}
+                                    activeOpacity={0.7}
+                                    onPress={() => handleStartReply(comment.id, reply.user)}
+                                  >
+                                    <Text style={styles.fbActionText}>Phản hồi</Text>
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                            </View>
+                          ))}
+
+                        {/* Hide replies button */}
+                        {comment.replies.length > 1 && comment.isRepliesExpanded && (
+                          <TouchableOpacity
+                            style={styles.fbHideRepliesToggle}
+                            activeOpacity={0.7}
+                            onPress={() => handleToggleExpandReplies(comment.id)}
+                          >
+                            <Text style={styles.fbHideRepliesToggleText}>— Ẩn bớt phản hồi</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+
+              {/* Replying To Banner (Facebook Style) */}
+              {replyingTo && (
+                <View style={styles.replyingBanner}>
+                  <Text style={styles.replyingText}>
+                    Đang trả lời <Text style={styles.replyingUsername}>{replyingTo.username}</Text>
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setReplyingTo(null);
+                      setCommentInput('');
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={18} color="rgba(255, 255, 255, 0.6)" />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Bottom Floating Comment Input Bar */}
+              <View style={styles.commentInputBar}>
+                {/* Input Pill Container with Emoji Button */}
+                <View style={styles.commentPillWrapper}>
+                  <TextInput
+                    ref={commentInputRef}
+                    style={styles.commentTextInput}
+                    value={commentInput}
+                    onChangeText={setCommentInput}
+                    placeholder={
+                      replyingTo
+                        ? `Trả lời ${replyingTo.username}...`
+                        : 'Để lại bình luận thân thiện(°▽°)~'
+                    }
+                    placeholderTextColor="rgba(255, 255, 255, 0.45)"
+                    multiline={false}
+                    returnKeyType="send"
+                    onSubmitEditing={handleSendComment}
+                  />
+                  <TouchableOpacity
+                    style={styles.emojiBtn}
+                    activeOpacity={0.7}
+                    onPress={() => setCommentInput((prev) => prev + ' (◠‿◠) ')}
+                  >
+                    <Ionicons name="happy-outline" size={21} color="rgba(255, 255, 255, 0.65)" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Circular Blue Send Button */}
+                <TouchableOpacity
+                  style={[
+                    styles.sendCircleBtn,
+                    !commentInput.trim() && styles.sendCircleBtnDisabled,
+                  ]}
+                  disabled={!commentInput.trim()}
+                  onPress={handleSendComment}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="paper-plane" size={17} color="#FFFFFF" style={{ marginLeft: 2 }} />
+                </TouchableOpacity>
+              </View>
+            </KeyboardAvoidingView>
+          )}
+        </>
       )}
 
       {/* ============================================================= */}
