@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { Pagination } from '@/components/pagination';
+import { TopAppBar } from '@/components/top-app-bar';
 
 const INITIAL_FAVORITES = [
   {
@@ -248,22 +249,7 @@ export default function FavoriteScreen() {
       <StatusBar barStyle="light-content" backgroundColor={CinemaColors.background} />
 
       {/* ----------------- TOP APP BAR ----------------- */}
-      <View style={styles.appBar}>
-        <BrandLogo layout="horizontal" size="small" showTagline={false} />
-
-        <TouchableOpacity
-          style={styles.avatarButton}
-          activeOpacity={0.8}
-          onPress={() => router.push('/(tabs)/profile' as any)}
-        >
-          <Image
-            source={{
-              uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-            }}
-            style={styles.avatarImage}
-          />
-        </TouchableOpacity>
-      </View>
+      <TopAppBar />
 
       {/* ----------------- SCROLLABLE FAVORITES GRID (FLATLIST) ----------------- */}
       <FlatList

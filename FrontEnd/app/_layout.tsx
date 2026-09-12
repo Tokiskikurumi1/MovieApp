@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { NotificationProvider } from '@/store/notification-context';
 
 export const unstable_settings = {
   initialRouteName: '(auth)',
@@ -14,22 +15,25 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack initialRouteName="(auth)">
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="movie/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="watch/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="trending" options={{ headerShown: false }} />
-        <Stack.Screen name="collection" options={{ headerShown: false }} />
-        <Stack.Screen name="continue-watching" options={{ headerShown: false }} />
-        <Stack.Screen name="account-security" options={{ headerShown: false }} />
-        <Stack.Screen name="billing-subscription" options={{ headerShown: false }} />
-        <Stack.Screen name="help-center" options={{ headerShown: false }} />
-        <Stack.Screen name="terms-privacy" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
+      <NotificationProvider>
+        <Stack initialRouteName="(auth)">
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="movie/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="watch/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="trending" options={{ headerShown: false }} />
+          <Stack.Screen name="collection" options={{ headerShown: false }} />
+          <Stack.Screen name="continue-watching" options={{ headerShown: false }} />
+          <Stack.Screen name="account-security" options={{ headerShown: false }} />
+          <Stack.Screen name="billing-subscription" options={{ headerShown: false }} />
+          <Stack.Screen name="help-center" options={{ headerShown: false }} />
+          <Stack.Screen name="terms-privacy" options={{ headerShown: false }} />
+          <Stack.Screen name="notifications" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        </Stack>
+        <StatusBar style="auto" />
+      </NotificationProvider>
     </ThemeProvider>
   );
 }

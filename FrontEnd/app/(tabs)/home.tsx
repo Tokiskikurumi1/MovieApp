@@ -15,6 +15,7 @@ import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
+import { TopAppBar } from '@/components/top-app-bar';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -266,28 +267,7 @@ export default function HomeScreen() {
       <StatusBar barStyle="light-content" backgroundColor={CinemaColors.background} />
 
       {/* ----------------- TOP APP BAR ----------------- */}
-      <View style={styles.appBar}>
-        <BrandLogo layout="horizontal" size="small" showTagline={false} />
-
-        <View style={styles.appBarActions}>
-          {/* <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
-            <Ionicons name="search" size={22} color={CinemaColors.textPrimary} />
-          </TouchableOpacity> */}
-
-          <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
-            <Ionicons name="notifications-outline" size={22} color={CinemaColors.textPrimary} />
-            <View style={styles.notificationBadge} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.avatarButton} activeOpacity={0.8} onPress={() => router.push('/(tabs)/profile' as any)}>
-            <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop' }}
-              style={styles.avatarImage}
-              
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <TopAppBar />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
