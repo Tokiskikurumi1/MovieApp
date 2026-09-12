@@ -1,0 +1,78 @@
+:root {
+  --primary: #ff334b;
+  --primaryHover: #d82c40;
+  --primaryLight: rgba(255, 51, 75, 0.15);
+  --primaryGlow: rgba(255, 51, 75, 0.35);
+  --primaryBorder: rgba(255, 51, 75, 0.3);
+  /* // Dark backgrounds & surfaces */
+  --background: #090a0f;
+  --surface: #12141c;
+  --surfaceFocused: #151824;
+  --surfaceElevated: #1c202e;
+  --surfaceSocial: #141722;
+  --border: #1f2433;
+  --borderLight: #222838;
+  --borderActive: #ff334b;
+  /* // Ambient Glows */
+  --glowTopRight: rgba(255, 51, 75, 0.12);
+  --glowBottomLeft: rgba(99, 102, 241, 0.08);
+  --textPrimary: #ffffff;
+
+  /* Text & Typography */
+
+  --textSecondary: #8e95a5;
+  --textTertiary: #c5c9d5;
+  --textMuted: #5a6175;
+  --textDivider: #656d82;
+  --textGuest: #767f94;
+  --textCheckbox: #9ba1b2;
+  --text: #6b6375;
+  --text-h: #08060d;
+  --bg: #fff;
+  --border: #e5e4e7;
+  --code-bg: #f4f3ec;
+  --accent: #aa3bff;
+  --accent-bg: rgba(170, 59, 255, 0.1);
+  --accent-border: rgba(170, 59, 255, 0.5);
+  --social-bg: rgba(244, 243, 236, 0.5);
+  --shadow:
+    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+
+  --sans: system-ui, "Segoe UI", Roboto, sans-serif;
+  --heading: system-ui, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  --sans: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: "Montserrat", sans-serif;
+  font-weight: 500;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+main {
+  flex: 1;
+}
+
+/* .container {
+  max-width: 1300px;
+  width: 90%;
+  margin: 0 auto;
+  padding: 0 2rem;
+} */
