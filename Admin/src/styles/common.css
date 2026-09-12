@@ -1,48 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap');
+
 :root {
+  /* Brand Colors */
   --primary: #ff334b;
-  --primaryHover: #d82c40;
-  --primaryLight: rgba(255, 51, 75, 0.15);
-  --primaryGlow: rgba(255, 51, 75, 0.35);
-  --primaryBorder: rgba(255, 51, 75, 0.3);
-  /* // Dark backgrounds & surfaces */
-  --background: #090a0f;
-  --surface: #12141c;
-  --surfaceFocused: #151824;
-  --surfaceElevated: #1c202e;
-  --surfaceSocial: #141722;
+  --primary-hover: #e0283f;
+  --primary-light: rgba(255, 51, 75, 0.12);
+  --primary-glow: rgba(255, 51, 75, 0.35);
+  --primary-border: rgba(255, 51, 75, 0.3);
+
+  /* Cinema Theme Backgrounds */
+  --bg-main: #090a0f;
+  --bg-surface: #12141c;
+  --bg-surface-elevated: #1a1e2a;
+  --bg-surface-highlight: #23293a;
+  --bg-card: rgba(18, 20, 28, 0.85);
+  --bg-glass: rgba(18, 20, 28, 0.65);
+
+  /* Status Colors */
+  --success: #10b981;
+  --success-light: rgba(16, 185, 129, 0.15);
+  --warning: #f59e0b;
+  --warning-light: rgba(245, 158, 11, 0.15);
+  --danger: #ef4444;
+  --danger-light: rgba(239, 68, 68, 0.15);
+  --info: #3b82f6;
+  --info-light: rgba(59, 130, 246, 0.15);
+  --vip-gold: #ffd700;
+  --vip-gold-light: rgba(255, 215, 0, 0.15);
+
+  /* Borders & Dividers */
   --border: #1f2433;
-  --borderLight: #222838;
-  --borderActive: #ff334b;
-  /* // Ambient Glows */
-  --glowTopRight: rgba(255, 51, 75, 0.12);
-  --glowBottomLeft: rgba(99, 102, 241, 0.08);
-  --textPrimary: #ffffff;
+  --border-light: #2a3144;
+  --border-focus: #ff334b;
 
-  /* Text & Typography */
+  /* Typography Colors */
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-dim: #475569;
 
-  --textSecondary: #8e95a5;
-  --textTertiary: #c5c9d5;
-  --textMuted: #5a6175;
-  --textDivider: #656d82;
-  --textGuest: #767f94;
-  --textCheckbox: #9ba1b2;
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* Shadows & Glow */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 25px rgba(255, 51, 75, 0.2);
 
-  --sans: system-ui, "Segoe UI", Roboto, sans-serif;
-  --heading: system-ui, "Segoe UI", Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  --sans: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Typography */
+  --font-main: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Outfit', 'Plus Jakarta Sans', sans-serif;
 }
 
 * {
@@ -51,28 +56,67 @@
   box-sizing: border-box;
 }
 
-html,
-body {
+html, body {
   height: 100%;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-body {
-  font-family: "Montserrat", sans-serif;
-  font-weight: 500;
-  overflow-x: hidden;
+#root {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  box-sizing: border-box;
 }
 
-main {
-  flex: 1;
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-/* .container {
-  max-width: 1300px;
-  width: 90%;
-  margin: 0 auto;
-  padding: 0 2rem;
-} */
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.glass-panel-glow {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--primary-border);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Common UI Elements */
+button {
+  font-family: var(--font-main);
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+input, select, textarea {
+  font-family: var(--font-main);
+  outline: none;
+}
