@@ -44,7 +44,7 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     iconColor: '#FFD700',
     iconBg: 'rgba(255, 215, 0, 0.15)',
     actionRoute: {
-      pathname: '/billing-subscription',
+      pathname: '/sub-layout/billing-subscription',
     },
   },
   {
@@ -71,7 +71,7 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     iconColor: '#10B981',
     iconBg: 'rgba(16, 185, 129, 0.15)',
     actionRoute: {
-      pathname: '/account-security',
+      pathname: '/sub-layout/account-security',
     },
   },
   {
@@ -98,7 +98,7 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     iconColor: CinemaColors.primary,
     iconBg: 'rgba(255, 51, 75, 0.15)',
     actionRoute: {
-      pathname: '/billing-subscription',
+      pathname: '/sub-layout/billing-subscription',
     },
   },
 ];

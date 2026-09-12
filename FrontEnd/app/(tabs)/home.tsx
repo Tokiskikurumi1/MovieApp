@@ -436,7 +436,7 @@ export default function HomeScreen() {
             </View>
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => router.push('/continue-watching' as any)}
+              onPress={() => router.push('/sub-layout/continue-watching' as any)}
             >
               <Text style={styles.seeAllText}>Xem tất cả</Text>
             </TouchableOpacity>
@@ -485,7 +485,7 @@ export default function HomeScreen() {
             </View>
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => router.push('/trending' as any)}
+              onPress={() => router.push('/sub-layout/trending' as any)}
             >
               <Text style={styles.seeAllText}>Xem tất cả</Text>
             </TouchableOpacity>
@@ -548,13 +548,13 @@ export default function HomeScreen() {
               activeOpacity={0.7}
               onPress={() =>
                 router.push({
-                  pathname: '/collection',
+                  pathname: '/sub-layout/collection',
                   params: {
                     type: 'new-releases',
                     title: 'Phim Mới Ra Mắt',
                     subtitle: 'Cập nhật những siêu phẩm mới nhất hôm nay',
                   },
-                })
+                } as any)
               }
             >
               <Text style={styles.seeAllText}>Xem tất cả</Text>
@@ -603,13 +603,13 @@ export default function HomeScreen() {
               activeOpacity={0.7}
               onPress={() =>
                 router.push({
-                  pathname: '/collection',
+                  pathname: '/sub-layout/collection',
                   params: {
                     type: 'recommended',
                     title: 'Gợi Ý Phim Hay',
                     subtitle: 'Tuyển chọn dành riêng cho bạn dựa trên lịch sử xem',
                   },
-                })
+                } as any)
               }
             >
               <Text style={styles.seeAllText}>Xem tất cả</Text>

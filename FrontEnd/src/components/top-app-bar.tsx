@@ -42,7 +42,7 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
     if (onNotificationPress) {
       onNotificationPress();
     } else {
-      router.push('/notifications' as any);
+      router.push('/sub-layout/notifications' as any);
     }
   };
 

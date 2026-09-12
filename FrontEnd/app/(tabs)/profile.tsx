@@ -38,7 +38,7 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.headerActionBtn}
           activeOpacity={0.75}
-          onPress={() => router.push('/account-security' as any)}
+          onPress={() => router.push('/sub-layout/account-security' as any)}
         >
           <Ionicons name="settings-outline" size={20} color={CinemaColors.textPrimary} />
         </TouchableOpacity>
@@ -60,7 +60,7 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.editAvatarBadge}
               activeOpacity={0.8}
-              onPress={() => router.push('/account-security' as any)}
+              onPress={() => router.push('/sub-layout/account-security' as any)}
             >
               <Ionicons name="camera" size={12} color="#FFFFFF" />
             </TouchableOpacity>
@@ -120,7 +120,7 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.premiumBanner}
           activeOpacity={0.85}
-          onPress={() => router.push('/billing-subscription' as any)}
+          onPress={() => router.push('/sub-layout/billing-subscription' as any)}
         >
           <View style={styles.premiumLeft}>
             <View style={styles.premiumIconBox}>
@@ -201,7 +201,7 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.settingLinkRow}
               activeOpacity={0.7}
-              onPress={() => router.push('/account-security' as any)}
+              onPress={() => router.push('/sub-layout/account-security' as any)}
             >
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>
@@ -217,7 +217,7 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.settingLinkRow}
               activeOpacity={0.7}
-              onPress={() => router.push('/billing-subscription' as any)}
+              onPress={() => router.push('/sub-layout/billing-subscription' as any)}
             >
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>
@@ -238,7 +238,7 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.settingLinkRow}
               activeOpacity={0.7}
-              onPress={() => router.push('/help-center' as any)}
+              onPress={() => router.push('/sub-layout/help-center' as any)}
             >
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>
@@ -254,7 +254,7 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.settingLinkRow}
               activeOpacity={0.7}
-              onPress={() => router.push('/terms-privacy' as any)}
+              onPress={() => router.push('/sub-layout/terms-privacy' as any)}
             >
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>

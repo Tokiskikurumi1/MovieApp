@@ -22,14 +22,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="movie/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="watch/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="trending" options={{ headerShown: false }} />
-          <Stack.Screen name="collection" options={{ headerShown: false }} />
-          <Stack.Screen name="continue-watching" options={{ headerShown: false }} />
-          <Stack.Screen name="account-security" options={{ headerShown: false }} />
-          <Stack.Screen name="billing-subscription" options={{ headerShown: false }} />
-          <Stack.Screen name="help-center" options={{ headerShown: false }} />
-          <Stack.Screen name="terms-privacy" options={{ headerShown: false }} />
-          <Stack.Screen name="notifications" options={{ headerShown: false }} />
+          <Stack.Screen name="sub-layout" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="auto" />
