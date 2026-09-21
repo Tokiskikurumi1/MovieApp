@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,12 @@ import {
   Image,
   StatusBar,
   Share,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
+import { MovieAPI } from '@/services/API';
 
 // -------------------------------------------------------------
 // DỮ LIỆU PHIM MỚI RA MẮT (NEW RELEASES MOCK DATA)
@@ -194,10 +196,44 @@ export default function MovieCollectionScreen() {
   }>();
 
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
-
   const isNewReleases = type === 'new-releases';
   const displayTitle = title || (isNewReleases ? 'Phim Mới Ra Mắt' : 'Gợi Ý Phim Hay');
-  const moviesData = isNewReleases ? NEW_RELEASES_DATA : RECOMMENDED_DATA;
+
+  const [moviesData, setMoviesData] = useState<any[]>(
+    isNewReleases ? NEW_RELEASES_DATA : RECOMMENDED_DATA
+  );
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Tải danh sách phim từ MySQL Backend
+  useEffect(() => {
+    let isMounted = true;
+    async function loadCollectionData() {
+      setIsLoading(true);
+      try {
+        if (isNewReleases) {
+          // Lấy 20 phim mới phát hành gần nhất từ MySQL
+          const res = await MovieAPI.getNewReleases(20);
+          if (isMounted && res?.data && res.data.length > 0) {
+            setMoviesData(res.data);
+          }
+        } else {
+          // Gợi ý phim hay: Lấy danh sách phim nổi bật từ MySQL
+          const res = await MovieAPI.getFeatured();
+          if (isMounted && res?.data && res.data.length > 0) {
+            setMoviesData(res.data);
+          }
+        }
+      } catch (err) {
+        console.warn('Lỗi tải danh sách phim collection:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+    loadCollectionData();
+    return () => {
+      isMounted = false;
+    };
+  }, [type]);
 
   const toggleBookmark = (id: string) => {
     setBookmarkedIds((prev) =>
@@ -236,7 +272,7 @@ export default function MovieCollectionScreen() {
             {displayTitle}
           </Text>
           <Text style={styles.headerSubtitle}>
-            Tổng cộng {moviesData.length} bộ phim
+            {isLoading ? 'Đang cập nhật...' : `Tổng cộng ${moviesData.length} bộ phim mới nhất`}
           </Text>
         </View>
 
@@ -252,11 +288,31 @@ export default function MovieCollectionScreen() {
       {/* ----------------- MOVIE LIST (FLATLIST) ----------------- */}
       <FlatList
         data={moviesData}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={styles.emptyContainer}>
+              <ActivityIndicator size="large" color={CinemaColors.primary} />
+              <Text style={[styles.emptySubtitle, { marginTop: 12 }]}>
+                Đang tải danh sách phim mới nhất...
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="film-outline" size={48} color={CinemaColors.textMuted} />
+              <Text style={styles.emptyTitle}>Chưa có phim nào</Text>
+            </View>
+          )
+        }
         renderItem={({ item }) => {
           const isSaved = bookmarkedIds.includes(item.id);
+          const tagsList: string[] =
+            Array.isArray(item.tags) && item.tags.length > 0
+              ? item.tags
+              : (item.genres || []).slice(0, 2);
+
           return (
             <TouchableOpacity
               style={styles.movieItemCard}
@@ -265,7 +321,10 @@ export default function MovieCollectionScreen() {
             >
               {/* Left Column: Poster Image */}
               <View style={styles.posterWrapper}>
-                <Image source={{ uri: item.image }} style={styles.posterImage} />
+                <Image
+                  source={{ uri: item.image || item.poster || item.thumb_url }}
+                  style={styles.posterImage}
+                />
 
                 {/* Rating Badge Bottom-Right */}
                 <View style={styles.posterRatingBadge}>
@@ -283,19 +342,19 @@ export default function MovieCollectionScreen() {
 
                 {/* Tag Pills Row */}
                 <View style={styles.tagPillsRow}>
-                  {item.tags.map((tag, idx) => (
+                  {tagsList.map((tag: string, idx: number) => (
                     <View key={idx} style={styles.tagPill}>
                       <Text style={styles.tagPillText}>{tag}</Text>
                     </View>
                   ))}
                   <View style={styles.qualityTagPill}>
-                    <Text style={styles.qualityTagText}>{item.quality}</Text>
+                    <Text style={styles.qualityTagText}>{item.quality || 'FHD'}</Text>
                   </View>
                 </View>
 
                 {/* Short Synopsis Description */}
                 <Text style={styles.synopsisText} numberOfLines={2}>
-                  {item.synopsis}
+                  {item.synopsis || item.description || 'Chưa có nội dung tóm tắt cho phim này.'}
                 </Text>
 
                 {/* Bottom Row Action */}
@@ -510,5 +569,23 @@ const styles = StyleSheet.create({
   bookmarkButtonActive: {
     backgroundColor: 'rgba(255, 51, 75, 0.15)',
     borderColor: CinemaColors.primary,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+  },
+  emptyTitle: {
+    color: CinemaColors.textPrimary,
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 12,
+  },
+  emptySubtitle: {
+    color: CinemaColors.textMuted,
+    fontSize: 13,
+    marginTop: 6,
+    textAlign: 'center',
   },
 });

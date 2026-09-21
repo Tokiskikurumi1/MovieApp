@@ -46,11 +46,17 @@ export const MovieAPI = {
   // 1. Phim Nổi bật (Banner Slider Trang chủ)
   getFeatured: () => fetchJson('/movies/featured'),
 
-  // 2. Phim Thịnh hành (Top 10 Trending)
-  getTrending: () => fetchJson('/movies/trending'),
+  // 2. Phim Thịnh hành (Top Trending) - hỗ trợ lọc theo danh mục & số lượng
+  getTrending: (category?: string, limit?: number) => {
+    const params = new URLSearchParams();
+    if (category && category !== 'all') params.append('category', category);
+    if (limit) params.append('limit', String(limit));
+    const query = params.toString();
+    return fetchJson(`/movies/trending${query ? `?${query}` : ''}`);
+  },
 
-  // 3. Phim Mới ra mắt
-  getNewReleases: () => fetchJson('/movies/new-releases'),
+  // 3. Phim Mới ra mắt (mặc định 20 phim mới nhất)
+  getNewReleases: (limit = 20) => fetchJson(`/movies/new-releases?limit=${limit}`),
 
   // 4. Tiếp tục xem (Continue Watching)
   getContinueWatching: () => fetchJson('/movies/continue-watching'),

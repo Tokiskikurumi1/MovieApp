@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,12 @@ import {
   StatusBar,
   useWindowDimensions,
   Share,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
+import { MovieAPI } from '@/services/API';
 
 // -------------------------------------------------------------
 // DỮ LIỆU DANH MỤC LỌC BẢNG XẾP HẠNG
@@ -280,21 +282,74 @@ export default function TrendingRankingScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
 
+  const [categories, setCategories] = useState(RANKING_CATEGORIES);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [trendingMovies, setTrendingMovies] = useState(TOP_20_MOVIES);
+  const [isLoading, setIsLoading] = useState(false);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
 
-  const filteredMovies = useMemo(() => {
-    const list =
-      selectedCategory === 'all'
-        ? TOP_20_MOVIES
-        : TOP_20_MOVIES.filter((m) => m.category === selectedCategory);
+  // 1. Tải danh sách thể loại động từ MySQL Backend
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const res = await MovieAPI.getCategories();
+        if (res?.data && res.data.length > 0) {
+          const dynamicCats = res.data.map((c: any) => ({
+            id: c.slug || String(c.id),
+            label: c.name,
+          }));
+          setCategories([{ id: 'all', label: 'Tất Cả' }, ...dynamicCats]);
+        }
+      } catch (err) {
+        console.warn('Lỗi tải danh mục thể loại:', err);
+      }
+    }
+    loadCategories();
+  }, []);
 
-    // Sắp xếp lại thứ hạng bắt đầu từ Top 1 cho thể loại được chọn
-    return list.map((item, index) => ({
-      ...item,
-      currentRank: index + 1,
-    }));
+  // 2. Tải danh sách phim thịnh hành theo danh mục đã chọn
+  useEffect(() => {
+    let isMounted = true;
+    async function loadTrending() {
+      setIsLoading(true);
+      try {
+        const res = await MovieAPI.getTrending(selectedCategory, 20);
+        if (isMounted && res?.data && res.data.length > 0) {
+          setTrendingMovies(res.data);
+        }
+      } catch (err) {
+        console.warn('Lỗi tải bảng xếp hạng:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+    loadTrending();
+    return () => {
+      isMounted = false;
+    };
   }, [selectedCategory]);
+
+  // Chuẩn hóa và gán thứ hạng tự động từ 1 đến N theo danh mục
+  const filteredMovies = useMemo(() => {
+    return trendingMovies.map((item: any, index: number) => ({
+      ...item,
+      currentRank: item.currentRank || index + 1,
+      tags:
+        Array.isArray(item.tags) && item.tags.length > 0
+          ? item.tags
+          : (item.genres || []).slice(0, 2).concat([item.quality || 'HD']),
+      synopsis:
+        item.synopsis || item.description || 'Chưa có nội dung tóm tắt cho phim này.',
+      image: item.image || item.poster || item.thumb_url,
+      backdrop: item.backdrop || item.image || item.poster,
+    }));
+  }, [trendingMovies]);
+
+  // Tên hiển thị của danh mục hiện tại
+  const currentCategoryLabel = useMemo(() => {
+    const found = categories.find((c) => c.id === selectedCategory);
+    return found ? found.label : 'Tất Cả';
+  }, [categories, selectedCategory]);
 
   // Lấy ảnh backdrop của phim Top 1 trong danh sách hiện tại
   const topMovie = filteredMovies[0];
@@ -312,7 +367,7 @@ export default function TrendingRankingScreen() {
   const handleShare = async () => {
     try {
       await Share.share({
-        message: 'Khám phá Bảng Xếp Hạng Top 20 Phim Thịnh Hành trên CineStream!',
+        message: `Khám phá Bảng Xếp Hạng Top Phim Thịnh Hành [${currentCategoryLabel}] trên CineStream!`,
         title: 'Bảng Xếp Hạng Phim CineStream',
       });
     } catch {
@@ -358,7 +413,7 @@ export default function TrendingRankingScreen() {
       {/* ----------------- TOP 20 LIST (FLATLIST) ----------------- */}
       <FlatList
         data={filteredMovies}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
@@ -397,7 +452,7 @@ export default function TrendingRankingScreen() {
               <View style={styles.headerTitleContainer}>
                 <Text style={styles.mainTitle}>Bảng Xếp Hạng</Text>
                 <Text style={styles.mainSubtitle}>
-                  Xếp hạng dựa trên độ hot của nội dung, được cập nhật hàng ngày
+                  Xếp hạng theo danh mục: {currentCategoryLabel} • Cập nhật hàng ngày
                 </Text>
               </View>
             </View>
@@ -409,7 +464,7 @@ export default function TrendingRankingScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.categoryTabsContent}
               >
-                {RANKING_CATEGORIES.map((tab) => {
+                {categories.map((tab) => {
                   const isSelected = selectedCategory === tab.id;
                   return (
                     <TouchableOpacity
@@ -435,13 +490,22 @@ export default function TrendingRankingScreen() {
           </View>
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="film-outline" size={48} color={CinemaColors.textMuted} />
-            <Text style={styles.emptyTitle}>Chưa có phim trong danh mục này</Text>
-            <Text style={styles.emptySubtitle}>
-              Hãy chọn danh mục khác để xem bảng xếp hạng thịnh hành.
-            </Text>
-          </View>
+          isLoading ? (
+            <View style={styles.emptyContainer}>
+              <ActivityIndicator size="large" color={CinemaColors.primary} />
+              <Text style={[styles.emptySubtitle, { marginTop: 12 }]}>
+                Đang cập nhật bảng xếp hạng {currentCategoryLabel}...
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="film-outline" size={48} color={CinemaColors.textMuted} />
+              <Text style={styles.emptyTitle}>Chưa có phim trong danh mục này</Text>
+              <Text style={styles.emptySubtitle}>
+                Hãy chọn danh mục khác để xem bảng xếp hạng thịnh hành.
+              </Text>
+            </View>
+          )
         }
         renderItem={({ item }) => {
           const isSaved = bookmarkedIds.includes(item.id);
@@ -472,7 +536,7 @@ export default function TrendingRankingScreen() {
 
                 {/* Tag Pills Row */}
                 <View style={styles.tagPillsRow}>
-                  {item.tags.map((tag, idx) => (
+                  {item.tags.map((tag: string, idx: number) => (
                     <View key={idx} style={styles.tagPill}>
                       <Text style={styles.tagPillText}>{tag}</Text>
                     </View>
@@ -491,7 +555,11 @@ export default function TrendingRankingScreen() {
                 <View style={styles.bottomRow}>
                   <View style={styles.rankStatusRow}>
                     <Ionicons name="trending-up" size={14} color={CinemaColors.primary} />
-                    <Text style={styles.rankStatusText}>Hạng #{item.currentRank} hôm nay</Text>
+                    <Text style={styles.rankStatusText}>
+                      {selectedCategory === 'all'
+                        ? `Hạng #${item.currentRank} toàn hệ thống`
+                        : `Hạng #${item.currentRank} thể loại ${currentCategoryLabel}`}
+                    </Text>
                   </View>
 
                   <TouchableOpacity

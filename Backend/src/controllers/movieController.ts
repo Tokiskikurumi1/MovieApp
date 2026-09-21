@@ -57,35 +57,60 @@ export async function getFeaturedMovies(req: Request, res: Response) {
   }
 }
 
-// 2. Lấy Top 10 Phim Thịnh hành (Trending)
+// 2. Lấy Top Phim Thịnh hành (Trending) - Hỗ trợ lọc theo danh mục & xếp hạng
 export async function getTrendingMovies(req: Request, res: Response) {
   try {
-    const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT m.id, m.name, m.slug, m.thumb_url, m.poster_url, m.year, m.quality, m.rating, m.view_count
-       FROM movies m
-       ORDER BY m.view_count DESC, m.updated_at DESC
-       LIMIT 10`
-    );
+    const category = req.query.category as string;
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+
+    let sql = `
+      SELECT DISTINCT m.id, m.name, m.origin_name, m.slug, m.thumb_url, m.poster_url,
+             m.year, m.quality, m.rating, m.view_count, m.content, m.updated_at
+      FROM movies m
+    `;
+    const params: any[] = [];
+
+    if (category && category !== 'all') {
+      sql += `
+        JOIN movie_categories mc ON m.id = mc.movie_id
+        JOIN categories c ON mc.category_id = c.id
+        WHERE c.slug = ? OR c.name = ?
+      `;
+      params.push(category, category);
+    }
+
+    sql += ` ORDER BY m.view_count DESC, m.rating DESC, m.updated_at DESC LIMIT ?`;
+    params.push(limit);
+
+    const [rows] = await pool.query<RowDataPacket[]>(sql, params);
 
     const data = await Promise.all(
       rows.map(async (m, index) => {
         const [genres] = await pool.query<RowDataPacket[]>(
-          `SELECT c.name FROM categories c
+          `SELECT c.name, c.slug FROM categories c
            JOIN movie_categories mc ON c.id = mc.category_id
-           WHERE mc.movie_id = ? LIMIT 2`,
+           WHERE mc.movie_id = ?`,
           [m.id]
         );
+
+        const genreNames = genres.map((g) => g.name);
 
         return {
           id: m.slug || String(m.id),
           numericId: m.id,
           rank: index + 1,
+          currentRank: index + 1,
           title: m.name,
-          rating: String(m.rating || '9.0'),
+          rating: String(m.rating || '8.8'),
           quality: m.quality || '4K HDR',
           year: String(m.year || '2024'),
-          genres: genres.map((g) => g.name),
+          genres: genreNames,
+          tags: genreNames.slice(0, 2).concat([m.quality || 'HD']),
+          synopsis: m.content
+            ? m.content.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...'
+            : 'Chưa có nội dung tóm tắt cho phim này.',
           image: m.thumb_url || m.poster_url,
+          backdrop: m.poster_url || m.thumb_url,
         };
       })
     );
@@ -96,14 +121,18 @@ export async function getTrendingMovies(req: Request, res: Response) {
   }
 }
 
-// 3. Lấy Phim Mới Ra Mắt (New Releases)
+// 3. Lấy Phim Mới Ra Mắt (New Releases) - Sắp xếp theo ngày phát hành gần nhất
 export async function getNewReleases(req: Request, res: Response) {
   try {
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT m.id, m.name, m.slug, m.thumb_url, m.poster_url, m.year, m.quality, m.rating
+      `SELECT m.id, m.name, m.origin_name, m.slug, m.thumb_url, m.poster_url,
+              m.year, m.quality, m.rating, m.content, m.created_at, m.updated_at
        FROM movies m
-       ORDER BY m.created_at DESC
-       LIMIT 12`
+       ORDER BY m.year DESC, m.created_at DESC, m.id DESC
+       LIMIT ?`,
+      [limit]
     );
 
     const data = await Promise.all(
@@ -111,9 +140,11 @@ export async function getNewReleases(req: Request, res: Response) {
         const [genres] = await pool.query<RowDataPacket[]>(
           `SELECT c.name FROM categories c
            JOIN movie_categories mc ON c.id = mc.category_id
-           WHERE mc.movie_id = ? LIMIT 2`,
+           WHERE mc.movie_id = ?`,
           [m.id]
         );
+
+        const genreNames = genres.map((g) => g.name);
 
         return {
           id: m.slug || String(m.id),
@@ -122,8 +153,13 @@ export async function getNewReleases(req: Request, res: Response) {
           rating: String(m.rating || '8.5'),
           quality: m.quality || 'FHD',
           year: String(m.year || '2024'),
-          genres: genres.map((g) => g.name),
+          genres: genreNames,
+          tags: genreNames.slice(0, 2).concat([m.quality || 'FHD']),
+          synopsis: m.content
+            ? m.content.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...'
+            : 'Chưa có nội dung tóm tắt cho phim này.',
           image: m.thumb_url || m.poster_url,
+          backdrop: m.poster_url || m.thumb_url,
         };
       })
     );
