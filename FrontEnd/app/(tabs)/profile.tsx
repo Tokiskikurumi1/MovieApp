@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
+import { AuthAPI, UserAPI, setAuthToken } from '@/services/API';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -23,8 +24,37 @@ export default function ProfileScreen() {
   const [notifications, setNotifications] = useState(true);
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
 
+  const [userProfile, setUserProfile] = useState<{
+    full_name?: string;
+    email?: string;
+    role?: string;
+    is_vip?: boolean;
+    vip_expires_at?: string;
+    avatar_url?: string;
+  } | null>(null);
+  const [favoriteCount, setFavoriteCount] = useState<number>(34);
+
+  useEffect(() => {
+    AuthAPI.getMe()
+      .then((res) => {
+        if (res.success && res.data) {
+          setUserProfile(res.data);
+        }
+      })
+      .catch(() => {});
+
+    UserAPI.getFavorites()
+      .then((res) => {
+        if (res.success && Array.isArray(res.data)) {
+          setFavoriteCount(res.data.length);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const handleConfirmLogout = () => {
     setIsLogoutModalVisible(false);
+    setAuthToken(null);
     router.replace('/(auth)/login' as any);
   };
 
@@ -53,7 +83,7 @@ export default function ProfileScreen() {
           <View style={styles.avatarWrapper}>
             <Image
               source={{
-                uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
+                uri: userProfile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
               }}
               style={styles.avatarImage}
             />
@@ -68,14 +98,18 @@ export default function ProfileScreen() {
 
           <View style={styles.profileInfo}>
             <View style={styles.nameRow}>
-              <Text style={styles.userName}>Kurumi Tokisaki</Text>
+              <Text style={styles.userName}>{userProfile?.full_name || 'Kurumi Tokisaki'}</Text>
               <View style={styles.vipBadge}>
                 <Ionicons name="shield-checkmark" size={12} color="#FFD700" />
-                <Text style={styles.vipText}>VIP 4K</Text>
+                <Text style={styles.vipText}>{userProfile?.is_vip ? 'VIP 4K' : (userProfile?.role === 'admin' ? 'ADMIN' : 'MEMBER')}</Text>
               </View>
             </View>
-            <Text style={styles.userEmail}>kurumi124@gmail.com</Text>
-            <Text style={styles.membershipExpiry}>Hạn dùng VIP: 28/12/2026</Text>
+            <Text style={styles.userEmail}>{userProfile?.email || 'kurumi124@gmail.com'}</Text>
+            <Text style={styles.membershipExpiry}>
+              {userProfile?.vip_expires_at
+                ? `Hạn dùng VIP: ${new Date(userProfile.vip_expires_at).toLocaleDateString('vi-VN')}`
+                : 'CINESTREAM Member'}
+            </Text>
           </View>
         </View>
 
@@ -111,7 +145,7 @@ export default function ProfileScreen() {
             <View style={styles.statIconBadge}>
               <Ionicons name="heart" size={16} color={CinemaColors.primary} />
             </View>
-            <Text style={styles.statValue}>34</Text>
+            <Text style={styles.statValue}>{favoriteCount}</Text>
             <Text style={styles.statLabel}>Yêu thích</Text>
           </TouchableOpacity>
         </View>

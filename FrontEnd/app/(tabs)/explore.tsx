@@ -19,6 +19,7 @@ import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { Pagination } from '@/components/pagination';
 import { TopAppBar } from '@/components/top-app-bar';
+import { MovieAPI } from '@/services/API';
 
 // -------------------------------------------------------------
 // DỮ LIỆU THỂ LOẠI
@@ -245,6 +246,35 @@ export default function ExploreScreen() {
   const [showSortModal, setShowSortModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Dynamic Categories & Movies from Backend API
+  const [categoryPills, setCategoryPills] = useState(CATEGORY_PILLS);
+  const [apiMovies, setApiMovies] = useState<any[]>([]);
+
+  useEffect(() => {
+    MovieAPI.getCategories()
+      .then((res) => {
+        if (res.success && res.data?.length > 0) {
+          const dbCats = res.data.map((c: any) => ({ id: c.slug, name: c.name }));
+          setCategoryPills([{ id: 'all', name: 'Tất cả' }, ...dbCats]);
+        }
+      })
+      .catch((e) => console.warn('Lỗi load categories:', e));
+  }, []);
+
+  useEffect(() => {
+    MovieAPI.getMovies({
+      search: searchQuery || undefined,
+      category: selectedCategory !== 'all' ? selectedCategory : undefined,
+      limit: 50,
+    })
+      .then((res) => {
+        if (res.success && res.data?.length > 0) {
+          setApiMovies(res.data);
+        }
+      })
+      .catch((e) => console.warn('Lỗi load explore movies:', e));
+  }, [searchQuery, selectedCategory]);
+
   // Reset page when filter / search changes
   useEffect(() => {
     setCurrentPage(1);
@@ -252,14 +282,17 @@ export default function ExploreScreen() {
 
   // Filter & Search Logic
   const filteredMovies = useMemo(() => {
-    let result = EXPLORE_MOVIES.filter((movie) => {
+    const sourceList = apiMovies.length > 0 ? apiMovies : EXPLORE_MOVIES;
+    let result = sourceList.filter((movie) => {
+      const movieTitle = movie.title || '';
+      const movieGenres = movie.genres || '';
       const matchSearch =
         searchQuery.trim() === '' ||
-        movie.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        movie.genres.toLowerCase().includes(searchQuery.toLowerCase());
+        movieTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (Array.isArray(movieGenres) ? movieGenres.join(' ') : String(movieGenres)).toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchCategory =
-        selectedCategory === 'all' || movie.category === selectedCategory;
+        selectedCategory === 'all' || movie.category === selectedCategory || (Array.isArray(movie.genres) && movie.genres.includes(selectedCategory));
 
       return matchSearch && matchCategory;
     });
@@ -271,7 +304,7 @@ export default function ExploreScreen() {
     }
 
     return result;
-  }, [searchQuery, selectedCategory, selectedSort]);
+  }, [apiMovies, searchQuery, selectedCategory, selectedSort]);
 
   // Phân trang dữ liệu
   const totalPages = Math.ceil(filteredMovies.length / PAGE_SIZE);
@@ -342,7 +375,7 @@ export default function ExploreScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.categoriesContent}
               >
-                {CATEGORY_PILLS.map((item) => {
+                {categoryPills.map((item) => {
                   const isSelected = selectedCategory === item.id;
                   return (
                     <TouchableOpacity

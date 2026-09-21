@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { TopAppBar } from '@/components/top-app-bar';
+import { MovieAPI } from '@/services/API';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -229,15 +230,60 @@ export default function HomeScreen() {
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
 
+  // Dynamic Data from Backend API (with initial fallback)
+  const [featuredMovies, setFeaturedMovies] = useState(FEATURED_MOVIES);
+  const [continueWatching, setContinueWatching] = useState(CONTINUE_WATCHING);
+  const [trendingMovies, setTrendingMovies] = useState(TRENDING_MOVIES);
+  const [newReleases, setNewReleases] = useState(NEW_RELEASES);
+  const [categories, setCategories] = useState(CATEGORIES);
+
   const heroFlatListRef = useRef<FlatList>(null);
   const activeHeroIndexRef = useRef(activeHeroIndex);
-  activeHeroIndexRef.current = activeHeroIndex;
+
+  useEffect(() => {
+    activeHeroIndexRef.current = activeHeroIndex;
+  }, [activeHeroIndex]);
+
+  // Load live data from Backend API
+  useEffect(() => {
+    async function loadHomeData() {
+      try {
+        const [featRes, trendRes, newRes, cwRes, catRes] = await Promise.allSettled([
+          MovieAPI.getFeatured(),
+          MovieAPI.getTrending(),
+          MovieAPI.getNewReleases(),
+          MovieAPI.getContinueWatching(),
+          MovieAPI.getCategories(),
+        ]);
+
+        if (featRes.status === 'fulfilled' && featRes.value?.data?.length > 0) {
+          setFeaturedMovies(featRes.value.data);
+        }
+        if (trendRes.status === 'fulfilled' && trendRes.value?.data?.length > 0) {
+          setTrendingMovies(trendRes.value.data);
+        }
+        if (newRes.status === 'fulfilled' && newRes.value?.data?.length > 0) {
+          setNewReleases(newRes.value.data);
+        }
+        if (cwRes.status === 'fulfilled' && cwRes.value?.data?.length > 0) {
+          setContinueWatching(cwRes.value.data);
+        }
+        if (catRes.status === 'fulfilled' && catRes.value?.data?.length > 0) {
+          const dbCats = catRes.value.data.map((c: any) => ({ id: c.slug, name: c.name }));
+          setCategories([{ id: 'all', name: 'Tất cả' }, ...dbCats]);
+        }
+      } catch (err) {
+        console.warn('Lỗi kết nối API Backend trang chủ:', err);
+      }
+    }
+    loadHomeData();
+  }, []);
 
   // Tự động cuộn sang phim tiếp theo sau mỗi 5 giây
   useEffect(() => {
     const timer = setInterval(() => {
-      if (!FEATURED_MOVIES.length) return;
-      const nextIndex = (activeHeroIndexRef.current + 1) % FEATURED_MOVIES.length;
+      if (!featuredMovies.length) return;
+      const nextIndex = (activeHeroIndexRef.current + 1) % featuredMovies.length;
       heroFlatListRef.current?.scrollToIndex({
         index: nextIndex,
         animated: true,
@@ -246,7 +292,7 @@ export default function HomeScreen() {
     }, 5000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [featuredMovies]);
 
   const toggleBookmark = (id: string) => {
     setBookmarkedIds((prev) =>
@@ -257,7 +303,7 @@ export default function HomeScreen() {
   const handleHeroScroll = (event: any) => {
     const scrollOffset = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollOffset / SCREEN_WIDTH);
-    if (index >= 0 && index < FEATURED_MOVIES.length && index !== activeHeroIndex) {
+    if (index >= 0 && index < featuredMovies.length && index !== activeHeroIndex) {
       setActiveHeroIndex(index);
     }
   };
@@ -278,7 +324,7 @@ export default function HomeScreen() {
         <View style={styles.heroCarouselContainer}>
           <FlatList
             ref={heroFlatListRef}
-            data={FEATURED_MOVIES}
+            data={featuredMovies}
             keyExtractor={(item) => item.id}
             horizontal
             pagingEnabled
@@ -386,7 +432,7 @@ export default function HomeScreen() {
 
           {/* Pagination Indicators (Dots / Pills) */}
           <View style={styles.paginationDotsContainer}>
-            {FEATURED_MOVIES.map((_, idx) => (
+            {featuredMovies.map((_, idx) => (
               <View
                 key={idx}
                 style={[
@@ -403,7 +449,7 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoriesContainer}
         >
-          {CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const isSelected = selectedCategory === cat.id;
             return (
               <TouchableOpacity
@@ -443,7 +489,7 @@ export default function HomeScreen() {
           </View>
 
           <FlatList
-            data={CONTINUE_WATCHING}
+            data={continueWatching}
             keyExtractor={(item) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -492,7 +538,7 @@ export default function HomeScreen() {
           </View>
 
           <FlatList
-            data={TRENDING_MOVIES}
+            data={trendingMovies}
             keyExtractor={(item) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -562,7 +608,7 @@ export default function HomeScreen() {
           </View>
 
           <FlatList
-            data={NEW_RELEASES}
+            data={newReleases}
             keyExtractor={(item) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -617,7 +663,7 @@ export default function HomeScreen() {
           </View>
 
           <FlatList
-            data={NEW_RELEASES}
+            data={newReleases}
             keyExtractor={(item) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}

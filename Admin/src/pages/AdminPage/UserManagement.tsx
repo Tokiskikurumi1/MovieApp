@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   Search,
@@ -11,6 +11,7 @@ import {
   Tv,
 } from 'lucide-react';
 import { type User, INITIAL_USERS } from '../../services/mockData';
+import { AdminAPI } from '../../services/apiService';
 
 export const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
@@ -22,6 +23,32 @@ export const UserManagement: React.FC = () => {
   const [selectedUserForVip, setSelectedUserForVip] = useState<User | null>(null);
   const [vipTierChoice, setVipTierChoice] = useState<'VIP 4K' | 'VIP Standard' | 'Free'>('VIP 4K');
   const [selectedUserForDevices, setSelectedUserForDevices] = useState<User | null>(null);
+
+  const loadUsers = () => {
+    AdminAPI.getUsers()
+      .then((res) => {
+        if (res.success && res.data?.length > 0) {
+          const mapped: User[] = res.data.map((u: any) => ({
+            id: String(u.id),
+            fullName: u.full_name || 'Khách hàng',
+            email: u.email,
+            avatar: u.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
+            vipTier: u.is_vip ? 'VIP 4K' : 'Free',
+            vipExpiresAt: u.vip_expires_at ? new Date(u.vip_expires_at).toLocaleDateString('vi-VN') : 'Không có',
+            status: u.is_banned ? 'banned' : 'active',
+            devices: [],
+            totalWatchedHours: Number(u.total_watched_hours || 0),
+            createdAt: u.created_at ? new Date(u.created_at).toLocaleDateString('vi-VN') : '2026-09-20',
+          }));
+          setUsers(mapped);
+        }
+      })
+      .catch((err) => console.warn('Lỗi tải người dùng:', err));
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   // Filter Logic
   const filteredUsers = users.filter((u) => {
@@ -39,6 +66,7 @@ export const UserManagement: React.FC = () => {
 
   // Toggle Ban / Active
   const handleToggleBan = (userId: string) => {
+    AdminAPI.toggleBanUser(userId).catch((err) => console.warn('Lỗi ban user:', err));
     setUsers((prev) =>
       prev.map((u) => {
         if (u.id === userId) {
@@ -53,13 +81,14 @@ export const UserManagement: React.FC = () => {
   // Save VIP Tier
   const handleSaveVipTier = () => {
     if (!selectedUserForVip) return;
+    AdminAPI.updateVipUser(selectedUserForVip.id, vipTierChoice).catch((err) => console.warn('Lỗi cấp VIP:', err));
     setUsers((prev) =>
       prev.map((u) => {
         if (u.id === selectedUserForVip.id) {
           return {
             ...u,
             vipTier: vipTierChoice,
-            vipExpiry: vipTierChoice === 'Free' ? undefined : '2027-12-31',
+            vipExpiresAt: vipTierChoice === 'Free' ? 'Không có' : '30 ngày tới',
           };
         }
         return u;

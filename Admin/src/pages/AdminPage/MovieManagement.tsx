@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Film,
   Plus,
@@ -11,15 +11,18 @@ import {
   X,
   PlusCircle,
   Play,
+  RefreshCw,
 } from 'lucide-react';
 import { type Movie, type Episode, INITIAL_MOVIES } from '../../services/mockData';
 import { ConfirmModal } from '../../components/UI/ConfirmModal';
+import { AdminAPI } from '../../services/apiService';
 
 export const MovieManagement: React.FC = () => {
   const [movies, setMovies] = useState<Movie[]>(INITIAL_MOVIES);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('ALL');
   const [selectedVipFilter, setSelectedVipFilter] = useState('ALL');
+  const [isCrawling, setIsCrawling] = useState(false);
 
   // Modal States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -27,6 +30,54 @@ export const MovieManagement: React.FC = () => {
   const [isEpisodeModalOpen, setIsEpisodeModalOpen] = useState(false);
   const [activeMovieForEpisodes, setActiveMovieForEpisodes] = useState<Movie | null>(null);
   const [movieToDelete, setMovieToDelete] = useState<Movie | null>(null);
+
+  const loadMovies = () => {
+    AdminAPI.getMovies({ limit: 100 })
+      .then((res) => {
+        if (res.success && res.data?.length > 0) {
+          const mapped: Movie[] = res.data.map((m: any) => ({
+            id: String(m.id),
+            title: m.title,
+            originalTitle: m.original_title || m.title,
+            synopsis: m.description || '',
+            poster: m.poster_url || m.poster,
+            banner: m.poster_url || m.banner,
+            trailerUrl: m.trailer_url || '',
+            rating: Number(m.rating) || 8.5,
+            voteCount: m.vote_count || 100,
+            year: m.release_year || 2024,
+            quality: m.quality || 'FHD',
+            ageLimit: m.age_rating || '16+',
+            isVip: Boolean(m.is_vip),
+            status: m.status === 'published' ? 'active' : (m.status || 'active'),
+            genres: m.genres ? (Array.isArray(m.genres) ? m.genres : String(m.genres).split(',').map((g: string) => g.trim())) : ['Hành Động'],
+            totalEpisodes: m.total_episodes || 1,
+            views: m.view_count || 0,
+            createdAt: m.created_at ? new Date(m.created_at).toISOString().split('T')[0] : '2026-09-20',
+            episodes: [],
+          }));
+          setMovies(mapped);
+        }
+      })
+      .catch((err) => console.warn('Lỗi tải danh sách phim:', err));
+  };
+
+  useEffect(() => {
+    loadMovies();
+  }, []);
+
+  const handleTriggerCrawler = async () => {
+    setIsCrawling(true);
+    try {
+      const res = await AdminAPI.triggerCrawler(1, 1);
+      alert(res.message || 'Đã cào dữ liệu phim thành công!');
+      loadMovies();
+    } catch (err: any) {
+      alert(err.message || 'Lỗi khi kích hoạt crawler!');
+    } finally {
+      setIsCrawling(false);
+    }
+  };
 
   // New Episode Input State
   const [newEpTitle, setNewEpTitle] = useState('');
@@ -128,6 +179,7 @@ export const MovieManagement: React.FC = () => {
   // Delete Movie
   const handleConfirmDelete = () => {
     if (movieToDelete) {
+      AdminAPI.deleteMovie(movieToDelete.id).catch((err) => console.warn('Lỗi xóa phim:', err));
       setMovies((prev) => prev.filter((m) => m.id !== movieToDelete.id));
       setMovieToDelete(null);
     }
@@ -194,10 +246,25 @@ export const MovieManagement: React.FC = () => {
             Cập nhật kho phim, video streaming URL, phân loại thể loại và đặc quyền gói VIP
           </p>
         </div>
-        <button className="btn btn-primary" onClick={handleOpenAddMovie}>
-          <Plus size={16} />
-          <span>Thêm Phim Mới</span>
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            className="btn"
+            style={{
+              backgroundColor: 'rgba(59, 130, 246, 0.15)',
+              color: '#3b82f6',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+            }}
+            onClick={handleTriggerCrawler}
+            disabled={isCrawling}
+          >
+            <RefreshCw size={16} className={isCrawling ? 'spin' : ''} />
+            <span>{isCrawling ? 'Đang Cào...' : 'Đồng Bộ KKPhim'}</span>
+          </button>
+          <button className="btn btn-primary" onClick={handleOpenAddMovie}>
+            <Plus size={16} />
+            <span>Thêm Phim Mới</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter & Search Bar */}

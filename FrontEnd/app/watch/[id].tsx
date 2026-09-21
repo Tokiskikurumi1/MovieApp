@@ -22,6 +22,8 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
+import { MovieAPI, UserAPI } from '@/services/API';
+import CineVideoPlayer from '@/components/CineVideoPlayer';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const VIDEO_HEIGHT = (SCREEN_WIDTH * 9) / 16;
@@ -35,7 +37,12 @@ interface Episode {
   duration: string;
   thumbnail: string;
   isVip: boolean;
+  videoUrl?: string;
+  embedUrl?: string;
 }
+
+const DEFAULT_SAMPLE_STREAM = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+const DEFAULT_SAMPLE_EMBED = 'https://player.phimapi.com/player/?url=https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
 
 const SEASON_2_EPISODES: Episode[] = [
   {
@@ -44,6 +51,8 @@ const SEASON_2_EPISODES: Episode[] = [
     duration: '23:45',
     thumbnail: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=600&auto=format&fit=crop',
     isVip: false,
+    videoUrl: DEFAULT_SAMPLE_STREAM,
+    embedUrl: DEFAULT_SAMPLE_EMBED,
   },
   {
     id: 2,
@@ -51,6 +60,8 @@ const SEASON_2_EPISODES: Episode[] = [
     duration: '24:10',
     thumbnail: 'https://images.unsplash.com/photo-1568832359672-e36cf5d74f54?q=80&w=600&auto=format&fit=crop',
     isVip: false,
+    videoUrl: DEFAULT_SAMPLE_STREAM,
+    embedUrl: DEFAULT_SAMPLE_EMBED,
   },
   {
     id: 3,
@@ -324,6 +335,15 @@ export default function WatchMovieScreen() {
   const [selectedEpisodeId, setSelectedEpisodeId] = useState(1);
   const [isAllEpisodesModalVisible, setIsAllEpisodesModalVisible] = useState(false);
 
+  // Dynamic Movie & Episodes from Backend API
+  const [movie, setMovie] = useState<any>(null);
+  const [episodes, setEpisodes] = useState<any[]>(SEASON_2_EPISODES);
+
+  const currentEpisode =
+    (episodes && episodes.length > 0
+      ? episodes.find((ep: any) => ep.id === selectedEpisodeId) || episodes[0]
+      : SEASON_2_EPISODES[0]) || {};
+
   // Interaction States
   const [likeCount, setLikeCount] = useState(20700);
   const [isLiked, setIsLiked] = useState(false);
@@ -338,6 +358,30 @@ export default function WatchMovieScreen() {
     parentId: string;
     username: string;
   } | null>(null);
+
+  // Fetch real details and comments from Backend
+  useEffect(() => {
+    if (!id) return;
+    MovieAPI.getMovieDetail(id)
+      .then((res) => {
+        if (res.success && res.data) {
+          setMovie(res.data);
+          if (res.data.episodes && res.data.episodes.length > 0) {
+            setEpisodes(res.data.episodes);
+            setSelectedEpisodeId(res.data.episodes[0].id);
+          }
+        }
+      })
+      .catch((err) => console.warn('Lỗi tải phim từ Backend:', err));
+
+    UserAPI.getComments(id)
+      .then((res) => {
+        if (res.success && res.data && res.data.length > 0) {
+          setComments(res.data);
+        }
+      })
+      .catch((err) => console.warn('Lỗi tải bình luận từ Backend:', err));
+  }, [id]);
 
   const commentInputRef = useRef<TextInput>(null);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -375,6 +419,9 @@ export default function WatchMovieScreen() {
 
   const handleToggleFavorite = () => {
     setIsFavorite(!isFavorite);
+    if (id) {
+      UserAPI.toggleFavorite(id).catch((e) => console.warn('Lỗi favorite:', e));
+    }
     Alert.alert(
       isFavorite ? 'Đã bỏ yêu thích' : 'Đã thêm vào yêu thích',
       isFavorite ? 'Phim đã được xóa khỏi danh sách yêu thích.' : 'Phim đã được lưu vào danh sách yêu thích của bạn.'
@@ -402,18 +449,22 @@ export default function WatchMovieScreen() {
     }
   };
 
-  const handleSelectEpisode = (ep: Episode) => {
+  const handleSelectEpisode = (ep: any) => {
     setSelectedEpisodeId(ep.id);
     setIsPlaying(true);
     setProgressRatio(0);
     setCurrentTime('00:00');
     setIsAllEpisodesModalVisible(false);
-    Alert.alert('Chuyển tập', `Đang phát ${ep.title}`);
   };
 
   // Handle Send Facebook Style Comment / Reply
   const handleSendComment = () => {
     if (!commentInput.trim()) return;
+
+    if (id) {
+      UserAPI.postComment(id, commentInput.trim(), replyingTo ? Number(replyingTo.parentId) : undefined)
+        .catch((e) => console.warn('Lỗi post comment:', e));
+    }
 
     if (replyingTo) {
       // Adding a reply under parent comment
@@ -463,6 +514,7 @@ export default function WatchMovieScreen() {
 
   // Like parent comment
   const handleLikeComment = (commentId: string) => {
+    UserAPI.toggleLikeComment(commentId).catch((e) => console.warn('Lỗi like comment:', e));
     setComments((prev) =>
       prev.map((c) => {
         if (c.id === commentId) {
@@ -531,134 +583,18 @@ export default function WatchMovieScreen() {
       <StatusBar hidden={isFullscreen} barStyle="light-content" backgroundColor="#000000" />
 
       {/* ============================================================= */}
-      {/* 1. TOP VIDEO PLAYER CONTAINER (16:9 RATIO / FULLSCREEN)       */}
+      {/* 1. REAL STREAMING VIDEO PLAYER (16:9 RATIO / FULLSCREEN)      */}
       {/* ============================================================= */}
-      <View
-        style={[
-          styles.videoPlayerContainer,
-          isFullscreen && {
-            width: windowWidth,
-            height: windowHeight,
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 999,
-          },
-        ]}
-      >
-        {/* Main Video Scene Background Image */}
-        <Image
-          source={{
-            uri: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1200&auto=format&fit=crop',
-          }}
-          style={styles.videoImage}
-        />
-
-        {/* Clickable Overlay to Toggle Controls */}
-        <TouchableOpacity
-          style={styles.videoTouchOverlay}
-          activeOpacity={1}
-          onPress={toggleControls}
-        >
-          {showControls && (
-            <View style={styles.controlsOverlay}>
-              {/* Top Controls Bar */}
-              <View style={styles.playerTopBar}>
-                <TouchableOpacity
-                  style={styles.playerIconButton}
-                  onPress={handlePlayerBack}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-                </TouchableOpacity>
-
-                <Text style={styles.playerMovieTitle} numberOfLines={1}>
-                  Tập {selectedEpisodeId} • Nông Dân Nhàn Nhã Ở Dị Giới
-                </Text>
-
-                <View style={styles.playerTopRight}>
-                  <TouchableOpacity
-                    style={styles.playerIconButton}
-                    activeOpacity={0.7}
-                    onPress={() => setIsQualityModalVisible(true)}
-                  >
-                    <Ionicons name="ellipsis-vertical" size={20} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Center Play/Pause Controls */}
-              <View style={styles.playerCenterControls}>
-                <TouchableOpacity
-                  style={styles.playerSeekBtn}
-                  activeOpacity={0.7}
-                  onPress={() => Alert.alert('Lùi 10s')}
-                >
-                  <Ionicons name="play-back" size={26} color="#FFFFFF" />
-                  <Text style={styles.seekSecondsText}>10s</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.playerPlayPauseBtn}
-                  activeOpacity={0.8}
-                  onPress={handleTogglePlay}
-                >
-                  <Ionicons
-                    name={isPlaying ? 'pause' : 'play'}
-                    size={36}
-                    color="#FFFFFF"
-                    style={!isPlaying ? { marginLeft: 3 } : undefined}
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.playerSeekBtn}
-                  activeOpacity={0.7}
-                  onPress={() => Alert.alert('Tua 10s')}
-                >
-                  <Ionicons name="play-forward" size={26} color="#FFFFFF" />
-                  <Text style={styles.seekSecondsText}>10s</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Bottom Timeline Bar */}
-              <View style={styles.playerBottomBar}>
-                <Text style={styles.playerTimeText}>{currentTime}</Text>
-
-                {/* Progress Bar Track */}
-                <View style={styles.playerTimelineTrack}>
-                  <View style={[styles.playerTimelineFill, { width: `${progressRatio * 100}%` }]} />
-                  <View style={[styles.playerTimelineThumb, { left: `${progressRatio * 100}%` }]} />
-                </View>
-
-                <Text style={styles.playerTimeText}>{totalDuration}</Text>
-
-                <TouchableOpacity
-                  style={styles.qualityButton}
-                  activeOpacity={0.75}
-                  onPress={() => setIsQualityModalVisible(true)}
-                >
-                  <Text style={styles.qualityButtonText}>{selectedQuality}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.fullscreenBtn}
-                  activeOpacity={0.75}
-                  onPress={handleToggleFullscreen}
-                >
-                  <Ionicons
-                    name={isFullscreen ? 'contract-outline' : 'scan-outline'}
-                    size={isFullscreen ? 20 : 18}
-                    color="#FFFFFF"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
+      <CineVideoPlayer
+        videoUrl={currentEpisode?.videoUrl || currentEpisode?.link_m3u8}
+        embedUrl={currentEpisode?.embedUrl || currentEpisode?.link_embed}
+        title={movie?.title || 'CineStream'}
+        episodeTitle={currentEpisode?.title || `Tập ${selectedEpisodeId}`}
+        posterUrl={movie?.banner || movie?.poster || currentEpisode?.thumbnail}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={handleToggleFullscreen}
+        onBack={handlePlayerBack}
+      />
 
       {!isFullscreen && (
         <>
@@ -699,7 +635,7 @@ export default function WatchMovieScreen() {
             >
               {/* Main Title & Views Row */}
               <View style={styles.titleSection}>
-                <Text style={styles.mainTitle}>Nông Dân Nhàn Nhã Ở Dị Giới - Mùa 2</Text>
+                <Text style={styles.mainTitle}>{movie?.title || 'Nông Dân Nhàn Nhã Ở Dị Giới - Mùa 2'}</Text>
 
                 <TouchableOpacity
                   style={styles.viewsAndMoreRow}
@@ -847,7 +783,8 @@ export default function WatchMovieScreen() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.episodesHorizontalList}
                 >
-                  {SEASON_2_EPISODES.map((ep) => {
+                  {(episodes && episodes.length > 0 ? episodes : SEASON_2_EPISODES).map((ep: any, epIdx: number) => {
+                    const epNumber = ep.episodeNumber || epIdx + 1;
                     const isActive = ep.id === selectedEpisodeId;
                     return (
                       <TouchableOpacity
@@ -860,7 +797,7 @@ export default function WatchMovieScreen() {
                         onPress={() => handleSelectEpisode(ep)}
                       >
                         <Text style={[styles.episodeBoxNumber, isActive && styles.episodeBoxNumberActive]}>
-                          {ep.id}
+                          {epNumber}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -1150,7 +1087,7 @@ export default function WatchMovieScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.allEpisodesListContent}
             >
-              {SEASON_2_EPISODES.map((ep) => {
+              {(episodes && episodes.length > 0 ? episodes : SEASON_2_EPISODES).map((ep: any) => {
                 const isActive = ep.id === selectedEpisodeId;
                 return (
                   <TouchableOpacity
@@ -1265,10 +1202,10 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   videoTouchOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   controlsOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'space-between',
     padding: 10,

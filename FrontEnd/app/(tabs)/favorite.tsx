@@ -18,6 +18,7 @@ import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { Pagination } from '@/components/pagination';
 import { TopAppBar } from '@/components/top-app-bar';
+import { UserAPI } from '@/services/API';
 
 const INITIAL_FAVORITES = [
   {
@@ -202,6 +203,17 @@ export default function FavoriteScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Fetch favorites from Backend API
+  useEffect(() => {
+    UserAPI.getFavorites()
+      .then((res) => {
+        if (res.success && res.data?.length > 0) {
+          setFavorites(res.data);
+        }
+      })
+      .catch((e) => console.warn('Lỗi load favorites:', e));
+  }, []);
+
   // Reset current page when tab or search query changes
   useEffect(() => {
     setCurrentPage(1);
@@ -232,6 +244,7 @@ export default function FavoriteScreen() {
 
   const removeFavorite = (id: string) => {
     setFavorites((prev) => prev.filter((item) => item.id !== id));
+    UserAPI.toggleFavorite(id).catch((e) => console.warn('Lỗi remove favorite:', e));
   };
 
   const handlePageChange = (newPage: number) => {

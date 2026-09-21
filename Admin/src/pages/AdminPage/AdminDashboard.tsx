@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
   Film,
@@ -17,8 +17,21 @@ import {
   INITIAL_MOVIES,
   INITIAL_TRANSACTIONS,
 } from '../../services/mockData';
+import { AdminAPI } from '../../services/apiService';
 
 export const AdminDashboard: React.FC = () => {
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    AdminAPI.getStats()
+      .then((res) => {
+        if (res.success && res.data) {
+          setStats(res.data);
+        }
+      })
+      .catch((err) => console.warn('Lỗi lấy thống kê admin:', err));
+  }, []);
+
   const maxRevenue = Math.max(...REVENUE_CHART_7DAYS.map((d) => d.revenue));
 
   return (
@@ -102,7 +115,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
           <div style={{ fontSize: '24px', fontWeight: 800, color: '#ffffff', margin: '10px 0 4px' }}>
-            {DASHBOARD_STATS.totalViewsToday.toLocaleString('vi-VN')}
+            {(stats?.views?.total ?? DASHBOARD_STATS.totalViewsToday).toLocaleString('vi-VN')}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
             <span style={{ color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
@@ -134,7 +147,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
           <div style={{ fontSize: '24px', fontWeight: 800, color: '#ffffff', margin: '10px 0 4px' }}>
-            {DASHBOARD_STATS.totalVipUsers.toLocaleString('vi-VN')}
+            {(stats?.users?.vip ?? DASHBOARD_STATS.totalVipUsers).toLocaleString('vi-VN')}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
             <span style={{ color: '#ffd700', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
@@ -148,7 +161,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="glass-panel" style={{ padding: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '12.5px', color: 'var(--text-muted)', fontWeight: 600 }}>
-              NGƯỜI DÙNG ĐANG XEM (REALTIME)
+              TỔNG SỐ PHIM & TẬP ĐÃ CÀO
             </span>
             <div
               style={{
@@ -162,15 +175,15 @@ export const AdminDashboard: React.FC = () => {
                 color: '#10b981',
               }}
             >
-              <Users size={18} />
+              <Film size={18} />
             </div>
           </div>
           <div style={{ fontSize: '24px', fontWeight: 800, color: '#ffffff', margin: '10px 0 4px' }}>
-            {DASHBOARD_STATS.activeUsersNow.toLocaleString('vi-VN')}
+            {stats ? `${stats.movies?.total || 0} Phim (${stats.episodes?.total || 0} Tập)` : `${DASHBOARD_STATS.totalMovies} Phim`}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
             <div className="status-dot" />
-            <span style={{ color: '#10b981', fontWeight: 600 }}>100% Máy chủ mượt mà</span>
+            <span style={{ color: '#10b981', fontWeight: 600 }}>Đồng bộ tự động KKPhim</span>
           </div>
         </div>
       </div>

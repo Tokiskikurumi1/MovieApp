@@ -534,13 +534,13 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   heroBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
   },
   heroGradientOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(9, 10, 15, 0.75)',
   },
   navBarRow: {

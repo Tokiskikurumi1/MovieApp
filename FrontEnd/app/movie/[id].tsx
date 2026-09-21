@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { CommentsSection } from '@/components/comments-section';
+import { MovieAPI, UserAPI } from '@/services/API';
 
 // -------------------------------------------------------------
 // DỮ LIỆU DIỄN VIÊN (CAST MOCK DATA)
@@ -101,18 +102,41 @@ export default function MovieDetailScreen() {
   const [infoSectionY, setInfoSectionY] = useState(0);
   const [commentsOffsetY, setCommentsOffsetY] = useState(0);
 
+  const [movie, setMovie] = useState<any>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isSynopsisExpanded, setIsSynopsisExpanded] = useState(false);
 
+  useEffect(() => {
+    if (!id) return;
+    MovieAPI.getMovieDetail(id)
+      .then((res) => {
+        if (res.success && res.data) {
+          setMovie(res.data);
+        }
+      })
+      .catch((err) => console.warn('Lỗi load chi tiết phim:', err));
+  }, [id]);
+
   const isTablet = width >= 768;
   const similarCardWidth = isTablet ? 150 : 120;
+
+  const handleToggleFavorite = async () => {
+    setIsFavorite(!isFavorite);
+    if (id) {
+      try {
+        await UserAPI.toggleFavorite(id);
+      } catch (e) {
+        console.warn('Lỗi lưu yêu thích:', e);
+      }
+    }
+  };
 
   const handleShare = async () => {
     try {
       await Share.share({
-        message: 'Khám phá phim siêu phẩm NEBULA ODYSSEY trên ứng dụng CineStream!',
-        title: 'NEBULA ODYSSEY (2024)',
+        message: `Khám phá phim siêu phẩm ${movie?.title || 'trên CINESTREAM'}!`,
+        title: movie?.title || 'CineStream',
       });
     } catch {
       // ignore
@@ -199,7 +223,7 @@ export default function MovieDetailScreen() {
         <View style={styles.heroWrapper}>
           <Image
             source={{
-              uri: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop',
+              uri: movie?.backdrop || movie?.poster || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop',
             }}
             style={styles.heroBackdrop}
           />
@@ -208,7 +232,7 @@ export default function MovieDetailScreen() {
           {/* Quality Tag Top-Right */}
           <View style={styles.qualityPill}>
             <View style={styles.neonDot} />
-            <Text style={styles.qualityPillText}>4K UHD • HDR10+</Text>
+            <Text style={styles.qualityPillText}>{movie?.quality || '4K UHD • HDR10+'}</Text>
           </View>
 
           {/* Glowing Play Button Center (Red Cinema Accent) */}
@@ -238,17 +262,17 @@ export default function MovieDetailScreen() {
           </View>
 
           {/* Main Title */}
-          <Text style={styles.movieTitle}>NEBULA ODYSSEY</Text>
+          <Text style={styles.movieTitle}>{movie?.title || 'NEBULA ODYSSEY'}</Text>
 
           {/* Meta Info Row */}
           <View style={styles.metaRow}>
-            <Text style={styles.metaText}>2024</Text>
+            <Text style={styles.metaText}>{movie?.year || '2024'}</Text>
             <Text style={styles.metaDot}>•</Text>
             <View style={styles.ageBadge}>
               <Text style={styles.ageBadgeText}>16+</Text>
             </View>
             <Text style={styles.metaDot}>•</Text>
-            <Text style={styles.metaText}>2g 18p</Text>
+            <Text style={styles.metaText}>{movie?.duration || '2g 18p'}</Text>
             <Text style={styles.metaDot}>•</Text>
             <View style={styles.audioRow}>
               <MaterialIcons name="surround-sound" size={16} color={CinemaColors.textTertiary} />
@@ -261,7 +285,7 @@ export default function MovieDetailScreen() {
               activeOpacity={0.7}
             >
               <Ionicons name="star" size={13} color={CinemaColors.primary} />
-              <Text style={styles.ratingText}>8.9</Text>
+              <Text style={styles.ratingText}>{movie?.rating || '8.9'}</Text>
             </TouchableOpacity>
           </View>
 
@@ -272,7 +296,7 @@ export default function MovieDetailScreen() {
             contentContainerStyle={styles.genreScrollContent}
             style={styles.genreScrollView}
           >
-            {GENRES.map((genre, index) => (
+            {(movie?.genres && movie.genres.length > 0 ? movie.genres : GENRES).map((genre: string, index: number) => (
               <View key={index} style={styles.genrePill}>
                 <Text style={styles.genrePillText}>{genre}</Text>
               </View>
@@ -321,7 +345,7 @@ export default function MovieDetailScreen() {
 
             <TouchableOpacity
               style={styles.quickActionItem}
-              onPress={() => setIsFavorite(!isFavorite)}
+              onPress={handleToggleFavorite}
               activeOpacity={0.75}
             >
               <View
@@ -381,10 +405,7 @@ export default function MovieDetailScreen() {
               style={styles.synopsisText}
               numberOfLines={isSynopsisExpanded ? undefined : 3}
             >
-              Vào năm 2184, sau khi tín hiệu cứu cứu kỳ bí truyền về từ ranh giới chòm sao
-              Thiên Ưng, phi thuyền thám hiểm Odyssey khởi hành xuyên qua hố đen Nebula. Đối
-              mặt với những hiện tượng vũ trụ siêu nhiên bẻ cong không - thời gian, phi hành
-              đoàn phải tìm cách sinh tồn và giải mã bí mật cứu rỗi nền văn minh loài người.
+              {movie?.synopsis || movie?.description || 'Vào năm 2184, sau khi tín hiệu cứu cứu kỳ bí truyền về từ ranh giới chòm sao Thiên Ưng, phi thuyền thám hiểm Odyssey khởi hành xuyên qua hố đen Nebula.'}
             </Text>
 
             <TouchableOpacity
@@ -552,12 +573,12 @@ const styles = StyleSheet.create({
     backgroundColor: CinemaColors.surface,
   },
   heroBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
   },
   heroDarkOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(9, 10, 15, 0.45)',
   },
   qualityPill: {

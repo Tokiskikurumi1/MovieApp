@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
+import { AuthAPI } from '@/services/API';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function RegisterScreen() {
     password?: string;
     confirmPassword?: string;
     agreeTerms?: string;
+    apiError?: string;
     success?: string;
   }>({});
 
@@ -51,7 +53,7 @@ export default function RegisterScreen() {
 
   const strength = getPasswordStrength();
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     const trimmedName = fullName.trim();
     const trimmedPhone = phone.trim();
     const trimmedEmail = email.trim();
@@ -102,17 +104,21 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Đăng ký thành công
+    // Gửi yêu cầu đăng ký lên server
     setIsLoading(true);
     setErrors({});
 
-    setTimeout(() => {
+    try {
+      const res = await AuthAPI.register(trimmedName, trimmedPhone, trimmedEmail, password);
       setIsLoading(false);
-      setErrors({ success: 'Đăng ký tài khoản thành công! Đang chuyển đến Đăng nhập...' });
+      setErrors({ success: res.message || 'Đăng ký tài khoản thành công! Đang chuyển đến Đăng nhập...' });
       setTimeout(() => {
         router.push('/(auth)/login' as any);
       }, 1200);
-    }, 800);
+    } catch (err: any) {
+      setIsLoading(false);
+      setErrors({ apiError: err.message || 'Đăng ký thất bại, vui lòng thử lại!' });
+    }
   };
 
   return (
@@ -158,6 +164,14 @@ export default function RegisterScreen() {
             <View style={styles.successBox}>
               <Ionicons name="checkmark-circle" size={18} color={CinemaColors.success} />
               <Text style={styles.successText}>{errors.success}</Text>
+            </View>
+          )}
+
+          {/* API Error Banner */}
+          {errors.apiError && (
+            <View style={[styles.successBox, { backgroundColor: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.35)' }]}>
+              <Ionicons name="alert-circle" size={18} color={CinemaColors.error} />
+              <Text style={[styles.successText, { color: CinemaColors.error }]}>{errors.apiError}</Text>
             </View>
           )}
 

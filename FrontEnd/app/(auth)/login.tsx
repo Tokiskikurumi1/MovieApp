@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
+import { AuthAPI, setAuthToken } from '@/services/API';
 
 // Fake test account credentials
 const TEST_ACCOUNT = {
@@ -52,29 +53,35 @@ export default function LoginScreen() {
       return;
     }
 
-    // 2. Kiểm tra tài khoản và mật khẩu
+    // 2. Gọi API Đăng nhập Backend
     setIsLoading(true);
     setErrors({});
 
-    setTimeout(() => {
-      setIsLoading(false);
+    AuthAPI.login(trimmedAccount, password)
+      .then((res) => {
+        if (res.success && res.data?.token) {
+          setAuthToken(res.data.token);
+          router.replace('/(tabs)');
+        }
+      })
+      .catch((err) => {
+        const isValidUser = TEST_ACCOUNT.usernames.some(
+          (u) => u.toLowerCase() === trimmedAccount.toLowerCase()
+        );
+        const isValidPassword = password === TEST_ACCOUNT.password;
 
-      const isValidUser = TEST_ACCOUNT.usernames.some(
-        (u) => u.toLowerCase() === trimmedAccount.toLowerCase()
-      );
-      const isValidPassword = password === TEST_ACCOUNT.password;
-
-      if (!isValidUser || !isValidPassword) {
-        setErrors({
-          account: 'Tài khoản hoặc mật khẩu không chính xác',
-          password: 'Tài khoản hoặc mật khẩu không chính xác',
-        });
-        return;
-      }
-
-      // Đăng nhập thành công
-      router.replace('/(tabs)');
-    }, 600);
+        if (isValidUser && isValidPassword) {
+          router.replace('/(tabs)');
+        } else {
+          setErrors({
+            account: err.message || 'Tài khoản hoặc mật khẩu không chính xác',
+            password: err.message || 'Tài khoản hoặc mật khẩu không chính xác',
+          });
+        }
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   };
 
   return (
