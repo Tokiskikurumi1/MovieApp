@@ -17,6 +17,7 @@ import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { TopAppBar } from '@/components/top-app-bar';
 import { MovieAPI, UserAPI } from '@/services/API';
+import { useFavorites } from '@/store/favorite-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -228,7 +229,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
-  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   // Dynamic Data from Backend API (with initial fallback)
   const [featuredMovies, setFeaturedMovies] = useState(FEATURED_MOVIES);
@@ -294,36 +295,7 @@ export default function HomeScreen() {
     return () => clearInterval(timer);
   }, [featuredMovies]);
 
-  // Tải danh sách ID phim yêu thích từ Backend MySQL mỗi khi vào lại trang Home
-  useFocusEffect(
-    useCallback(() => {
-      let isActive = true;
-      UserAPI.getFavorites()
-        .then((res) => {
-          if (isActive && res.success && Array.isArray(res.data)) {
-            const ids: string[] = [];
-            res.data.forEach((m: any) => {
-              if (m.id) ids.push(String(m.id));
-              if (m.numericId) ids.push(String(m.numericId));
-            });
-            setBookmarkedIds(ids);
-          }
-        })
-        .catch((e) => console.warn('Lỗi load favorites home:', e));
-
-      return () => {
-        isActive = false;
-      };
-    }, [])
-  );
-
-  const toggleBookmark = (id: string) => {
-    setBookmarkedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-    UserAPI.toggleFavorite(id).catch((e) => console.warn('Lỗi toggle favorite home:', e));
-  };
-
+  // Cuộn tự động
   const handleHeroScroll = (event: any) => {
     const scrollOffset = event.nativeEvent.contentOffset.x;
     const index = Math.round(scrollOffset / SCREEN_WIDTH);
@@ -372,7 +344,7 @@ export default function HomeScreen() {
               }, 100);
             }}
             renderItem={({ item }) => {
-              const isSaved = bookmarkedIds.includes(item.id);
+              const isSaved = isFavorite(item.id) || isFavorite(item.numericId) || isFavorite(item.slug);
               return (
                 <View style={styles.heroBannerSlide}>
                   <Image
@@ -394,7 +366,7 @@ export default function HomeScreen() {
                     {/* Movie Title */}
                     <Text style={styles.heroTitle} numberOfLines={2}>{item.title}</Text>
 
-                    {/* Meta Tags */}
+                    {/* Metadata Row */}
                     <View style={styles.heroMetaRow}>
                       <View style={styles.ratingBadge}>
                         <Ionicons name="star" size={12} color="#FFD700" />
@@ -428,7 +400,7 @@ export default function HomeScreen() {
                       <TouchableOpacity
                         style={[styles.myListButton, isSaved && styles.myListButtonActive]}
                         activeOpacity={0.8}
-                        onPress={() => toggleBookmark(item.id)}
+                        onPress={() => toggleFavorite(item)}
                       >
                         <Ionicons
                           name={isSaved ? 'heart' : 'heart-outline'}
@@ -441,7 +413,7 @@ export default function HomeScreen() {
                             isSaved && { color: CinemaColors.primary, fontWeight: '700' },
                           ]}
                         >
-                          {isSaved ? 'Đã Thích' : 'Yêu thích'}
+                          {isSaved ? 'Đã thích' : 'Yêu thích'}
                         </Text>
                       </TouchableOpacity>
 

@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
 import { AuthAPI, UserAPI, setAuthToken } from '@/services/API';
+import { useFavorites } from '@/store/favorite-context';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -32,21 +33,14 @@ export default function ProfileScreen() {
     vip_expires_at?: string;
     avatar_url?: string;
   } | null>(null);
-  const [favoriteCount, setFavoriteCount] = useState<number>(34);
+  const { favorites } = useFavorites();
+  const favoriteCount = favorites.length;
 
   useEffect(() => {
     AuthAPI.getMe()
       .then((res) => {
         if (res.success && res.data) {
           setUserProfile(res.data);
-        }
-      })
-      .catch(() => {});
-
-    UserAPI.getFavorites()
-      .then((res) => {
-        if (res.success && Array.isArray(res.data)) {
-          setFavoriteCount(res.data.length);
         }
       })
       .catch(() => {});

@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
 import { MovieAPI, UserAPI } from '@/services/API';
+import { useFavorites } from '@/store/favorite-context';
 
 // -------------------------------------------------------------
 // DỮ LIỆU DANH MỤC LỌC BẢNG XẾP HẠNG
@@ -286,7 +287,7 @@ export default function TrendingRankingScreen() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [trendingMovies, setTrendingMovies] = useState(TOP_20_MOVIES);
   const [isLoading, setIsLoading] = useState(false);
-  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   // 1. Tải danh sách thể loại động từ MySQL Backend
   useEffect(() => {
@@ -357,29 +358,6 @@ export default function TrendingRankingScreen() {
     topMovie?.backdrop ||
     topMovie?.image ||
     'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop';
-
-  // Tải danh sách phim yêu thích để đồng bộ trạng thái trái tim
-  useEffect(() => {
-    UserAPI.getFavorites()
-      .then((res) => {
-        if (res.success && Array.isArray(res.data)) {
-          const ids: string[] = [];
-          res.data.forEach((m: any) => {
-            if (m.id) ids.push(String(m.id));
-            if (m.numericId) ids.push(String(m.numericId));
-          });
-          setBookmarkedIds(ids);
-        }
-      })
-      .catch((e) => console.warn('Lỗi load favorites trending:', e));
-  }, []);
-
-  const toggleBookmark = (id: string) => {
-    setBookmarkedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-    UserAPI.toggleFavorite(id).catch((e) => console.warn('Lỗi toggle favorite trending:', e));
-  };
 
   const handleShare = async () => {
     try {
@@ -525,7 +503,7 @@ export default function TrendingRankingScreen() {
           )
         }
         renderItem={({ item }) => {
-          const isSaved = bookmarkedIds.includes(item.id);
+          const isSaved = isFavorite(item.id) || isFavorite(item.numericId) || isFavorite(item.slug);
           return (
             <TouchableOpacity
               style={styles.movieItemCard}
@@ -582,7 +560,7 @@ export default function TrendingRankingScreen() {
                   <TouchableOpacity
                     style={[styles.bookmarkButton, isSaved && styles.bookmarkButtonActive]}
                     activeOpacity={0.75}
-                    onPress={() => toggleBookmark(item.id)}
+                    onPress={() => toggleFavorite(item)}
                   >
                     <Ionicons
                       name={isSaved ? 'heart' : 'heart-outline'}

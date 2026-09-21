@@ -18,6 +18,7 @@ import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { CommentsSection } from '@/components/comments-section';
 import { MovieAPI, UserAPI } from '@/services/API';
+import { useFavorites } from '@/store/favorite-context';
 
 // -------------------------------------------------------------
 // DỮ LIỆU DIỄN VIÊN (CAST MOCK DATA)
@@ -103,7 +104,8 @@ export default function MovieDetailScreen() {
   const [commentsOffsetY, setCommentsOffsetY] = useState(0);
 
   const [movie, setMovie] = useState<any>(null);
-  const [isFavorite, setIsFavorite] = useState(false);
+  const { isFavorite: checkFavorite, toggleFavorite } = useFavorites();
+  const isFavorite = checkFavorite(id) || checkFavorite(movie?.numericId) || checkFavorite(movie?.slug) || checkFavorite(movie?.id);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isSynopsisExpanded, setIsSynopsisExpanded] = useState(false);
 
@@ -121,15 +123,8 @@ export default function MovieDetailScreen() {
   const isTablet = width >= 768;
   const similarCardWidth = isTablet ? 150 : 120;
 
-  const handleToggleFavorite = async () => {
-    setIsFavorite(!isFavorite);
-    if (id) {
-      try {
-        await UserAPI.toggleFavorite(id);
-      } catch (e) {
-        console.warn('Lỗi lưu yêu thích:', e);
-      }
-    }
+  const handleToggleFavorite = () => {
+    toggleFavorite(movie || id);
   };
 
   const handleShare = async () => {
@@ -355,7 +350,7 @@ export default function MovieDetailScreen() {
                 ]}
               >
                 <Ionicons
-                  name={isFavorite ? 'heart' : 'add'}
+                  name={isFavorite ? 'heart' : 'heart-outline'}
                   size={20}
                   color={isFavorite ? CinemaColors.primary : CinemaColors.textPrimary}
                 />

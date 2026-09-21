@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
 import { MovieAPI, UserAPI } from '@/services/API';
+import { useFavorites } from '@/store/favorite-context';
 
 // -------------------------------------------------------------
 // DỮ LIỆU PHIM MỚI RA MẮT (NEW RELEASES MOCK DATA)
@@ -195,7 +196,7 @@ export default function MovieCollectionScreen() {
     title?: string;
   }>();
 
-  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+  const { isFavorite, toggleFavorite } = useFavorites();
   const isNewReleases = type === 'new-releases';
   const displayTitle = title || (isNewReleases ? 'Phim Mới Ra Mắt' : 'Gợi Ý Phim Hay');
 
@@ -234,29 +235,6 @@ export default function MovieCollectionScreen() {
       isMounted = false;
     };
   }, [type]);
-
-  // Tải danh sách phim yêu thích để đồng bộ trạng thái trái tim
-  useEffect(() => {
-    UserAPI.getFavorites()
-      .then((res) => {
-        if (res.success && Array.isArray(res.data)) {
-          const ids: string[] = [];
-          res.data.forEach((m: any) => {
-            if (m.id) ids.push(String(m.id));
-            if (m.numericId) ids.push(String(m.numericId));
-          });
-          setBookmarkedIds(ids);
-        }
-      })
-      .catch((e) => console.warn('Lỗi load favorites collection:', e));
-  }, []);
-
-  const toggleBookmark = (id: string) => {
-    setBookmarkedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-    UserAPI.toggleFavorite(id).catch((e) => console.warn('Lỗi toggle favorite collection:', e));
-  };
 
   const handleShare = async () => {
     try {
@@ -324,7 +302,7 @@ export default function MovieCollectionScreen() {
           )
         }
         renderItem={({ item }) => {
-          const isSaved = bookmarkedIds.includes(item.id);
+          const isSaved = isFavorite(item.id) || isFavorite(item.numericId) || isFavorite(item.slug);
           const tagsList: string[] =
             Array.isArray(item.tags) && item.tags.length > 0
               ? item.tags
@@ -388,7 +366,7 @@ export default function MovieCollectionScreen() {
                   <TouchableOpacity
                     style={[styles.bookmarkButton, isSaved && styles.bookmarkButtonActive]}
                     activeOpacity={0.75}
-                    onPress={() => toggleBookmark(item.id)}
+                    onPress={() => toggleFavorite(item)}
                   >
                     <Ionicons
                       name={isSaved ? 'heart' : 'heart-outline'}

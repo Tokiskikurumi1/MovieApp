@@ -24,6 +24,7 @@ import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
 import { MovieAPI, UserAPI } from '@/services/API';
 import CineVideoPlayer from '@/components/CineVideoPlayer';
+import { useFavorites } from '@/store/favorite-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const VIDEO_HEIGHT = (SCREEN_WIDTH * 9) / 16;
@@ -347,7 +348,8 @@ export default function WatchMovieScreen() {
   // Interaction States
   const [likeCount, setLikeCount] = useState(20700);
   const [isLiked, setIsLiked] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
+  const { isFavorite: checkFavorite, toggleFavorite } = useFavorites();
+  const isFavorite = checkFavorite(id) || checkFavorite(movie?.numericId) || checkFavorite(movie?.slug) || checkFavorite(movie?.id);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isSynopsisExpanded, setIsSynopsisExpanded] = useState(false);
 
@@ -418,14 +420,7 @@ export default function WatchMovieScreen() {
   };
 
   const handleToggleFavorite = () => {
-    setIsFavorite(!isFavorite);
-    if (id) {
-      UserAPI.toggleFavorite(id).catch((e) => console.warn('Lỗi favorite:', e));
-    }
-    Alert.alert(
-      isFavorite ? 'Đã bỏ yêu thích' : 'Đã thêm vào yêu thích',
-      isFavorite ? 'Phim đã được xóa khỏi danh sách yêu thích.' : 'Phim đã được lưu vào danh sách yêu thích của bạn.'
-    );
+    toggleFavorite(movie || id);
   };
 
   const handleDownload = () => {
@@ -701,12 +696,12 @@ export default function WatchMovieScreen() {
                     onPress={handleToggleFavorite}
                   >
                     <Ionicons
-                      name={isFavorite ? 'bookmark' : 'bookmark-outline'}
+                      name={isFavorite ? 'heart' : 'heart-outline'}
                       size={22}
                       color={isFavorite ? CinemaColors.primary : CinemaColors.textPrimary}
                     />
                     <Text style={[styles.actionLabel, isFavorite && { color: CinemaColors.primary }]}>
-                      Yêu thích
+                      {isFavorite ? 'Đã thích' : 'Yêu thích'}
                     </Text>
                   </TouchableOpacity>
 

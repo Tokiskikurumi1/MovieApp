@@ -21,162 +21,7 @@ import { Pagination } from '@/components/pagination';
 import { TopAppBar } from '@/components/top-app-bar';
 import { UserAPI } from '@/services/API';
 
-const INITIAL_FAVORITES = [
-  {
-    id: 'fav-1',
-    title: 'Avatar: Dòng Chảy Của Nước',
-    rating: '8.9',
-    quality: '4K Ultra HD',
-    year: '2024',
-    type: 'movies',
-    genres: 'Khoa Học Viễn Tưởng',
-    duration: '3h 12m',
-    image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'fav-2',
-    title: 'Interstellar: Hố Đen Tử Thần',
-    rating: '9.2',
-    quality: '4K HDR',
-    year: '2024',
-    type: 'movies',
-    genres: 'Khoa Học Viễn Tưởng',
-    duration: '2h 49m',
-    image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'fav-3',
-    title: 'Deadpool & Wolverine',
-    rating: '8.9',
-    quality: '4K HDR',
-    year: '2024',
-    type: 'movies',
-    genres: 'Hành Động • Hài',
-    duration: '2h 08m',
-    image: 'https://images.unsplash.com/photo-1568832359672-e36cf5d74f54?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'fav-4',
-    title: 'Stranger Things 5',
-    rating: '8.8',
-    quality: 'Dolby Vision',
-    year: '2024',
-    type: 'series',
-    genres: 'Kinh Dị • Bí Ẩn',
-    duration: 'Tập Mới',
-    image: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'fav-5',
-    title: 'John Wick: Chapter 4',
-    rating: '8.6',
-    quality: '4K HDR',
-    year: '2023',
-    type: 'movies',
-    genres: 'Hành Động',
-    duration: '2h 49m',
-    image: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'fav-6',
-    title: 'Dune: Hành Tinh Cát 2',
-    rating: '8.7',
-    quality: '4K IMAX',
-    year: '2024',
-    type: 'movies',
-    genres: 'Viễn Tưởng',
-    duration: '2h 46m',
-    image: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'fav-7',
-    title: 'The Last of Us',
-    rating: '9.0',
-    quality: '4K HDR',
-    year: '2023',
-    type: 'series',
-    genres: 'Hành Động • Sinh Tồn',
-    duration: 'Season 1',
-    image: 'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'fav-8',
-    title: 'Oppenheimer',
-    rating: '9.1',
-    quality: '4K IMAX',
-    year: '2023',
-    type: 'downloaded',
-    genres: 'Lịch Sử • Kịch Tính',
-    duration: '3h 00m',
-    image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'fav-9',
-    title: 'Cyberpunk: Edgerunners',
-    rating: '8.9',
-    quality: 'Full HD',
-    year: '2023',
-    type: 'series',
-    genres: 'Hoạt Hình • Viễn Tưởng',
-    duration: '10 Tập',
-    image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'fav-10',
-    title: 'Spider-Man: Across Spider-Verse',
-    rating: '9.0',
-    quality: '4K UHD',
-    year: '2023',
-    type: 'downloaded',
-    genres: 'Hoạt Hình • Siêu Anh Hùng',
-    duration: '2h 20m',
-    image: 'https://images.unsplash.com/photo-1635805737707-575885ab0820?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'fav-11',
-    title: 'House of the Dragon',
-    rating: '8.8',
-    quality: '4K HDR',
-    year: '2024',
-    type: 'series',
-    genres: 'Giả Tưởng • Kịch Tính',
-    duration: 'Season 2',
-    image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'fav-12',
-    title: 'The Batman',
-    rating: '8.5',
-    quality: '4K UHD',
-    year: '2022',
-    type: 'movies',
-    genres: 'Hành Động • Trinh Thám',
-    duration: '2h 56m',
-    image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'fav-13',
-    title: 'Loki Season 2',
-    rating: '8.7',
-    quality: '4K HDR',
-    year: '2023',
-    type: 'series',
-    genres: 'Hành Động • Phiêu Lưu',
-    duration: '6 Tập',
-    image: 'https://images.unsplash.com/photo-1514306191717-452ec28c7814?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'fav-14',
-    title: 'Top Gun: Maverick',
-    rating: '8.9',
-    quality: '4K IMAX',
-    year: '2022',
-    type: 'downloaded',
-    genres: 'Hành Động • Đua Bay',
-    duration: '2h 10m',
-    image: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=600&auto=format&fit=crop',
-  },
-];
+import { useFavorites } from '@/store/favorite-context';
 
 const FILTER_TABS = [
   { id: 'all', label: 'Tất Cả' },
@@ -198,37 +43,17 @@ export default function FavoriteScreen() {
 
   const flatListRef = useRef<FlatList>(null);
 
-  const [favorites, setFavorites] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { favorites, isLoading, removeFavorite, refreshFavorites } = useFavorites();
   const [selectedTab, setSelectedTab] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch favorites from Backend API whenever this tab screen is focused
+  // Tự động đồng bộ danh sách phim yêu thích mỗi khi vào lại màn hình
   useFocusEffect(
     useCallback(() => {
-      let isActive = true;
-      UserAPI.getFavorites()
-        .then((res) => {
-          if (isActive && res.success && Array.isArray(res.data)) {
-            setFavorites(res.data);
-          }
-        })
-        .catch((e) => {
-          console.warn('Lỗi load favorites:', e);
-          if (isActive && favorites.length === 0) {
-            setFavorites(INITIAL_FAVORITES);
-          }
-        })
-        .finally(() => {
-          if (isActive) setIsLoading(false);
-        });
-
-      return () => {
-        isActive = false;
-      };
-    }, [])
+      refreshFavorites();
+    }, [refreshFavorites])
   );
 
   // Reset current page when tab or search query changes
@@ -258,13 +83,6 @@ export default function FavoriteScreen() {
     const startIndex = (currentPage - 1) * PAGE_SIZE;
     return filteredFavorites.slice(startIndex, startIndex + PAGE_SIZE);
   }, [filteredFavorites, currentPage, PAGE_SIZE]);
-
-  const removeFavorite = (id: string) => {
-    setFavorites((prev) =>
-      prev.filter((item) => item.id !== id && String(item.numericId) !== String(id))
-    );
-    UserAPI.toggleFavorite(id).catch((e) => console.warn('Lỗi remove favorite:', e));
-  };
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
