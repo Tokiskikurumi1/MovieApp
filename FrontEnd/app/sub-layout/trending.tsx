@@ -16,7 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
-import { MovieAPI } from '@/services/API';
+import { MovieAPI, UserAPI } from '@/services/API';
 
 // -------------------------------------------------------------
 // DỮ LIỆU DANH MỤC LỌC BẢNG XẾP HẠNG
@@ -358,10 +358,27 @@ export default function TrendingRankingScreen() {
     topMovie?.image ||
     'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop';
 
+  // Tải danh sách phim yêu thích để đồng bộ trạng thái trái tim
+  useEffect(() => {
+    UserAPI.getFavorites()
+      .then((res) => {
+        if (res.success && Array.isArray(res.data)) {
+          const ids: string[] = [];
+          res.data.forEach((m: any) => {
+            if (m.id) ids.push(String(m.id));
+            if (m.numericId) ids.push(String(m.numericId));
+          });
+          setBookmarkedIds(ids);
+        }
+      })
+      .catch((e) => console.warn('Lỗi load favorites trending:', e));
+  }, []);
+
   const toggleBookmark = (id: string) => {
     setBookmarkedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+    UserAPI.toggleFavorite(id).catch((e) => console.warn('Lỗi toggle favorite trending:', e));
   };
 
   const handleShare = async () => {
@@ -568,7 +585,7 @@ export default function TrendingRankingScreen() {
                     onPress={() => toggleBookmark(item.id)}
                   >
                     <Ionicons
-                      name={isSaved ? 'bookmark' : 'bookmark-outline'}
+                      name={isSaved ? 'heart' : 'heart-outline'}
                       size={18}
                       color={isSaved ? CinemaColors.primary : CinemaColors.textPrimary}
                     />

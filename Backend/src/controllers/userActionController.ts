@@ -17,17 +17,29 @@ export async function getFavorites(req: AuthRequest, res: Response) {
       [userId]
     );
 
-    const data = rows.map((m) => ({
-      id: m.slug || String(m.id),
-      numericId: m.id,
-      title: m.name,
-      rating: String(m.rating || '8.8'),
-      quality: m.quality || '4K HDR',
-      year: String(m.year || '2024'),
-      type: m.type,
-      duration: m.time || '120 phút',
-      image: m.thumb_url || m.poster_url,
-    }));
+    const data = await Promise.all(
+      rows.map(async (m) => {
+        const [genres] = await pool.query<RowDataPacket[]>(
+          `SELECT c.name FROM categories c
+           JOIN movie_categories mc ON c.id = mc.category_id
+           WHERE mc.movie_id = ? LIMIT 2`,
+          [m.id]
+        );
+
+        return {
+          id: m.slug || String(m.id),
+          numericId: m.id,
+          title: m.name,
+          rating: String(m.rating || '8.8'),
+          quality: m.quality || '4K HDR',
+          year: String(m.year || '2024'),
+          type: m.type === 'series' ? 'series' : 'movies',
+          genres: genres.map((g) => g.name).join(' • ') || 'Phim hay',
+          duration: m.time || '120 phút',
+          image: m.thumb_url || m.poster_url,
+        };
+      })
+    );
 
     return res.json({ success: true, data });
   } catch (error: any) {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,10 @@ import {
   Image,
   useWindowDimensions,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { Pagination } from '@/components/pagination';
@@ -197,22 +198,38 @@ export default function FavoriteScreen() {
 
   const flatListRef = useRef<FlatList>(null);
 
-  const [favorites, setFavorites] = useState(INITIAL_FAVORITES);
+  const [favorites, setFavorites] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch favorites from Backend API
-  useEffect(() => {
-    UserAPI.getFavorites()
-      .then((res) => {
-        if (res.success && res.data?.length > 0) {
-          setFavorites(res.data);
-        }
-      })
-      .catch((e) => console.warn('Lỗi load favorites:', e));
-  }, []);
+  // Fetch favorites from Backend API whenever this tab screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      UserAPI.getFavorites()
+        .then((res) => {
+          if (isActive && res.success && Array.isArray(res.data)) {
+            setFavorites(res.data);
+          }
+        })
+        .catch((e) => {
+          console.warn('Lỗi load favorites:', e);
+          if (isActive && favorites.length === 0) {
+            setFavorites(INITIAL_FAVORITES);
+          }
+        })
+        .finally(() => {
+          if (isActive) setIsLoading(false);
+        });
+
+      return () => {
+        isActive = false;
+      };
+    }, [])
+  );
 
   // Reset current page when tab or search query changes
   useEffect(() => {
@@ -228,8 +245,8 @@ export default function FavoriteScreen() {
       const q = searchQuery.toLowerCase().trim();
       list = list.filter(
         (item) =>
-          item.title.toLowerCase().includes(q) ||
-          item.genres.toLowerCase().includes(q)
+          item.title?.toLowerCase().includes(q) ||
+          item.genres?.toLowerCase().includes(q)
       );
     }
     return list;
@@ -243,7 +260,9 @@ export default function FavoriteScreen() {
   }, [filteredFavorites, currentPage, PAGE_SIZE]);
 
   const removeFavorite = (id: string) => {
-    setFavorites((prev) => prev.filter((item) => item.id !== id));
+    setFavorites((prev) =>
+      prev.filter((item) => item.id !== id && String(item.numericId) !== String(id))
+    );
     UserAPI.toggleFavorite(id).catch((e) => console.warn('Lỗi remove favorite:', e));
   };
 
@@ -359,7 +378,12 @@ export default function FavoriteScreen() {
           </View>
         }
         ListEmptyComponent={
-          searchQuery.trim() !== '' ? (
+          isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={CinemaColors.primary} />
+              <Text style={styles.loadingText}>Đang tải phim yêu thích...</Text>
+            </View>
+          ) : searchQuery.trim() !== '' ? (
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
                 <Ionicons name="search-outline" size={44} color={CinemaColors.primary} />
@@ -384,7 +408,7 @@ export default function FavoriteScreen() {
               </View>
               <Text style={styles.emptyTitle}>Chưa có phim yêu thích</Text>
               <Text style={styles.emptySubtitle}>
-                Hãy khám phá kho phim và bấm nút "Danh Sách" để lưu lại những bộ phim bạn yêu thích.
+                Hãy khám phá kho phim và bấm nút "Yêu thích" để lưu lại những bộ phim bạn yêu thích.
               </Text>
               <TouchableOpacity
                 style={styles.exploreButton}
@@ -736,5 +760,16 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  loadingContainer: {
+    paddingVertical: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: CinemaColors.textMuted,
+    fontWeight: '500',
   },
 });

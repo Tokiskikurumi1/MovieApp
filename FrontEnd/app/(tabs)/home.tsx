@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,11 @@ import {
   StatusBar,
 } from 'react-native';
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { TopAppBar } from '@/components/top-app-bar';
-import { MovieAPI } from '@/services/API';
+import { MovieAPI, UserAPI } from '@/services/API';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -294,10 +294,34 @@ export default function HomeScreen() {
     return () => clearInterval(timer);
   }, [featuredMovies]);
 
+  // Tải danh sách ID phim yêu thích từ Backend MySQL mỗi khi vào lại trang Home
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      UserAPI.getFavorites()
+        .then((res) => {
+          if (isActive && res.success && Array.isArray(res.data)) {
+            const ids: string[] = [];
+            res.data.forEach((m: any) => {
+              if (m.id) ids.push(String(m.id));
+              if (m.numericId) ids.push(String(m.numericId));
+            });
+            setBookmarkedIds(ids);
+          }
+        })
+        .catch((e) => console.warn('Lỗi load favorites home:', e));
+
+      return () => {
+        isActive = false;
+      };
+    }, [])
+  );
+
   const toggleBookmark = (id: string) => {
     setBookmarkedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+    UserAPI.toggleFavorite(id).catch((e) => console.warn('Lỗi toggle favorite home:', e));
   };
 
   const handleHeroScroll = (event: any) => {
@@ -407,12 +431,17 @@ export default function HomeScreen() {
                         onPress={() => toggleBookmark(item.id)}
                       >
                         <Ionicons
-                          name={isSaved ? 'checkmark' : 'add'}
-                          size={22}
-                          color={CinemaColors.textPrimary}
+                          name={isSaved ? 'heart' : 'heart-outline'}
+                          size={20}
+                          color={isSaved ? CinemaColors.primary : CinemaColors.textPrimary}
                         />
-                        <Text style={styles.myListButtonText}>
-                          {isSaved ? 'Đã Lưu' : 'Danh Sách'}
+                        <Text
+                          style={[
+                            styles.myListButtonText,
+                            isSaved && { color: CinemaColors.primary, fontWeight: '700' },
+                          ]}
+                        >
+                          {isSaved ? 'Đã Thích' : 'Yêu thích'}
                         </Text>
                       </TouchableOpacity>
 
