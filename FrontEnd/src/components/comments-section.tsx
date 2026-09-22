@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CinemaColors } from '@/constants/theme';
+import { getSocket } from '@/services/socket';
+import { UserAPI } from '@/services/API';
 
 export interface CommentItem {
   id: string;
+  numericId?: number;
   user: string;
   avatar: string;
   rating?: number;
@@ -64,86 +67,6 @@ const DEFAULT_COMMENTS: CommentItem[] = [
     likes: 19,
     isLiked: false,
   },
-  {
-    id: 'cmt-5',
-    user: 'Hoàng Đức Duy',
-    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop',
-    rating: 5,
-    time: '2 ngày trước',
-    content: 'Tạo hình phi thuyền Odyssey quá ngầu, độ chi tiết 4K HDR nhìn rõ từng vết xước kim loại.',
-    likes: 31,
-    isLiked: false,
-  },
-  {
-    id: 'cmt-6',
-    user: 'Đỗ Hải Đăng',
-    avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?q=80&w=200&auto=format&fit=crop',
-    rating: 4,
-    time: '3 ngày trước',
-    content: 'Plot twist cuối phim bất ngờ thật sự, không nghĩ TS. Lyra lại đưa ra quyết định hy sinh như vậy.',
-    likes: 22,
-    isLiked: false,
-  },
-  {
-    id: 'cmt-7',
-    user: 'Bùi Kim Ngân',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=200&auto=format&fit=crop',
-    rating: 5,
-    time: '4 ngày trước',
-    content: 'Phim truyền cảm hứng về khám phá vũ trụ và tình đồng đội, xứng đáng 10/10.',
-    likes: 14,
-    isLiked: false,
-  },
-  {
-    id: 'cmt-8',
-    user: 'Vũ Mạnh Cường',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop',
-    rating: 5,
-    time: '5 ngày trước',
-    content: 'Xem đi xem lại 2 lần vẫn thấy cuốn, mong đạo diễn làm tiếp phần 2.',
-    likes: 37,
-    isLiked: false,
-  },
-  {
-    id: 'cmt-9',
-    user: 'Mai Phương Thảo',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-    rating: 4,
-    time: '1 tuần trước',
-    content: 'Hiệu ứng không gian 3 chiều làm rất có chiều sâu. Recommend mọi người xem bản 4K.',
-    likes: 9,
-    isLiked: false,
-  },
-  {
-    id: 'cmt-10',
-    user: 'Trịnh Gia Bảo',
-    avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=200&auto=format&fit=crop',
-    rating: 5,
-    time: '1 tuần trước',
-    content: 'Diễn viên phụ cũng diễn rất tròn vai, bối cảnh trạm vũ trụ xây dựng cực kỳ tỉ mỉ.',
-    likes: 18,
-    isLiked: false,
-  },
-  {
-    id: 'cmt-11',
-    user: 'Cao Thùy Linh',
-    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=200&auto=format&fit=crop',
-    rating: 5,
-    time: '2 tuần trước',
-    content: 'Một trong những phim Sci-Fi hay nhất từ trước đến nay, nhạc nền cực kỳ xúc động.',
-    likes: 25,
-    isLiked: false,
-  },
-  {
-    id: 'cmt-12',
-    user: 'Dương Văn Toàn',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop',
-    rating: 4,
-    time: '2 tuần trước',
-    content: 'Cảm giác hồi hộp nghẹt thở trong suốt 2 tiếng đồng hồ. Rất đáng xem!',
-    likes: 12,
-    isLiked: false,
-  },
 ];
 
 interface CommentsSectionProps {
@@ -176,28 +99,85 @@ export function CommentsSection({
   const [userRating, setUserRating] = useState(5);
   const [visibleCount, setVisibleCount] = useState(initialVisibleCount);
 
+  // Tải bình luận thực từ backend và lắng nghe Socket.io realtime
+  useEffect(() => {
+    if (!targetId) return;
+
+    // 1. Tải bình luận qua REST API
+    UserAPI.getComments(targetId)
+      .then((res) => {
+        if (res.success && res.data && res.data.length > 0) {
+          setComments(res.data);
+        }
+      })
+      .catch(() => {});
+
+    // 2. Kết nối Socket.io theo phòng bộ phim
+    const socket = getSocket();
+    socket.emit('join_movie', targetId);
+
+    const handleNewComment = (newCmt: any) => {
+      setComments((prev) => {
+        if (prev.some((c) => String(c.id) === String(newCmt.id))) return prev;
+        return [newCmt, ...prev];
+      });
+      setVisibleCount((prev) => prev + 1);
+    };
+
+    const handleCommentLiked = (data: { commentId: string; likes: number }) => {
+      setComments((prev) =>
+        prev.map((c) => (String(c.id) === String(data.commentId) ? { ...c, likes: data.likes } : c))
+      );
+    };
+
+    socket.on('new_comment', handleNewComment);
+    socket.on('comment_liked', handleCommentLiked);
+
+    return () => {
+      socket.emit('leave_movie', targetId);
+      socket.off('new_comment', handleNewComment);
+      socket.off('comment_liked', handleCommentLiked);
+    };
+  }, [targetId]);
+
   const handleAddComment = () => {
     if (!newCommentText.trim()) {
       Alert.alert('Thông báo', 'Vui lòng nhập nội dung bình luận của bạn.');
       return;
     }
 
-    const newComment: CommentItem = {
+    const content = newCommentText.trim();
+    const ratingVal = showRatingPicker ? userRating : undefined;
+
+    // Gửi qua Socket.io realtime
+    if (targetId) {
+      const socket = getSocket();
+      socket.emit('send_comment', {
+        movieIdOrSlug: targetId,
+        content,
+        rating: ratingVal,
+      });
+
+      // Đồng thời gọi API để lưu vào MySQL
+      UserAPI.postComment(targetId, content, ratingVal).catch(() => {});
+    }
+
+    const localComment: CommentItem = {
       id: `cmt-${Date.now()}`,
       user: 'Bạn (Người dùng)',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-      rating: showRatingPicker ? userRating : undefined,
+      rating: ratingVal,
       time: 'Vừa xong',
-      content: newCommentText.trim(),
+      content,
       likes: 0,
       isLiked: false,
     };
 
-    setComments((prev) => [newComment, ...prev]);
+    setComments((prev) => [localComment, ...prev]);
     setNewCommentText('');
     setVisibleCount((prev) => prev + 1);
-    onCommentAdded?.(newComment);
-    Alert.alert('Thành công', 'Đã đăng bình luận của bạn!');
+    onCommentAdded?.(localComment);
+    Alert.alert('Thành công', 'Đã đăng bình luận & đánh giá của bạn!');
   };
 
   const handleToggleLike = (commentId: string) => {
@@ -214,6 +194,15 @@ export function CommentsSection({
         return c;
       })
     );
+
+    if (targetId) {
+      const socket = getSocket();
+      socket.emit('like_comment', {
+        commentId,
+        movieIdOrSlug: targetId,
+      });
+      UserAPI.toggleLikeComment(commentId).catch(() => {});
+    }
   };
 
   const handleLoadMore = () => {
@@ -322,13 +311,22 @@ export function CommentsSection({
                       <Text style={styles.userName}>{item.user}</Text>
                       <View style={styles.metaRow}>
                         {item.rating !== undefined && (
-                          <View style={styles.starsRow}>
-                            {[...Array(item.rating)].map((_, i) => (
-                              <Ionicons key={i} name="star" size={10.5} color="#FFD700" />
-                            ))}
+                          <View style={styles.ratingBadgeWrapper}>
+                            <View style={styles.starsRow}>
+                              {[...Array(item.rating)].map((_, i) => (
+                                <Ionicons key={i} name="star" size={10} color="#FFD700" />
+                              ))}
+                            </View>
+                            <Text style={styles.ratingBadgeText}>{item.rating}.0</Text>
                           </View>
                         )}
-                        <Text style={styles.timeText}>{item.time}</Text>
+                        {item.rating !== undefined && (
+                          <Text style={styles.metaDotText}>•</Text>
+                        )}
+                        <View style={styles.timeWrapper}>
+                          <Ionicons name="time-outline" size={11} color={CinemaColors.textMuted} />
+                          <Text style={styles.timeText}>{item.time}</Text>
+                        </View>
                       </View>
                     </View>
 
@@ -529,11 +527,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 2,
+    marginTop: 3,
+  },
+  ratingBadgeWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
   },
   starsRow: {
     flexDirection: 'row',
-    gap: 2,
+    gap: 1.5,
+  },
+  ratingBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#FFD700',
+  },
+  metaDotText: {
+    fontSize: 10,
+    color: CinemaColors.textMuted,
+  },
+  timeWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   timeText: {
     fontSize: 11,

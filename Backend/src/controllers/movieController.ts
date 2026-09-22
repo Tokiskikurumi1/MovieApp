@@ -170,10 +170,42 @@ export async function getNewReleases(req: Request, res: Response) {
   }
 }
 
-// 4. Lấy danh sách Tiếp Tục Xem (Continue Watching)
+// 4. Lấy danh sách Lịch Sử Xem / Tiếp Tục Xem (Watch History)
 export async function getContinueWatching(req: AuthRequest, res: Response) {
   try {
-    const userId = req.user?.id || 2; // Fallback vào user mẫu nếu chưa đăng nhập
+    const userId = req.user?.id;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+    const search = ((req.query.search as string) || '').trim();
+    const offset = (page - 1) * limit;
+
+    // Nếu người dùng chưa đăng nhập thì trả về danh sách trống
+    if (!userId) {
+      return res.json({
+        success: true,
+        data: [],
+        pagination: { page: 1, limit, total: 0, totalPages: 0 },
+      });
+    }
+
+    let whereClause = 'WHERE wh.user_id = ?';
+    const params: any[] = [userId];
+
+    if (search) {
+      whereClause += ' AND (m.name LIKE ? OR m.origin_name LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    // Đếm tổng số bản ghi trong lịch sử
+    const [countRows] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(wh.id) as total
+       FROM watch_history wh
+       JOIN movies m ON wh.movie_id = m.id
+       ${whereClause}`,
+      params
+    );
+    const total = countRows[0]?.total || 0;
+    const totalPages = Math.ceil(total / limit);
 
     const [rows] = await pool.query<RowDataPacket[]>(
       `SELECT wh.id as history_id, wh.progress, wh.duration_left, wh.last_watched_at,
@@ -182,26 +214,49 @@ export async function getContinueWatching(req: AuthRequest, res: Response) {
        FROM watch_history wh
        JOIN movies m ON wh.movie_id = m.id
        LEFT JOIN episodes e ON wh.episode_id = e.id
-       WHERE wh.user_id = ?
+       ${whereClause}
        ORDER BY wh.last_watched_at DESC
-       LIMIT 5`,
-      [userId]
+       LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
     );
 
     const data = rows.map((r) => ({
       id: r.slug || String(r.movie_id),
+      movieId: r.slug || String(r.movie_id),
       numericId: r.movie_id,
+      historyId: r.history_id,
       title: r.title,
       episode: r.episode_name || 'Tập 1',
       progress: parseFloat(r.progress) || 0.5,
       durationLeft: r.duration_left || '30 phút còn lại',
+      timeWatched: r.last_watched_at ? formatTimeAgo(new Date(r.last_watched_at)) : 'Gần đây',
       image: r.thumb_url || r.poster_url,
     }));
 
-    return res.json({ success: true, data });
+    return res.json({
+      success: true,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }
+}
+
+function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+  if (seconds < 60) return 'Vừa xong';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} phút trước`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  const days = Math.floor(hours / 24);
+  return `${days} ngày trước`;
 }
 
 // 5. Tìm kiếm & Lọc phim danh sách (Explore & Search)

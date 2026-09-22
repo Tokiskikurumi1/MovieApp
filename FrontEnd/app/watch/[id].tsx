@@ -376,6 +376,13 @@ export default function WatchMovieScreen() {
             setEpisodes(res.data.episodes);
             setSelectedEpisodeId(res.data.episodes[0].id);
           }
+          // Tự động lưu vào lịch sử xem phim
+          UserAPI.saveWatchProgress({
+            movieIdOrSlug: id,
+            episodeId: res.data.episodes?.[0]?.id,
+            progress: 0.15,
+            durationLeft: res.data.duration || '45 phút còn lại',
+          }).catch(() => {});
         }
       })
       .catch((err) => console.warn('Lỗi tải phim từ Backend:', err));

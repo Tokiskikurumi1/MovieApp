@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,99 +10,153 @@ import {
   StatusBar,
   Alert,
   Modal,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
+import { MovieAPI, UserAPI } from '@/services/API';
+import { Pagination } from '@/components/pagination';
 
-// -------------------------------------------------------------
-// DỮ LIỆU MOCK PHIM TIẾP TỤC XEM (CONTINUE WATCHING DATA)
-// -------------------------------------------------------------
-const INITIAL_CONTINUE_WATCHING = [
-  {
-    id: 'cw-1',
-    movieId: 'tr-3',
-    title: 'Nông Dân Nhàn Nhã Ở Dị Giới - Mùa 2',
-    episode: 'Tập 1',
-    timeWatched: '14:03',
-    progress: 0.68,
-    image: 'https://images.unsplash.com/photo-1568832359672-e36cf5d74f54?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'cw-2',
-    movieId: 'tr-8',
-    title: 'The Daily Life of the Immortal King 5',
-    episode: 'Tập 1',
-    timeWatched: '13:45',
-    progress: 0.75,
-    image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'cw-3',
-    movieId: 'tr-7',
-    title: 'Dune: Hành Tinh Cát - Phần 2',
-    episode: 'Bản Rạp',
-    timeWatched: '1h 52m',
-    progress: 0.68,
-    image: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'cw-4',
-    movieId: 'tr-1',
-    title: 'Oppenheimer: Cha Đẻ Bom Nguyên Tử',
-    episode: 'Full HD',
-    timeWatched: '1h 03m',
-    progress: 0.35,
-    image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'cw-5',
-    movieId: 'tr-2',
-    title: '[ Phần 1 ] Được Nữ Đế Sủng Ái Ta Nên Làm Gì',
-    episode: 'PHẦN 1',
-    timeWatched: '27:56',
-    progress: 0.85,
-    image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'cw-6',
-    movieId: 'tr-5',
-    title: 'Kaguya-sama: Cuộc Chiến Tỏ Tình Siêu Căng Não',
-    episode: 'Tập 12',
-    timeWatched: '13/08/2024',
-    progress: 0.9,
-    image: 'https://images.unsplash.com/photo-1635805737707-575885ab0820?q=80&w=600&auto=format&fit=crop',
-  },
-];
+interface HistoryItem {
+  id: string;
+  movieId?: string;
+  numericId?: number;
+  historyId?: number;
+  title: string;
+  episode?: string;
+  timeWatched?: string;
+  progress: number;
+  durationLeft?: string;
+  image: string;
+}
 
-type ContinueItem = (typeof INITIAL_CONTINUE_WATCHING)[0];
+const PAGE_SIZE = 20;
 
 export default function ContinueWatchingScreen() {
   const router = useRouter();
-  const [items, setItems] = useState<ContinueItem[]>(INITIAL_CONTINUE_WATCHING);
-  const [selectedItemForMenu, setSelectedItemForMenu] = useState<ContinueItem | null>(null);
+  const flatListRef = useRef<FlatList>(null);
 
-  const clearAll = () => {
-    if (items.length === 0) return;
+  const [items, setItems] = useState<HistoryItem[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedItemForMenu, setSelectedItemForMenu] = useState<HistoryItem | null>(null);
+
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Tải danh sách lịch sử từ Backend API
+  const loadHistory = useCallback(
+    async (page: number, search: string) => {
+      setIsLoading(true);
+      try {
+        const res = await MovieAPI.getContinueWatching({
+          page,
+          limit: PAGE_SIZE,
+          search: search.trim() || undefined,
+        });
+
+        if (res.success && Array.isArray(res.data)) {
+          setItems(res.data);
+          if (res.pagination) {
+            setCurrentPage(res.pagination.page);
+            setTotalPages(res.pagination.totalPages || 1);
+            setTotalItems(res.pagination.total || res.data.length);
+          } else {
+            setTotalItems(res.data.length);
+            setTotalPages(Math.max(1, Math.ceil(res.data.length / PAGE_SIZE)));
+          }
+        } else {
+          setItems([]);
+          setTotalItems(0);
+          setTotalPages(1);
+        }
+      } catch (err) {
+        setItems([]);
+        setTotalItems(0);
+        setTotalPages(1);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  // Load ban đầu hoặc khi chuyển trang
+  useEffect(() => {
+    loadHistory(currentPage, searchQuery);
+  }, [currentPage, loadHistory]);
+
+  // Xử lý tìm kiếm với debounce 300ms
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setCurrentPage(1);
+      loadHistory(1, text);
+    }, 300);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setCurrentPage(1);
+    loadHistory(1, '');
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
+  const handleSafeBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/home' as any);
+    }
+  };
+
+  // Xóa toàn bộ lịch sử xem
+  const handleClearAll = () => {
+    if (items.length === 0 && totalItems === 0) return;
     Alert.alert(
-      'Xóa toàn bộ',
-      'Bạn có muốn xóa toàn bộ lịch sử đang xem không?',
+      'Xóa toàn bộ lịch sử',
+      'Bạn có chắc chắn muốn xóa toàn bộ lịch sử xem phim không?',
       [
         { text: 'Hủy', style: 'cancel' },
         {
           text: 'Xóa Hết',
           style: 'destructive',
-          onPress: () => setItems([]),
+          onPress: async () => {
+            try {
+              await UserAPI.clearAllWatchHistory();
+            } catch {}
+            setItems([]);
+            setTotalItems(0);
+            setTotalPages(1);
+            setCurrentPage(1);
+          },
         },
       ]
     );
   };
 
-  const handleDeleteItem = () => {
-    if (selectedItemForMenu) {
-      setItems((prev) => prev.filter((item) => item.id !== selectedItemForMenu.id));
-      setSelectedItemForMenu(null);
-    }
+  // Xóa 1 phim khỏi lịch sử xem
+  const handleDeleteItem = async () => {
+    if (!selectedItemForMenu) return;
+    const target = selectedItemForMenu;
+    setSelectedItemForMenu(null);
+
+    try {
+      await UserAPI.deleteWatchHistory(target.historyId || target.id || target.movieId || '');
+    } catch {}
+
+    // Cập nhật lại danh sách tại trang hiện tại
+    loadHistory(currentPage, searchQuery);
   };
 
   return (
@@ -114,95 +168,169 @@ export default function ContinueWatchingScreen() {
       <View style={styles.topBar}>
         <TouchableOpacity
           style={styles.circleIconButton}
-          onPress={() => router.back()}
+          onPress={handleSafeBack}
           activeOpacity={0.75}
         >
           <Ionicons name="chevron-back" size={22} color={CinemaColors.textPrimary} />
         </TouchableOpacity>
 
         <View style={styles.topBarCenter}>
-          <Text style={styles.headerTitle}>Tiếp Tục Xem</Text>
+          <Text style={styles.headerTitle}>Lịch sử xem</Text>
           <Text style={styles.headerSubtitle}>
-            {items.length} phim đang xem dở
+            {totalItems > 0 ? `${totalItems} phim đã xem` : 'Chưa có phim nào'}
           </Text>
+        </View>
+
+        {totalItems > 0 ? (
+          <TouchableOpacity
+            style={styles.clearAllButton}
+            onPress={handleClearAll}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.clearAllText}>Xóa hết</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 38 }} />
+        )}
+      </View>
+
+      {/* ----------------- SEARCH BAR (THANH TÌM KIẾM) ----------------- */}
+      <View style={styles.searchBarWrapper}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search-outline" size={18} color={CinemaColors.textMuted} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm kiếm trong lịch sử xem..."
+            placeholderTextColor={CinemaColors.textMuted}
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            returnKeyType="search"
+            autoCapitalize="none"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={handleClearSearch}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.clearSearchBtn}
+            >
+              <Ionicons name="close-circle" size={18} color={CinemaColors.textMuted} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
-      {/* ----------------- CONTINUE WATCHING LIST (FLATLIST) ----------------- */}
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconBox}>
-              <Ionicons name="play-skip-forward-outline" size={44} color={CinemaColors.primary} />
-            </View>
-            <Text style={styles.emptyTitle}>Chưa có phim đang xem dở</Text>
-            <Text style={styles.emptySubtitle}>
-              Khi bạn xem phim nhưng chưa kết thúc, phim sẽ tự động lưu tiến độ vào đây để bạn dễ dàng xem tiếp.
-            </Text>
-            <TouchableOpacity
-              style={styles.exploreButton}
-              onPress={() => router.replace('/(tabs)' as any)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="film-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.exploreButtonText}>Khám Phá Phim Ngay</Text>
-            </TouchableOpacity>
-          </View>
-        }
-        renderItem={({ item }) => {
-          const progressPercent = Math.round(item.progress * 100);
-
-          return (
-            <TouchableOpacity
-              style={styles.movieRowItem}
-              activeOpacity={0.8}
-              onPress={() =>
-                router.push({
-                  pathname: '/watch/[id]',
-                  params: { id: item.movieId || item.id },
-                })
-              }
-            >
-              {/* Left Thumbnail (16:9 Landscape) */}
-              <View style={styles.thumbnailWrapper}>
-                <Image source={{ uri: item.image }} style={styles.thumbnailImage} />
-
-                {/* Episode Badge Bottom-Left */}
-                <View style={styles.episodeBadge}>
-                  <Text style={styles.episodeBadgeText}>{item.episode}</Text>
+      {/* ----------------- WATCH HISTORY LIST (FLATLIST) ----------------- */}
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={CinemaColors.primary} />
+          <Text style={styles.loadingText}>Đang tải lịch sử xem...</Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={items}
+          keyExtractor={(item, index) => String(item.id || item.historyId || index)}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            searchQuery.trim().length > 0 ? (
+              <View style={styles.emptyContainer}>
+                <View style={styles.emptyIconBox}>
+                  <Ionicons name="search-outline" size={42} color={CinemaColors.textMuted} />
                 </View>
-
-                {/* Bottom Red Progress Bar */}
-                <View style={styles.progressBarBg}>
-                  <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
-                </View>
-              </View>
-
-              {/* Middle Title & Time Watched */}
-              <View style={styles.infoColumn}>
-                <Text style={styles.movieTitle} numberOfLines={2}>
-                  {item.title}
+                <Text style={styles.emptyTitle}>Không tìm thấy phim phù hợp</Text>
+                <Text style={styles.emptySubtitle}>
+                  Không có bộ phim nào khớp với từ khóa "{searchQuery}" trong lịch sử xem của bạn.
                 </Text>
-                <Text style={styles.timeWatchedText}>{item.timeWatched}</Text>
               </View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <View style={styles.emptyIconBox}>
+                  <Ionicons name="time-outline" size={44} color={CinemaColors.primary} />
+                </View>
+                <Text style={styles.emptyTitle}>Chưa có lịch sử xem phim</Text>
+                <Text style={styles.emptySubtitle}>
+                  Bạn chưa xem bộ phim nào. Hãy khám phá và thưởng thức kho phim bom tấn đặc sắc ngay hôm nay!
+                </Text>
+                <TouchableOpacity
+                  style={styles.exploreButton}
+                  onPress={() => router.replace('/(tabs)/explore' as any)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="film-outline" size={18} color="#FFFFFF" />
+                  <Text style={styles.exploreButtonText}>Khám Phá Phim Ngay</Text>
+                </TouchableOpacity>
+              </View>
+            )
+          }
+          renderItem={({ item }) => {
+            const progressPercent = Math.min(100, Math.max(0, Math.round((item.progress || 0) * 100)));
 
-              {/* Right 3-Dot Options Menu */}
+            return (
               <TouchableOpacity
-                style={styles.menuButton}
-                activeOpacity={0.7}
-                onPress={() => setSelectedItemForMenu(item)}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={styles.movieRowItem}
+                activeOpacity={0.8}
+                onPress={() =>
+                  router.push({
+                    pathname: '/watch/[id]',
+                    params: { id: item.movieId || item.id },
+                  })
+                }
               >
-                <Ionicons name="ellipsis-vertical" size={20} color={CinemaColors.textSecondary} />
+                {/* Left Thumbnail (16:9 Landscape) */}
+                <View style={styles.thumbnailWrapper}>
+                  <Image source={{ uri: item.image }} style={styles.thumbnailImage} />
+
+                  {/* Episode Badge Bottom-Left */}
+                  <View style={styles.episodeBadge}>
+                    <Text style={styles.episodeBadgeText}>{item.episode || 'Tập 1'}</Text>
+                  </View>
+
+                  {/* Bottom Red Progress Bar */}
+                  <View style={styles.progressBarBg}>
+                    <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+                  </View>
+                </View>
+
+                {/* Middle Title & Time Watched */}
+                <View style={styles.infoColumn}>
+                  <Text style={styles.movieTitle} numberOfLines={2}>
+                    {item.title}
+                  </Text>
+                  <View style={styles.timeRow}>
+                    <Ionicons name="time-outline" size={13} color={CinemaColors.textSecondary} />
+                    <Text style={styles.timeWatchedText}>
+                      {item.timeWatched || item.durationLeft || 'Gần đây'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Right 3-Dot Options Menu */}
+                <TouchableOpacity
+                  style={styles.menuButton}
+                  activeOpacity={0.7}
+                  onPress={() => setSelectedItemForMenu(item)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                  <Ionicons name="ellipsis-vertical" size={20} color={CinemaColors.textSecondary} />
+                </TouchableOpacity>
               </TouchableOpacity>
-            </TouchableOpacity>
-          );
-        }}
-      />
+            );
+          }}
+          ListFooterComponent={
+            totalPages > 1 ? (
+              <View style={styles.paginationWrapper}>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  siblingCount={1}
+                />
+              </View>
+            ) : null
+          }
+        />
+      )}
 
       {/* ----------------- BOTTOM SHEET OPTIONS MODAL ----------------- */}
       <Modal
@@ -220,14 +348,16 @@ export default function ContinueWatchingScreen() {
             {/* Top Drag Handle Bar */}
             <View style={styles.dragHandle} />
 
-            {/* Xóa Option Row matching screenshot */}
+            {/* Xóa Option Row */}
             <TouchableOpacity
               style={styles.deleteActionRow}
               activeOpacity={0.7}
               onPress={handleDeleteItem}
             >
-              <Ionicons name="trash-outline" size={22} color={CinemaColors.textPrimary} style={styles.deleteIcon} />
-              <Text style={styles.deleteActionText}>Xóa</Text>
+              <Ionicons name="trash-outline" size={22} color={CinemaColors.primary} style={styles.deleteIcon} />
+              <Text style={[styles.deleteActionText, { color: CinemaColors.primary }]}>
+                Xóa khỏi lịch sử xem
+              </Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -277,23 +407,82 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CinemaColors.border,
   },
+  clearAllButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 51, 75, 0.12)',
+  },
+  clearAllText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: CinemaColors.primary,
+  },
+
+  /* Search Bar */
+  searchBarWrapper: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: CinemaColors.background,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 44,
+    backgroundColor: CinemaColors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: CinemaColors.border,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    color: CinemaColors.textPrimary,
+    fontSize: 13.5,
+  },
+  clearSearchBtn: {
+    padding: 4,
+  },
+
+  /* Loading State */
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: CinemaColors.textSecondary,
+    marginTop: 12,
+  },
+
   listContent: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 10,
     paddingBottom: 36,
   },
 
-  /* Row Item matching screenshot */
+  /* Row Item */
   movieRowItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 16,
     gap: 12,
+    backgroundColor: CinemaColors.surface,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
   },
   thumbnailWrapper: {
-    width: 145,
-    height: 82,
+    width: 130,
+    height: 74,
     borderRadius: 8,
     overflow: 'hidden',
     position: 'relative',
@@ -314,7 +503,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   episodeBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#FFFFFF',
   },
@@ -337,14 +526,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   movieTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: CinemaColors.textPrimary,
-    lineHeight: 20,
+    lineHeight: 19,
     marginBottom: 4,
   },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   timeWatchedText: {
-    fontSize: 13,
+    fontSize: 12,
     color: CinemaColors.textSecondary,
     fontWeight: '500',
   },
@@ -354,6 +548,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  /* Pagination Wrapper */
+  paginationWrapper: {
+    marginTop: 18,
+    marginBottom: 20,
     alignItems: 'center',
   },
 
@@ -391,22 +592,21 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   deleteActionText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: CinemaColors.textPrimary,
   },
 
   /* Empty State */
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
+    paddingVertical: 70,
     paddingHorizontal: 30,
   },
   emptyIconBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: 'rgba(255, 51, 75, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -415,7 +615,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 51, 75, 0.25)',
   },
   emptyTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: CinemaColors.textPrimary,
     marginBottom: 6,
@@ -426,7 +626,7 @@ const styles = StyleSheet.create({
     color: CinemaColors.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   exploreButton: {
     flexDirection: 'row',

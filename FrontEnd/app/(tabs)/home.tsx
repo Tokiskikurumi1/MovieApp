@@ -232,7 +232,7 @@ export default function HomeScreen() {
 
   // Dynamic Data from Backend API (with initial fallback)
   const [featuredMovies, setFeaturedMovies] = useState(FEATURED_MOVIES);
-  const [continueWatching, setContinueWatching] = useState(CONTINUE_WATCHING);
+  const [continueWatching, setContinueWatching] = useState<any[]>([]);
   const [trendingMovies, setTrendingMovies] = useState(TRENDING_MOVIES);
   const [newReleases, setNewReleases] = useState(NEW_RELEASES);
 
@@ -243,15 +243,34 @@ export default function HomeScreen() {
     activeHeroIndexRef.current = activeHeroIndex;
   }, [activeHeroIndex]);
 
+  // Tải lịch sử xem khi màn hình được focus
+  const loadContinueWatching = useCallback(async () => {
+    try {
+      const res = await MovieAPI.getContinueWatching({ limit: 10 });
+      if (res.success && Array.isArray(res.data)) {
+        setContinueWatching(res.data);
+      } else {
+        setContinueWatching([]);
+      }
+    } catch (err) {
+      setContinueWatching([]);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadContinueWatching();
+    }, [loadContinueWatching])
+  );
+
   // Load live data from Backend API
   useEffect(() => {
     async function loadHomeData() {
       try {
-        const [featRes, trendRes, newRes, cwRes] = await Promise.allSettled([
+        const [featRes, trendRes, newRes] = await Promise.allSettled([
           MovieAPI.getFeatured(),
           MovieAPI.getTrending(),
           MovieAPI.getNewReleases(),
-          MovieAPI.getContinueWatching(),
         ]);
 
         if (featRes.status === 'fulfilled' && featRes.value?.data?.length > 0) {
@@ -262,9 +281,6 @@ export default function HomeScreen() {
         }
         if (newRes.status === 'fulfilled' && newRes.value?.data?.length > 0) {
           setNewReleases(newRes.value.data);
-        }
-        if (cwRes.status === 'fulfilled' && cwRes.value?.data?.length > 0) {
-          setContinueWatching(cwRes.value.data);
         }
       } catch (err) {
         console.warn('Lỗi kết nối API Backend trang chủ:', err);
@@ -443,7 +459,7 @@ export default function HomeScreen() {
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <View style={styles.sectionBarAccent} />
-              <Text style={styles.sectionTitle}>Tiếp Tục Xem</Text>
+              <Text style={styles.sectionTitle}>Lịch sử xem</Text>
             </View>
             <TouchableOpacity
               activeOpacity={0.7}
@@ -453,38 +469,50 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <FlatList
-            data={continueWatching}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalListContent}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.continueCard}
-                activeOpacity={0.85}
-                onPress={() => router.push({ pathname: '/watch/[id]', params: { id: item.id } })}
-              >
-                <View style={styles.continueImageWrapper}>
-                  <Image source={{ uri: item.image }} style={styles.continueImage} />
-                  <View style={styles.playOverlay}>
-                    <Ionicons name="play-circle" size={36} color="#FFFFFF" />
+          {continueWatching.length === 0 ? (
+            <View style={styles.emptyHistoryCard}>
+              <View style={styles.emptyHistoryIconBox}>
+                <Ionicons name="time-outline" size={26} color={CinemaColors.primary} />
+              </View>
+              <Text style={styles.emptyHistoryTitle}>Chưa có lịch sử xem phim</Text>
+              <Text style={styles.emptyHistorySubtitle}>
+                Các phim bạn đã xem sẽ tự động lưu vào đây để bạn dễ dàng xem tiếp.
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={continueWatching.slice(0, 10)}
+              keyExtractor={(item, idx) => String(item.id || item.numericId || idx)}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalListContent}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.continueCard}
+                  activeOpacity={0.85}
+                  onPress={() => router.push({ pathname: '/watch/[id]', params: { id: item.id || item.movieId } })}
+                >
+                  <View style={styles.continueImageWrapper}>
+                    <Image source={{ uri: item.image }} style={styles.continueImage} />
+                    <View style={styles.playOverlay}>
+                      <Ionicons name="play-circle" size={36} color="#FFFFFF" />
+                    </View>
+                    {/* Progress bar */}
+                    <View style={styles.progressBarBackground}>
+                      <View style={[styles.progressBarFill, { width: `${Math.min(100, Math.max(0, (item.progress || 0) * 100))}%` }]} />
+                    </View>
                   </View>
-                  {/* Progress bar */}
-                  <View style={styles.progressBarBackground}>
-                    <View style={[styles.progressBarFill, { width: `${item.progress * 100}%` }]} />
+                  <View style={styles.continueInfo}>
+                    <Text style={styles.continueTitle} numberOfLines={1}>{item.title}</Text>
+                    <View style={styles.continueMeta}>
+                      <Text style={styles.continueEpisode}>{item.episode || 'Tập 1'}</Text>
+                      <Text style={styles.continueDuration}>{item.durationLeft || item.timeWatched || ''}</Text>
+                    </View>
                   </View>
-                </View>
-                <View style={styles.continueInfo}>
-                  <Text style={styles.continueTitle} numberOfLines={1}>{item.title}</Text>
-                  <View style={styles.continueMeta}>
-                    <Text style={styles.continueEpisode}>{item.episode}</Text>
-                    <Text style={styles.continueDuration}>{item.durationLeft}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            )}
-          />
+                </TouchableOpacity>
+              )}
+            />
+          )}
         </View>
 
         {/* ----------------- PHIM THỊNH HÀNH ----------------- */}
@@ -966,6 +994,40 @@ const styles = StyleSheet.create({
   horizontalListContent: {
     paddingHorizontal: 20,
     gap: 14,
+  },
+
+  /* Empty History Card */
+  emptyHistoryCard: {
+    backgroundColor: CinemaColors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    marginHorizontal: 20,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyHistoryIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(229, 9, 20, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  emptyHistoryTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: CinemaColors.textPrimary,
+    marginBottom: 4,
+  },
+  emptyHistorySubtitle: {
+    fontSize: 12,
+    color: CinemaColors.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 
   /* Continue Watching Card */

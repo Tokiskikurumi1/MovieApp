@@ -265,3 +265,35 @@ function formatTimeAgo(date: Date): string {
   const days = Math.floor(hours / 24);
   return `${days} ngày trước`;
 }
+
+// 7. Xóa 1 mục khỏi lịch sử xem
+export async function deleteWatchHistory(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.user?.id || 2;
+    const { movieIdOrHistoryId } = req.params;
+
+    await pool.query(
+      `DELETE wh FROM watch_history wh
+       LEFT JOIN movies m ON wh.movie_id = m.id
+       WHERE wh.user_id = ? AND (wh.id = ? OR wh.movie_id = ? OR m.slug = ?)`,
+      [userId, movieIdOrHistoryId, movieIdOrHistoryId, movieIdOrHistoryId]
+    );
+
+    return res.json({ success: true, message: 'Đã xóa khỏi lịch sử xem' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// 8. Xóa toàn bộ lịch sử xem
+export async function clearAllWatchHistory(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.user?.id || 2;
+
+    await pool.query('DELETE FROM watch_history WHERE user_id = ?', [userId]);
+
+    return res.json({ success: true, message: 'Đã xóa toàn bộ lịch sử xem' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}

@@ -12,6 +12,11 @@ export const API_BASE_URL =
     ? 'http://localhost:5000/api'
     : `http://${COMPUTER_IP}:5000/api`;
 
+export const SOCKET_URL =
+  Platform.OS === 'web'
+    ? 'http://localhost:5000'
+    : `http://${COMPUTER_IP}:5000`;
+
 let authToken: string | null = null;
 
 export const setAuthToken = (token: string | null) => {
@@ -58,8 +63,15 @@ export const MovieAPI = {
   // 3. Phim Mới ra mắt (mặc định 20 phim mới nhất)
   getNewReleases: (limit = 20) => fetchJson(`/movies/new-releases?limit=${limit}`),
 
-  // 4. Tiếp tục xem (Continue Watching)
-  getContinueWatching: () => fetchJson('/movies/continue-watching'),
+  // 4. Lịch sử xem / Tiếp tục xem (Continue Watching)
+  getContinueWatching: (params?: { page?: number; limit?: number; search?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.limit) query.append('limit', String(params.limit));
+    if (params?.search) query.append('search', params.search);
+    const qs = query.toString();
+    return fetchJson(`/movies/continue-watching${qs ? `?${qs}` : ''}`);
+  },
 
   // 5. Danh sách thể loại
   getCategories: () => fetchJson('/movies/categories'),
@@ -110,12 +122,22 @@ export const UserAPI = {
       body: JSON.stringify(data),
     }),
 
+  // Xóa lịch sử xem
+  deleteWatchHistory: (movieIdOrHistoryId: string | number) =>
+    fetchJson(`/user/watch-history/${movieIdOrHistoryId}`, {
+      method: 'DELETE',
+    }),
+  clearAllWatchHistory: () =>
+    fetchJson('/user/watch-history', {
+      method: 'DELETE',
+    }),
+
   // Bình luận
   getComments: (movieIdOrSlug: string) => fetchJson(`/user/movies/${movieIdOrSlug}/comments`),
-  postComment: (movieIdOrSlug: string, content: string, parentId?: number) =>
+  postComment: (movieIdOrSlug: string, content: string, rating?: number, parentId?: number) =>
     fetchJson('/user/comments', {
       method: 'POST',
-      body: JSON.stringify({ movieIdOrSlug, content, parentId }),
+      body: JSON.stringify({ movieIdOrSlug, content, rating, parentId }),
     }),
   toggleLikeComment: (commentId: string | number) =>
     fetchJson(`/user/comments/${commentId}/like`, { method: 'POST' }),
