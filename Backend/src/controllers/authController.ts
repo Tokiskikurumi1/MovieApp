@@ -18,17 +18,34 @@ export async function register(req: Request, res: Response) {
       });
     }
 
-    // Kiểm tra xem email hoặc SĐT đã tồn tại chưa
-    const [existing] = await pool.query<RowDataPacket[]>(
-      'SELECT id FROM users WHERE (email IS NOT NULL AND email = ?) OR (phone IS NOT NULL AND phone = ?) LIMIT 1',
-      [email || '', phone || '']
-    );
+    // 1. Kiểm tra xem Email đã tồn tại chưa
+    if (email && email.trim()) {
+      const [existingEmail] = await pool.query<RowDataPacket[]>(
+        'SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1',
+        [email.trim().toLowerCase()]
+      );
+      if (existingEmail.length > 0) {
+        return res.status(400).json({
+          success: false,
+          field: 'email',
+          message: 'Email này đã được đăng ký tài khoản. Vui lòng sử dụng email khác hoặc đăng nhập!',
+        });
+      }
+    }
 
-    if (existing.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email hoặc số điện thoại này đã được đăng ký tài khoản',
-      });
+    // 2. Kiểm tra xem Số điện thoại đã tồn tại chưa
+    if (phone && phone.trim()) {
+      const [existingPhone] = await pool.query<RowDataPacket[]>(
+        'SELECT id FROM users WHERE phone = ? LIMIT 1',
+        [phone.trim()]
+      );
+      if (existingPhone.length > 0) {
+        return res.status(400).json({
+          success: false,
+          field: 'phone',
+          message: 'Số điện thoại này đã được đăng ký tài khoản. Vui lòng sử dụng số khác!',
+        });
+      }
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -202,6 +219,116 @@ export async function updateProfile(req: AuthRequest, res: Response) {
     );
 
     return res.json({ success: true, message: 'Cập nhật thông tin thành công!' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// 5. Kiểm tra email hoặc SĐT đã tồn tại chưa (dùng cho đăng ký)
+export async function checkExists(req: Request, res: Response) {
+  try {
+    const { email, phone } = req.body;
+    let emailExists = false;
+    let phoneExists = false;
+
+    if (email && typeof email === 'string' && email.trim()) {
+      const [emailRows] = await pool.query<RowDataPacket[]>(
+        'SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1',
+        [email.trim().toLowerCase()]
+      );
+      emailExists = emailRows.length > 0;
+    }
+
+    if (phone && typeof phone === 'string' && phone.trim()) {
+      const [phoneRows] = await pool.query<RowDataPacket[]>(
+        'SELECT id FROM users WHERE phone = ? LIMIT 1',
+        [phone.trim()]
+      );
+      phoneExists = phoneRows.length > 0;
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        emailExists,
+        phoneExists,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// 6. Kiểm tra email có tồn tại không (dùng cho Quên mật khẩu)
+export async function checkEmail(req: Request, res: Response) {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp địa chỉ email' });
+    }
+
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT id, full_name, email FROM users WHERE LOWER(email) = ? LIMIT 1',
+      [email.trim().toLowerCase()]
+    );
+
+    const exists = rows.length > 0;
+
+    return res.json({
+      success: true,
+      exists,
+      message: exists
+        ? 'Email tồn tại trong hệ thống'
+        : 'Email này chưa được đăng ký trong hệ thống!',
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// 7. Đặt lại mật khẩu mới
+export async function resetPassword(req: Request, res: Response) {
+  try {
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng cung cấp đầy đủ email và mật khẩu mới',
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu mới phải có từ 8 ký tự trở lên',
+      });
+    }
+
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1',
+      [email.trim().toLowerCase()]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Email này không tồn tại trong hệ thống!',
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+
+    await pool.query('UPDATE users SET password_hash = ? WHERE LOWER(email) = ?', [
+      passwordHash,
+      email.trim().toLowerCase(),
+    ]);
+
+    return res.json({
+      success: true,
+      message: 'Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.',
+    });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }

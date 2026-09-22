@@ -175,7 +175,13 @@ export default function MovieDetailScreen() {
       <View style={styles.topBar}>
         <TouchableOpacity
           style={styles.circleIconButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/home' as any);
+            }
+          }}
           activeOpacity={0.75}
         >
           <Ionicons name="chevron-back" size={22} color={CinemaColors.textPrimary} />

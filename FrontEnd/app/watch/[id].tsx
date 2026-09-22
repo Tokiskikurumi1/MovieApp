@@ -327,7 +327,11 @@ export default function WatchMovieScreen() {
         console.warn('Error resetting orientation:', error);
       }
     } else {
-      router.back();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)/home' as any);
+      }
     }
   };
 

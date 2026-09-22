@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
+import { AuthAPI } from '@/services/API';
 
 // Fake Test OTP constant
 const TEST_OTP = '1111';
@@ -58,8 +59,8 @@ export default function ForgotPasswordScreen() {
     return () => clearInterval(timer);
   }, [step, countdown]);
 
-  // Step 1: Send OTP to Email
-  const handleSendCode = () => {
+  // Step 1: Send OTP to Email (Kiểm tra email có tồn tại trong cơ sở dữ liệu MySQL không)
+  const handleSendCode = async () => {
     const trimmedEmail = email.trim();
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
@@ -75,12 +76,24 @@ export default function ForgotPasswordScreen() {
     setIsLoading(true);
     setErrors({});
 
-    setTimeout(() => {
+    try {
+      // Kiểm tra sự tồn tại của email trong cơ sở dữ liệu MySQL
+      const res = await AuthAPI.checkEmail(trimmedEmail);
       setIsLoading(false);
+
+      if (!res.exists) {
+        setErrors({ email: 'Email này chưa được đăng ký trong hệ thống!' });
+        return;
+      }
+
+      // Email tồn tại -> Chuyển sang Bước 2 nhập OTP
       setStep(2);
       setCountdown(60);
       setOtp(['', '', '', '']);
-    }, 600);
+    } catch (err: any) {
+      setIsLoading(false);
+      setErrors({ email: err.message || 'Lỗi kiểm tra email, vui lòng thử lại!' });
+    }
   };
 
   // OTP Change handler
@@ -133,7 +146,7 @@ export default function ForgotPasswordScreen() {
   };
 
   // Step 3: Save New Password
-  const handleResetPassword = () => {
+  const handleResetPassword = async () => {
     const newErrors: typeof errors = {};
 
     if (!newPassword) {
@@ -156,13 +169,17 @@ export default function ForgotPasswordScreen() {
     setIsLoading(true);
     setErrors({});
 
-    setTimeout(() => {
+    try {
+      const res = await AuthAPI.resetPassword(email.trim(), newPassword);
       setIsLoading(false);
-      setErrors({ success: 'Đặt lại mật khẩu thành công! Đang chuyển về Đăng nhập...' });
+      setErrors({ success: res.message || 'Đặt lại mật khẩu thành công! Đang chuyển về Đăng nhập...' });
       setTimeout(() => {
         router.push('/(auth)/login' as any);
       }, 1200);
-    }, 800);
+    } catch (err: any) {
+      setIsLoading(false);
+      setErrors({ newPassword: err.message || 'Đặt lại mật khẩu thất bại!' });
+    }
   };
 
   const handleResendCode = () => {
@@ -182,7 +199,11 @@ export default function ForgotPasswordScreen() {
     } else if (step === 2) {
       setStep(1);
     } else {
-      router.back();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(auth)/login' as any);
+      }
     }
   };
 

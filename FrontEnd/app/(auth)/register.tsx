@@ -53,6 +53,14 @@ export default function RegisterScreen() {
 
   const strength = getPasswordStrength();
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(auth)/login' as any);
+    }
+  };
+
   const handleRegister = async () => {
     const trimmedName = fullName.trim();
     const trimmedPhone = phone.trim();
@@ -104,11 +112,28 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Gửi yêu cầu đăng ký lên server
+    // Gửi yêu cầu kiểm tra và đăng ký lên server
     setIsLoading(true);
     setErrors({});
 
     try {
+      // Kiểm tra sự tồn tại của Email và Số điện thoại trong cơ sở dữ liệu
+      const checkRes = await AuthAPI.checkExists({ email: trimmedEmail, phone: trimmedPhone });
+      if (checkRes.success && checkRes.data) {
+        const existErrors: typeof errors = {};
+        if (checkRes.data.emailExists) {
+          existErrors.email = 'Email này đã được đăng ký tài khoản';
+        }
+        if (checkRes.data.phoneExists) {
+          existErrors.phone = 'Số điện thoại này đã được đăng ký tài khoản';
+        }
+        if (Object.keys(existErrors).length > 0) {
+          setIsLoading(false);
+          setErrors(existErrors);
+          return;
+        }
+      }
+
       const res = await AuthAPI.register(trimmedName, trimmedPhone, trimmedEmail, password);
       setIsLoading(false);
       setErrors({ success: res.message || 'Đăng ký tài khoản thành công! Đang chuyển đến Đăng nhập...' });
@@ -140,7 +165,7 @@ export default function RegisterScreen() {
           <View style={styles.topBar}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => router.back()}
+              onPress={handleBack}
               activeOpacity={0.7}
             >
               <Ionicons name="chevron-back" size={22} color={CinemaColors.textPrimary} />

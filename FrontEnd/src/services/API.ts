@@ -132,5 +132,20 @@ export const AuthAPI = {
       method: 'POST',
       body: JSON.stringify({ fullName, phone, email, password: pass }),
     }),
+  checkExists: (params: { email?: string; phone?: string }) =>
+    fetchJson('/auth/check-exists', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+  checkEmail: (email: string) =>
+    fetchJson('/auth/check-email', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  resetPassword: (email: string, newPassword: string) =>
+    fetchJson('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, newPassword }),
+    }),
   getMe: () => fetchJson('/auth/me'),
 };
