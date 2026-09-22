@@ -72,6 +72,7 @@ export const MovieAPI = {
     category?: string;
     type?: string;
     year?: number;
+    sort?: string;
   }) => {
     const query = new URLSearchParams();
     if (params.page) query.append('page', String(params.page));
@@ -80,6 +81,7 @@ export const MovieAPI = {
     if (params.category) query.append('category', params.category);
     if (params.type) query.append('type', params.type);
     if (params.year) query.append('year', String(params.year));
+    if (params.sort) query.append('sort', params.sort);
     return fetchJson(`/movies?${query.toString()}`);
   },
 

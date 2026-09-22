@@ -227,7 +227,6 @@ const NEW_RELEASES = [
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
   const { isFavorite, toggleFavorite } = useFavorites();
 
@@ -236,7 +235,6 @@ export default function HomeScreen() {
   const [continueWatching, setContinueWatching] = useState(CONTINUE_WATCHING);
   const [trendingMovies, setTrendingMovies] = useState(TRENDING_MOVIES);
   const [newReleases, setNewReleases] = useState(NEW_RELEASES);
-  const [categories, setCategories] = useState(CATEGORIES);
 
   const heroFlatListRef = useRef<FlatList>(null);
   const activeHeroIndexRef = useRef(activeHeroIndex);
@@ -249,12 +247,11 @@ export default function HomeScreen() {
   useEffect(() => {
     async function loadHomeData() {
       try {
-        const [featRes, trendRes, newRes, cwRes, catRes] = await Promise.allSettled([
+        const [featRes, trendRes, newRes, cwRes] = await Promise.allSettled([
           MovieAPI.getFeatured(),
           MovieAPI.getTrending(),
           MovieAPI.getNewReleases(),
           MovieAPI.getContinueWatching(),
-          MovieAPI.getCategories(),
         ]);
 
         if (featRes.status === 'fulfilled' && featRes.value?.data?.length > 0) {
@@ -268,10 +265,6 @@ export default function HomeScreen() {
         }
         if (cwRes.status === 'fulfilled' && cwRes.value?.data?.length > 0) {
           setContinueWatching(cwRes.value.data);
-        }
-        if (catRes.status === 'fulfilled' && catRes.value?.data?.length > 0) {
-          const dbCats = catRes.value.data.map((c: any) => ({ id: c.slug, name: c.name }));
-          setCategories([{ id: 'all', name: 'Tất cả' }, ...dbCats]);
         }
       } catch (err) {
         console.warn('Lỗi kết nối API Backend trang chủ:', err);
@@ -444,36 +437,7 @@ export default function HomeScreen() {
             ))}
           </View>
         </View>
-{/* ----------------- CATEGORY FILTER PILLS ----------------- */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesContainer}
-        >
-          {categories.map((cat) => {
-            const isSelected = selectedCategory === cat.id;
-            return (
-              <TouchableOpacity
-                key={cat.id}
-                style={[
-                  styles.categoryPill,
-                  isSelected && styles.categoryPillSelected,
-                ]}
-                onPress={() => setSelectedCategory(cat.id)}
-                activeOpacity={0.75}
-              >
-                <Text
-                  style={[
-                    styles.categoryText,
-                    isSelected && styles.categoryTextSelected,
-                  ]}
-                >
-                  {cat.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+
         {/* ----------------- CONTINUE WATCHING ----------------- */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>

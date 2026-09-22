@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,221 +11,14 @@ import {
   Image,
   useWindowDimensions,
   StatusBar,
-  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
-import { BrandLogo } from '@/components/brand-logo';
 import { Pagination } from '@/components/pagination';
 import { TopAppBar } from '@/components/top-app-bar';
 import { MovieAPI } from '@/services/API';
-
-// -------------------------------------------------------------
-// DỮ LIỆU THỂ LOẠI
-// -------------------------------------------------------------
-const CATEGORY_PILLS = [
-  { id: 'all', name: 'Tất cả' },
-  { id: 'action', name: 'Hành động' },
-  { id: 'scifi', name: 'Khoa học viễn tưởng' },
-  { id: 'drama', name: 'Kịch tính' },
-  { id: 'martial', name: 'Võ thuật' },
-  { id: 'crime', name: 'Hình sự' },
-  { id: 'racing', name: 'Đua xe' },
-  { id: 'horror', name: 'Kinh dị' },
-];
-
-// -------------------------------------------------------------
-// DỮ LIỆU PHIM KHÁM PHÁ & TÌM KIẾM (MOCK DATA ĐA DẠNG)
-// -------------------------------------------------------------
-const EXPLORE_MOVIES = [
-  {
-    id: 'exp-1',
-    title: 'Vùng Tối Vô Cực',
-    rating: '8.9',
-    quality: '4K',
-    year: '2024',
-    category: 'scifi',
-    genres: 'Hành Động, Sci-Fi',
-    image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-2',
-    title: 'Mật Lệnh Bóng Đêm',
-    rating: '8.7',
-    quality: '4K',
-    year: '2023',
-    category: 'action',
-    genres: 'Hành Động, Kịch Tính',
-    image: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-3',
-    title: 'Tàn Tích Hư Vô',
-    rating: '9.3',
-    quality: '4K UHD',
-    year: '2024',
-    category: 'scifi',
-    genres: 'Hành Động, Viễn Tưởng',
-    image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-4',
-    title: 'Lưỡi Đao Lửa Tím',
-    rating: '8.6',
-    quality: '4K',
-    year: '2023',
-    category: 'martial',
-    genres: 'Võ Thuật, Giả Tưởng',
-    image: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-5',
-    title: 'Băng Tốc Nghìn Dặm',
-    rating: '8.8',
-    quality: '4K',
-    year: '2024',
-    category: 'racing',
-    genres: 'Đua Xe, Hành Động',
-    image: 'https://images.unsplash.com/photo-1568832359672-e36cf5d74f54?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-6',
-    title: 'Phi Vụ Thế Kỷ 3',
-    rating: '8.5',
-    quality: '4K',
-    year: '2022',
-    category: 'crime',
-    genres: 'Hình Sự, Hành Động',
-    image: 'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-7',
-    title: 'Dune: Hành Tinh Cát 2',
-    rating: '9.1',
-    quality: '4K UHD',
-    year: '2024',
-    category: 'scifi',
-    genres: 'Khoa Học Viễn Tưởng',
-    image: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-8',
-    title: 'Deadpool & Wolverine',
-    rating: '8.9',
-    quality: '4K',
-    year: '2024',
-    category: 'action',
-    genres: 'Hành Động, Hài Hước',
-    image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-9',
-    title: 'Cyberpunk: Đêm Định Mệnh',
-    rating: '9.0',
-    quality: '4K HDR',
-    year: '2024',
-    category: 'scifi',
-    genres: 'Sci-Fi, Hành Động',
-    image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-10',
-    title: 'John Wick: Sát Thủ Bất Tử',
-    rating: '8.8',
-    quality: '4K UHD',
-    year: '2023',
-    category: 'action',
-    genres: 'Hành Động, Tội Phạm',
-    image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-11',
-    title: 'Biệt Đội Quái Thú',
-    rating: '8.4',
-    quality: 'Full HD',
-    year: '2024',
-    category: 'action',
-    genres: 'Hành Động, Quái Vật',
-    image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-12',
-    title: 'Bí Ẩn Hành Tinh Đen',
-    rating: '8.7',
-    quality: '4K IMAX',
-    year: '2023',
-    category: 'horror',
-    genres: 'Kinh Dị, Viễn Tưởng',
-    image: 'https://images.unsplash.com/photo-1514306191717-452ec28c7814?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-13',
-    title: 'Truy Tìm Kẻ Phản Bội',
-    rating: '8.3',
-    quality: '4K',
-    year: '2023',
-    category: 'drama',
-    genres: 'Kịch Tính, Hình Sự',
-    image: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-14',
-    title: 'Võ Thần Tái Sinh',
-    rating: '8.6',
-    quality: 'HD',
-    year: '2024',
-    category: 'martial',
-    genres: 'Võ Thuật, Hành Động',
-    image: 'https://images.unsplash.com/photo-1635805737707-575885ab0820?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-15',
-    title: 'Đường Đua Tử Thần 2',
-    rating: '8.5',
-    quality: '4K HDR',
-    year: '2024',
-    category: 'racing',
-    genres: 'Đua Xe, Kịch Tính',
-    image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-16',
-    title: 'Kẻ Săn Bóng Tối',
-    rating: '8.9',
-    quality: '4K UHD',
-    year: '2024',
-    category: 'horror',
-    genres: 'Kinh Dị, Hành Động',
-    image: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-17',
-    title: 'Vương Triều Sụp Đổ',
-    rating: '8.7',
-    quality: '4K',
-    year: '2023',
-    category: 'drama',
-    genres: 'Kịch Tính, Cổ Trang',
-    image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop',
-  },
-  {
-    id: 'exp-18',
-    title: 'Đại Chiến Đa Vũ Trụ',
-    rating: '9.2',
-    quality: '4K IMAX',
-    year: '2024',
-    category: 'scifi',
-    genres: 'Sci-Fi, Hành Động',
-    image: 'https://images.unsplash.com/photo-1568832359672-e36cf5d74f54?q=80&w=600&auto=format&fit=crop',
-  },
-];
-
-const SORT_OPTIONS = [
-  { id: 'latest', label: 'MỚI NHẤT' },
-  { id: 'rating', label: 'ĐÁNH GIÁ CAO' },
-  { id: 'popular', label: 'PHỔ BIẾN' },
-];
 
 export default function ExploreScreen() {
   const router = useRouter();
@@ -242,13 +35,16 @@ export default function ExploreScreen() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedSort, setSelectedSort] = useState('latest');
-  const [showSortModal, setShowSortModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalMoviesCount, setTotalMoviesCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Dynamic Categories & Movies from Backend API
-  const [categoryPills, setCategoryPills] = useState(CATEGORY_PILLS);
-  const [apiMovies, setApiMovies] = useState<any[]>([]);
+  const [categoryPills, setCategoryPills] = useState<Array<{ id: string; name: string }>>([
+    { id: 'all', name: 'Tất cả' },
+  ]);
+  const [movies, setMovies] = useState<any[]>([]);
 
   useEffect(() => {
     MovieAPI.getCategories()
@@ -261,60 +57,42 @@ export default function ExploreScreen() {
       .catch((e) => console.warn('Lỗi load categories:', e));
   }, []);
 
+  // Tải danh sách phim từ MySQL Backend theo thể loại, từ khóa tìm kiếm và phân trang
   useEffect(() => {
+    setIsLoading(true);
     MovieAPI.getMovies({
-      search: searchQuery || undefined,
+      page: currentPage,
+      limit: PAGE_SIZE,
+      search: searchQuery.trim() || undefined,
       category: selectedCategory !== 'all' ? selectedCategory : undefined,
-      limit: 50,
     })
       .then((res) => {
-        if (res.success && res.data?.length > 0) {
-          setApiMovies(res.data);
+        if (res.success && Array.isArray(res.data)) {
+          setMovies(res.data);
+          const totalCount = res.pagination?.total || res.data.length;
+          setTotalMoviesCount(totalCount);
+          setTotalPages(res.pagination?.totalPages || Math.ceil(totalCount / PAGE_SIZE) || 1);
+        } else {
+          setMovies([]);
+          setTotalMoviesCount(0);
+          setTotalPages(1);
         }
       })
-      .catch((e) => console.warn('Lỗi load explore movies:', e));
-  }, [searchQuery, selectedCategory]);
+      .catch((e) => {
+        console.warn('Lỗi load explore movies:', e);
+        setMovies([]);
+        setTotalMoviesCount(0);
+        setTotalPages(1);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [searchQuery, selectedCategory, currentPage, PAGE_SIZE]);
 
-  // Reset page when filter / search changes
+  // Reset về trang 1 khi đổi thể loại hoặc từ khóa tìm kiếm
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategory, selectedSort]);
-
-  // Filter & Search Logic
-  const filteredMovies = useMemo(() => {
-    const sourceList = apiMovies.length > 0 ? apiMovies : EXPLORE_MOVIES;
-    let result = sourceList.filter((movie) => {
-      const movieTitle = movie.title || '';
-      const movieGenres = movie.genres || '';
-      const matchSearch =
-        searchQuery.trim() === '' ||
-        movieTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (Array.isArray(movieGenres) ? movieGenres.join(' ') : String(movieGenres)).toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchCategory =
-        selectedCategory === 'all' || movie.category === selectedCategory || (Array.isArray(movie.genres) && movie.genres.includes(selectedCategory));
-
-      return matchSearch && matchCategory;
-    });
-
-    if (selectedSort === 'rating') {
-      result = [...result].sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating));
-    } else if (selectedSort === 'latest') {
-      result = [...result].sort((a, b) => parseInt(b.year) - parseInt(a.year));
-    }
-
-    return result;
-  }, [apiMovies, searchQuery, selectedCategory, selectedSort]);
-
-  // Phân trang dữ liệu
-  const totalPages = Math.ceil(filteredMovies.length / PAGE_SIZE);
-  const paginatedMovies = useMemo(() => {
-    const startIndex = (currentPage - 1) * PAGE_SIZE;
-    return filteredMovies.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredMovies, currentPage, PAGE_SIZE]);
-
-  const currentSortLabel =
-    SORT_OPTIONS.find((s) => s.id === selectedSort)?.label || 'MỚI NHẤT';
+  }, [searchQuery, selectedCategory]);
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
@@ -332,11 +110,11 @@ export default function ExploreScreen() {
       <FlatList
         ref={flatListRef}
         key={`grid-${numColumns}`}
-        data={paginatedMovies}
-        keyExtractor={(item) => item.id}
+        data={movies}
+        keyExtractor={(item) => String(item.id || item.numericId)}
         numColumns={numColumns}
         contentContainerStyle={styles.gridContainer}
-        columnWrapperStyle={numColumns > 1 && paginatedMovies.length > 0 ? styles.columnWrapper : undefined}
+        columnWrapperStyle={numColumns > 1 && movies.length > 0 ? styles.columnWrapper : undefined}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
@@ -346,7 +124,7 @@ export default function ExploreScreen() {
                 <Ionicons name="search" size={20} color={CinemaColors.textMuted} style={styles.searchIcon} />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Tìm phim, diễn viên, đạo diễn..."
+                  placeholder="Tìm kiếm theo tên phim..."
                   placeholderTextColor={CinemaColors.textMuted}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -357,15 +135,6 @@ export default function ExploreScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-
-              <TouchableOpacity
-                style={styles.filterButton}
-                activeOpacity={0.75}
-                onPress={() => setShowSortModal(true)}
-              >
-                <Ionicons name="options-outline" size={20} color={CinemaColors.textPrimary} />
-                <View style={styles.filterDot} />
-              </TouchableOpacity>
             </View>
 
             {/* ----------------- CATEGORY FILTER PILLS ----------------- */}
@@ -404,29 +173,27 @@ export default function ExploreScreen() {
             {/* ----------------- SECTION HEADER: KẾT QUẢ GỢI Ý ----------------- */}
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionTitle}>Kết quả gợi ý</Text>
-                <Text style={styles.resultCountText}>({filteredMovies.length} phim)</Text>
+                <Text style={styles.sectionTitle}>Khám Phá Phim</Text>
+                <Text style={styles.resultCountText}>({totalMoviesCount} phim)</Text>
               </View>
-
-              <TouchableOpacity
-                style={styles.sortDropdownButton}
-                onPress={() => setShowSortModal(true)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.sortDropdownText}>{currentSortLabel}</Text>
-                <Ionicons name="chevron-down" size={14} color={CinemaColors.textSecondary} />
-              </TouchableOpacity>
             </View>
           </View>
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="search-outline" size={56} color={CinemaColors.textMuted} style={{ marginBottom: 12 }} />
-            <Text style={styles.emptyTitle}>Không tìm thấy phim phù hợp</Text>
-            <Text style={styles.emptySubtitle}>
-              Hãy thử tìm kiếm với từ khóa khác hoặc xóa bộ lọc thể loại.
-            </Text>
-          </View>
+          isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={CinemaColors.primary} />
+              <Text style={styles.loadingText}>Đang tải danh sách phim...</Text>
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="search-outline" size={56} color={CinemaColors.textMuted} style={{ marginBottom: 12 }} />
+              <Text style={styles.emptyTitle}>Không tìm thấy phim phù hợp</Text>
+              <Text style={styles.emptySubtitle}>
+                Hãy thử tìm kiếm với từ khóa khác hoặc chuyển sang danh mục khác.
+              </Text>
+            </View>
+          )
         }
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -472,43 +239,6 @@ export default function ExploreScreen() {
           ) : null
         }
       />
-
-      {/* ----------------- SORT MODAL ----------------- */}
-      <Modal
-        visible={showSortModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowSortModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowSortModal(false)}
-        >
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Sắp Xếp Theo</Text>
-            {SORT_OPTIONS.map((option) => {
-              const isChosen = selectedSort === option.id;
-              return (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[styles.modalOption, isChosen && styles.modalOptionChosen]}
-                  onPress={() => {
-                    setSelectedSort(option.id);
-                    setShowSortModal(false);
-                  }}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[styles.modalOptionText, isChosen && styles.modalOptionTextChosen]}>
-                    {option.label}
-                  </Text>
-                  {isChosen && <Ionicons name="checkmark" size={18} color={CinemaColors.primary} />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -518,80 +248,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: CinemaColors.background,
   },
-  /* Top App Bar */
-  appBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  avatarButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: CinemaColors.primary,
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-
   /* Search Bar */
   searchBarWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 14,
-    paddingBottom: 10,
-    gap: 10,
+    paddingBottom: 6,
   },
   searchInputContainer: {
-    flex: 1,
-    height: 48,
+    height: 46,
     backgroundColor: CinemaColors.surface,
-    borderRadius: 24,
+    borderRadius: 23,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: CinemaColors.border,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
     fontSize: 13.5,
     color: CinemaColors.textPrimary,
   },
-  filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: CinemaColors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: CinemaColors.border,
-    position: 'relative',
-  },
-  filterDot: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: CinemaColors.primary,
-  },
 
   /* Categories */
   categoriesWrapper: {
+    paddingTop: 8,
     marginBottom: 10,
   },
   categoriesContent: {
@@ -646,18 +330,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: CinemaColors.primary,
   },
-  sortDropdownButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  sortDropdownText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: CinemaColors.textSecondary,
-    letterSpacing: 0.5,
-  },
-
   /* Movie Grid */
   gridContainer: {
     paddingBottom: 24,
@@ -749,44 +421,15 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  /* Modal */
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+  loadingContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 30,
+    gap: 12,
   },
-  modalCard: {
-    width: '100%',
-    backgroundColor: CinemaColors.surface,
-    borderRadius: 16,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: CinemaColors.border,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: CinemaColors.textPrimary,
-    marginBottom: 14,
-  },
-  modalOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  modalOptionChosen: {},
-  modalOptionText: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    color: CinemaColors.textSecondary,
-  },
-  modalOptionTextChosen: {
-    color: CinemaColors.primary,
-    fontWeight: '700',
+  loadingText: {
+    fontSize: 13,
+    color: CinemaColors.textMuted,
+    fontWeight: '500',
   },
 });

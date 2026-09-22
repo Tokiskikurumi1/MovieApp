@@ -28,44 +28,41 @@ export function Pagination({
   };
 
   const getPaginationRange = (): (number | string)[] => {
-    // Tổng số nút hiển thị: siblingCount + firstPage + lastPage + currentPage + 2*DOTS
-    const totalPageNumbers = siblingCount + 5;
-
-    // Trường hợp 1: Tổng số trang ít hơn số nút dự kiến hiển thị
-    if (totalPageNumbers >= totalPages) {
+    // Nếu tổng số trang nhỏ hơn hoặc bằng 5, hiển thị tất cả các trang
+    if (totalPages <= 5) {
       return range(1, totalPages);
     }
 
-    const leftSiblingIndex = Math.max(currentPage - siblingCount, 1);
-    const rightSiblingIndex = Math.min(currentPage + siblingCount, totalPages);
-
-    const shouldShowLeftDots = leftSiblingIndex > 2;
-    const shouldShowRightDots = rightSiblingIndex < totalPages - 2;
-
-    const firstPageIndex = 1;
-    const lastPageIndex = totalPages;
-
-    // Trường hợp 2: Chỉ có dấu ... bên phải (ví dụ: < 1 2 3 ... 10 >)
-    if (!shouldShowLeftDots && shouldShowRightDots) {
-      const leftItemCount = 3 + 2 * siblingCount;
-      const leftRange = range(1, leftItemCount);
-      return [...leftRange, DOTS, totalPages];
+    // Trường hợp 1: Khi đang ở các trang đầu (1, 2)
+    // Hiển thị kiểu: 1 2 ... n
+    if (currentPage <= 2) {
+      return [1, 2, DOTS, totalPages];
     }
 
-    // Trường hợp 3: Chỉ có dấu ... bên trái (ví dụ: < 1 ... 8 9 10 >)
-    if (shouldShowLeftDots && !shouldShowRightDots) {
-      const rightItemCount = 3 + 2 * siblingCount;
-      const rightRange = range(totalPages - rightItemCount + 1, totalPages);
-      return [firstPageIndex, DOTS, ...rightRange];
+    // Trường hợp 2: Khi đang ở các trang cuối (totalPages - 1, totalPages)
+    // Hiển thị kiểu: 1 ... n-1 n
+    if (currentPage >= totalPages - 1) {
+      return [1, DOTS, totalPages - 1, totalPages];
     }
 
-    // Trường hợp 4: Có cả dấu ... bên trái và bên phải (ví dụ: < 1 ... 4 5 6 ... 10 >)
-    if (shouldShowLeftDots && shouldShowRightDots) {
-      const middleRange = range(leftSiblingIndex, rightSiblingIndex);
-      return [firstPageIndex, DOTS, ...middleRange, DOTS, lastPageIndex];
+    // Trường hợp 3: Khi đang ở các trang giữa (3 <= currentPage <= totalPages - 2)
+    // Hiển thị kiểu: 1 ... 3 4 ... n (hoặc các cặp trang tương ứng ở giữa như 5 6, 7 8...)
+    let midStart = currentPage % 2 === 1 ? currentPage : currentPage - 1;
+    let midEnd = midStart + 1;
+
+    // Giới hạn để mid không vượt quá totalPages - 2 hoặc nhỏ hơn 3
+    if (midEnd > totalPages - 2) {
+      midEnd = totalPages - 2;
+      midStart = Math.max(3, midEnd - 1);
+    }
+    if (midStart < 3) {
+      midStart = 3;
+      midEnd = Math.min(totalPages - 2, midStart + 1);
     }
 
-    return range(1, totalPages);
+    const midRange = midStart === midEnd ? [midStart] : [midStart, midEnd];
+
+    return [1, DOTS, ...midRange, DOTS, totalPages];
   };
 
   const paginationRange = getPaginationRange();
@@ -112,7 +109,7 @@ export function Pagination({
 
         return (
           <TouchableOpacity
-            key={`page-${pageNumber}`}
+            key={`page-${pageNumber}-${index}`}
             style={[styles.pageButton, isCurrent && styles.activePageButton]}
             onPress={() => onPageChange(pageNumber as number)}
             activeOpacity={0.75}

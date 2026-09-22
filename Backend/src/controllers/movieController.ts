@@ -210,7 +210,7 @@ export async function getMovies(req: Request, res: Response) {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
     const offset = (page - 1) * limit;
-    const { category, type, search, year, isVip, quality } = req.query;
+    const { category, type, search, year, isVip, quality, sort } = req.query;
 
     let query = `
       SELECT DISTINCT m.id, m.name, m.origin_name, m.slug, m.thumb_url, m.poster_url,
@@ -264,18 +264,25 @@ export async function getMovies(req: Request, res: Response) {
       query += ' WHERE ' + conditions.join(' AND ');
     }
 
-    query += ' ORDER BY m.updated_at DESC LIMIT ? OFFSET ?';
+    let orderBy = 'm.updated_at DESC';
+    if (sort === 'rating') {
+      orderBy = 'm.rating DESC, m.updated_at DESC';
+    } else if (sort === 'latest') {
+      orderBy = 'm.year DESC, m.updated_at DESC';
+    } else if (sort === 'popular') {
+      orderBy = 'm.view_count DESC, m.updated_at DESC';
+    }
+
+    query += ` ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
     const [rows] = await pool.query<RowDataPacket[]>(query, params);
 
-    // Tính tổng số lượng bản ghi
+    const countParams = params.slice(0, -2);
     let countQuery = 'SELECT COUNT(DISTINCT m.id) as total FROM movies m';
-    const countParams: any[] = [];
     if (category && category !== 'all') {
       countQuery += ` JOIN movie_categories mc ON m.id = mc.movie_id
                       JOIN categories c ON mc.category_id = c.id `;
-      countParams.push(category, `%${category}%`);
     }
     if (conditions.length > 0) {
       countQuery += ' WHERE ' + conditions.join(' AND ');
@@ -283,21 +290,33 @@ export async function getMovies(req: Request, res: Response) {
     const [countRows] = await pool.query<RowDataPacket[]>(countQuery, countParams);
     const total = countRows[0]?.total || 0;
 
-    const formattedData = rows.map((m) => ({
-      id: m.slug || String(m.id),
-      numericId: m.id,
-      title: m.name,
-      originalTitle: m.origin_name,
-      rating: String(m.rating || '8.5'),
-      quality: m.quality || 'FHD',
-      year: String(m.year || '2024'),
-      type: m.type,
-      episodeCurrent: m.episode_current,
-      image: m.thumb_url || m.poster_url,
-      poster: m.thumb_url,
-      banner: m.poster_url,
-      isVip: Boolean(m.is_vip),
-    }));
+    const formattedData = await Promise.all(
+      rows.map(async (m) => {
+        const [genres] = await pool.query<RowDataPacket[]>(
+          `SELECT c.name FROM categories c
+           JOIN movie_categories mc ON c.id = mc.category_id
+           WHERE mc.movie_id = ? LIMIT 3`,
+          [m.id]
+        );
+
+        return {
+          id: m.slug || String(m.id),
+          numericId: m.id,
+          title: m.name,
+          originalTitle: m.origin_name,
+          rating: String(m.rating || '8.5'),
+          quality: m.quality || 'FHD',
+          year: String(m.year || '2024'),
+          type: m.type,
+          episodeCurrent: m.episode_current,
+          image: m.thumb_url || m.poster_url,
+          poster: m.thumb_url,
+          banner: m.poster_url,
+          isVip: Boolean(m.is_vip),
+          genres: genres.map((g) => g.name).join(', ') || 'Phim hay',
+        };
+      })
+    );
 
     return res.json({
       success: true,
