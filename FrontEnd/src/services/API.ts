@@ -143,6 +143,15 @@ export const UserAPI = {
     fetchJson(`/user/comments/${commentId}/like`, { method: 'POST' }),
 };
 
+export const SupportAPI = {
+  getMySession: () => fetchJson('/support/my-session'),
+  sendReply: (ticketId: string | number, text: string, senderName?: string) =>
+    fetchJson(`/support/tickets/${ticketId}/reply`, {
+      method: 'POST',
+      body: JSON.stringify({ text, senderType: 'user', senderName }),
+    }),
+};
+
 export const AuthAPI = {
   login: (account: string, pass: string) =>
     fetchJson('/auth/login', {

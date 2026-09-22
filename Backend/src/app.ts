@@ -4,6 +4,7 @@ import authRoutes from './routes/authRoutes';
 import movieRoutes from './routes/movieRoutes';
 import userActionRoutes from './routes/userActionRoutes';
 import adminRoutes from './routes/adminRoutes';
+import supportRoutes from './routes/supportRoutes';
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/movies', movieRoutes);
 app.use('/api/user', userActionRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/support', supportRoutes);
 
 // Error Handling Middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

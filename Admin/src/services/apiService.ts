@@ -65,4 +65,17 @@ export const AdminAPI = {
       method: 'POST',
       body: JSON.stringify({ fromPage, toPage, slug }),
     }),
+
+  // Hỗ trợ & Khiếu nại (Support Tickets & Live Chat)
+  getSupportTickets: () => fetchAdminJson('/support/tickets'),
+  sendTicketReply: (ticketId: string | number, text: string) =>
+    fetchAdminJson(`/support/tickets/${ticketId}/reply`, {
+      method: 'POST',
+      body: JSON.stringify({ text, senderType: 'admin', senderName: 'Admin CINESTREAM' }),
+    }),
+  updateTicketStatus: (ticketId: string | number, status: 'open' | 'in_progress' | 'resolved') =>
+    fetchAdminJson(`/support/tickets/${ticketId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
 };

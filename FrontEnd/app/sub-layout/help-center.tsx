@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,10 +13,13 @@ import {
   Linking,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
+import { getSocket } from '@/services/socket';
+import { SupportAPI } from '@/services/API';
 
 interface FAQItem {
   id: string;
@@ -84,17 +87,107 @@ export default function HelpCenterScreen() {
   const [ticketContent, setTicketContent] = useState('');
   const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
 
-  // Live Chat Modal States
+  // Live Chat States (Realtime Socket.io với Admin)
   const [isLiveChatVisible, setIsLiveChatVisible] = useState(false);
-  const [chatMessages, setChatMessages] = useState([
-    {
-      id: 'm-1',
-      sender: 'agent',
-      text: 'Xin chào! Tôi là trợ lý AI của CINESTREAM 24/7. Tôi có thể hỗ trợ gì cho bạn hôm nay?',
-      time: 'Vừa xong',
-    },
-  ]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isSendingMsg, setIsSendingMsg] = useState(false);
+  const [currentTicket, setCurrentTicket] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState('');
+  const chatScrollViewRef = useRef<ScrollView>(null);
+
+  // Kết nối và tải hội thoại khi mở modal Live Chat
+  useEffect(() => {
+    if (!isLiveChatVisible) return;
+
+    let isMounted = true;
+    setIsChatLoading(true);
+    const socketInstance = getSocket();
+
+    // Lắng nghe tin nhắn mới từ Admin realtime với cơ chế chống trùng lặp (Deduplication)
+    const handleIncomingMessage = (msg: any) => {
+      if (!isMounted) return;
+      setChatMessages((prev) => {
+        // Đã có tin nhắn theo id thực từ MySQL
+        if (prev.some((m) => String(m.id) === String(msg.id))) return prev;
+
+        // Khớp với tin nhắn optimistic vừa gửi dựa vào clientMsgId
+        const optIdx = prev.findIndex(
+          (m) =>
+            (msg.clientMsgId && (m as any).clientMsgId === msg.clientMsgId) ||
+            m.id === msg.clientMsgId
+        );
+
+        if (optIdx !== -1) {
+          const updated = [...prev];
+          updated[optIdx] = {
+            ...updated[optIdx],
+            id: String(msg.id),
+            clientMsgId: msg.clientMsgId,
+            text: msg.text,
+            time: msg.time || updated[optIdx].time,
+          };
+          return updated;
+        }
+
+        // Tin nhắn mới từ Admin / hệ thống
+        return [
+          ...prev,
+          {
+            id: String(msg.id),
+            clientMsgId: msg.clientMsgId,
+            sender: msg.sender,
+            name: msg.name,
+            text: msg.text,
+            time: msg.time || 'Vừa xong',
+          },
+        ];
+      });
+
+      setTimeout(() => {
+        chatScrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    };
+
+    socketInstance.on('new_support_message', handleIncomingMessage);
+
+    SupportAPI.getMySession()
+      .then((res) => {
+        if (!isMounted) return;
+        if (res.success && res.data) {
+          setCurrentTicket(res.data.ticket);
+          setCurrentUser(res.data.user);
+          setChatMessages(res.data.replies || []);
+
+          // Kết nối Socket.io vào phòng của người dùng
+          socketInstance.emit('join_support_user', {
+            userId: res.data.user.id,
+            ticketId: res.data.ticket.id,
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn('Lỗi tải phiên hỗ trợ:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsChatLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+      socketInstance.off('new_support_message', handleIncomingMessage);
+    };
+  }, [isLiveChatVisible]);
+
+  // Cuộn xuống cuối khi có tin nhắn mới
+  useEffect(() => {
+    if (chatMessages.length > 0) {
+      setTimeout(() => {
+        chatScrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [chatMessages]);
 
   const toggleFaq = (id: string) => {
     setExpandedFaqId((prev) => (prev === id ? null : id));
@@ -139,36 +232,54 @@ export default function HelpCenterScreen() {
   };
 
   const handleSendChatMessage = () => {
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() || !currentTicket || isSendingMsg) return;
 
-    const userMsg = {
-      id: `user-${Date.now()}`,
-      sender: 'user',
-      text: chatInput.trim(),
+    const content = chatInput.trim();
+    setIsSendingMsg(true);
+    setChatInput('');
+
+    const socket = getSocket();
+    const userId = currentUser?.id || 2;
+    const userName = currentUser?.full_name || 'Khách hàng';
+    const clientMsgId = `user-msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+    // 1. Hiển thị ngay trên giao diện khách hàng (Optimistic UI)
+    const localMsg = {
+      id: clientMsgId,
+      clientMsgId,
+      sender: 'user' as const,
+      name: userName,
+      text: content,
       time: 'Vừa xong',
     };
 
-    setChatMessages((prev) => [...prev, userMsg]);
-    setChatInput('');
-
-    // Simulated Agent reply
+    setChatMessages((prev) => [...prev, localMsg]);
     setTimeout(() => {
-      const replies = [
-        'Cảm ơn bạn đã liên hệ! Kỹ thuật viên CINESTREAM đã ghi nhận thông tin và đang kiểm tra trên hệ thống.',
-        'Vấn đề của bạn đã được tiếp nhận, chúng tôi sẽ xử lý ngay lập tức!',
-        'Bạn vui lòng thử tải lại trang hoặc kiểm tra kết nối mạng trong giây lát nhé.',
-      ];
-      const randomReply = replies[Math.floor(Math.random() * replies.length)];
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          id: `agent-${Date.now()}`,
-          sender: 'agent',
-          text: randomReply,
-          time: 'Vừa xong',
-        },
-      ]);
-    }, 1000);
+      chatScrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+
+    // 2. Gửi tin nhắn DUY NHẤT một kênh:
+    // Ưu tiên gửi qua Socket.io realtime (Backend sẽ lưu MySQL và broadcast tới Admin)
+    if (socket && socket.connected) {
+      socket.emit('send_support_message', {
+        ticketId: currentTicket.id,
+        userId,
+        text: content,
+        sender: 'user',
+        senderName: userName,
+        clientMsgId,
+      });
+      setIsSendingMsg(false);
+    } else {
+      // Fallback qua REST API chỉ khi Socket mất kết nối
+      SupportAPI.sendReply(currentTicket.id, content, userName)
+        .catch((err) => {
+          console.warn('Lỗi gửi tin nhắn hỗ trợ:', err);
+        })
+        .finally(() => {
+          setIsSendingMsg(false);
+        });
+    }
   };
 
   return (
@@ -433,7 +544,9 @@ export default function HelpCenterScreen() {
                 </View>
                 <View>
                   <Text style={styles.agentName}>CINESTREAM Support 24/7</Text>
-                  <Text style={styles.agentSub}>Đang trực tuyến • Hỗ trợ tức thì</Text>
+                  <Text style={styles.agentSub}>
+                    {currentTicket?.ticketCode ? `${currentTicket.ticketCode} • ` : ''}Đang trực tuyến
+                  </Text>
                 </View>
               </View>
               <TouchableOpacity
@@ -446,9 +559,15 @@ export default function HelpCenterScreen() {
 
             {/* Chat Messages */}
             <ScrollView
+              ref={chatScrollViewRef}
               style={styles.chatMessagesContainer}
               contentContainerStyle={{ padding: 16, gap: 12 }}
             >
+              {isChatLoading && (
+                <View style={{ paddingVertical: 14, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={CinemaColors.primary} />
+                </View>
+              )}
               {chatMessages.map((msg) => (
                 <View
                   key={msg.id}
@@ -484,10 +603,10 @@ export default function HelpCenterScreen() {
               <TouchableOpacity
                 style={[
                   styles.sendChatBtn,
-                  !chatInput.trim() && styles.sendChatBtnDisabled,
+                  (!chatInput.trim() || isSendingMsg) && styles.sendChatBtnDisabled,
                 ]}
                 activeOpacity={0.8}
-                disabled={!chatInput.trim()}
+                disabled={!chatInput.trim() || isSendingMsg}
                 onPress={handleSendChatMessage}
               >
                 <Ionicons name="paper-plane" size={17} color="#FFFFFF" />

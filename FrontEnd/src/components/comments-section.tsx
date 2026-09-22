@@ -119,6 +119,20 @@ export function CommentsSection({
     const handleNewComment = (newCmt: any) => {
       setComments((prev) => {
         if (prev.some((c) => String(c.id) === String(newCmt.id))) return prev;
+        const optIdx = prev.findIndex(
+          (c) =>
+            (newCmt.clientCommentId && (c as any).clientCommentId === newCmt.clientCommentId) ||
+            c.id === newCmt.clientCommentId
+        );
+        if (optIdx !== -1) {
+          const updated = [...prev];
+          updated[optIdx] = {
+            ...updated[optIdx],
+            ...newCmt,
+            id: String(newCmt.id),
+          };
+          return updated;
+        }
         return [newCmt, ...prev];
       });
       setVisibleCount((prev) => prev + 1);
@@ -148,22 +162,25 @@ export function CommentsSection({
 
     const content = newCommentText.trim();
     const ratingVal = showRatingPicker ? userRating : undefined;
+    const clientCommentId = `cmt-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
-    // Gửi qua Socket.io realtime
+    // Gửi qua Socket.io realtime duy nhất khi kết nối, fallback REST API khi ngắt kết nối
     if (targetId) {
       const socket = getSocket();
-      socket.emit('send_comment', {
-        movieIdOrSlug: targetId,
-        content,
-        rating: ratingVal,
-      });
-
-      // Đồng thời gọi API để lưu vào MySQL
-      UserAPI.postComment(targetId, content, ratingVal).catch(() => {});
+      if (socket && socket.connected) {
+        socket.emit('send_comment', {
+          movieIdOrSlug: targetId,
+          content,
+          rating: ratingVal,
+          clientCommentId,
+        });
+      } else {
+        UserAPI.postComment(targetId, content, ratingVal).catch(() => {});
+      }
     }
 
     const localComment: CommentItem = {
-      id: `cmt-${Date.now()}`,
+      id: clientCommentId,
       user: 'Bạn (Người dùng)',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
       rating: ratingVal,
@@ -172,6 +189,7 @@ export function CommentsSection({
       likes: 0,
       isLiked: false,
     };
+    (localComment as any).clientCommentId = clientCommentId;
 
     setComments((prev) => [localComment, ...prev]);
     setNewCommentText('');

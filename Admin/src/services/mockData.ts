@@ -103,17 +103,20 @@ export interface SupportTicket {
   id: string;
   ticketCode: string;
   user: {
+    id?: string | number;
     name: string;
     email: string;
     avatar: string;
   };
-  category: 'Kỹ thuật / Video' | 'Thanh toán & VIP' | 'Tài khoản' | 'Góp ý nội dung';
+  category?: string;
   subject: string;
   message: string;
-  priority: 'high' | 'medium' | 'low';
+  priority?: 'high' | 'medium' | 'low';
   status: 'open' | 'in_progress' | 'resolved';
   createdAt: string;
   replies?: {
+    id?: string;
+    clientMsgId?: string;
     sender: 'admin' | 'user';
     name: string;
     text: string;
