@@ -19,8 +19,25 @@ export const SOCKET_URL =
 
 let authToken: string | null = null;
 
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    authToken = localStorage.getItem('cinestream_token');
+  } catch {}
+}
+
+export const getAuthToken = () => authToken;
+
 export const setAuthToken = (token: string | null) => {
   authToken = token;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      if (token) {
+        localStorage.setItem('cinestream_token', token);
+      } else {
+        localStorage.removeItem('cinestream_token');
+      }
+    } catch {}
+  }
 };
 
 async function fetchJson<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -36,9 +53,13 @@ async function fetchJson<T = any>(endpoint: string, options: RequestInit = {}): 
 
   try {
     const response = await fetch(url, { ...options, headers });
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.message || 'Lỗi kết nối máy chủ');
+      const error: any = new Error(data.message || 'Lỗi kết nối máy chủ');
+      error.data = data;
+      error.field = data.field;
+      error.status = response.status;
+      throw error;
     }
     return data;
   } catch (error: any) {
@@ -179,4 +200,14 @@ export const AuthAPI = {
       body: JSON.stringify({ email, newPassword }),
     }),
   getMe: () => fetchJson('/auth/me'),
+  updateProfile: (data: { fullName?: string; phone?: string; avatar?: string }) =>
+    fetchJson('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    fetchJson('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };

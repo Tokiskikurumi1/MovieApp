@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,10 +12,27 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
 import { AuthAPI, UserAPI, setAuthToken } from '@/services/API';
 import { useFavorites } from '@/store/favorite-context';
+
+interface UserProfileData {
+  id?: number | string;
+  fullName?: string;
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  avatar?: string;
+  avatar_url?: string;
+  role?: string;
+  vipTier?: string;
+  vip_tier?: string;
+  is_vip?: boolean;
+  vipExpiry?: string;
+  vip_expires_at?: string;
+  totalWatchedHours?: number;
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -25,32 +42,54 @@ export default function ProfileScreen() {
   const [notifications, setNotifications] = useState(true);
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
 
-  const [userProfile, setUserProfile] = useState<{
-    full_name?: string;
-    email?: string;
-    role?: string;
-    is_vip?: boolean;
-    vip_expires_at?: string;
-    avatar_url?: string;
-  } | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
   const { favorites } = useFavorites();
   const favoriteCount = favorites.length;
 
-  useEffect(() => {
+  const loadProfile = useCallback(() => {
     AuthAPI.getMe()
       .then((res) => {
         if (res.success && res.data) {
           setUserProfile(res.data);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('Lỗi tải thông tin tài khoản:', err.message);
+      });
   }, []);
+
+  // Tự động làm mới thông tin tài khoản mỗi khi chuyển về màn hình Profile
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [loadProfile])
+  );
 
   const handleConfirmLogout = () => {
     setIsLogoutModalVisible(false);
     setAuthToken(null);
+    setUserProfile(null);
     router.replace('/(auth)/login' as any);
   };
+
+  const displayName = userProfile?.fullName || userProfile?.full_name || 'Khách hàng';
+  const displayEmail = userProfile?.email || 'Chưa liên kết email';
+  const displayAvatar =
+    userProfile?.avatar ||
+    userProfile?.avatar_url ||
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop';
+  const isVip = Boolean(userProfile?.is_vip || (userProfile?.vipTier && userProfile.vipTier !== 'Free'));
+  const vipText = isVip
+    ? (userProfile?.vipTier || 'VIP 4K')
+    : userProfile?.role === 'admin'
+    ? 'ADMIN'
+    : 'MEMBER';
+  const expiryDate = userProfile?.vipExpiry || userProfile?.vip_expires_at;
+  const displayExpiry = isVip && expiryDate
+    ? `Hạn dùng VIP: ${new Date(expiryDate).toLocaleDateString('vi-VN')}`
+    : isVip
+    ? 'Gói VIP Đang hoạt động'
+    : 'CINESTREAM Member';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -76,9 +115,7 @@ export default function ProfileScreen() {
         <View style={styles.profileCard}>
           <View style={styles.avatarWrapper}>
             <Image
-              source={{
-                uri: userProfile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-              }}
+              source={{ uri: displayAvatar }}
               style={styles.avatarImage}
             />
             <TouchableOpacity
@@ -92,18 +129,14 @@ export default function ProfileScreen() {
 
           <View style={styles.profileInfo}>
             <View style={styles.nameRow}>
-              <Text style={styles.userName}>{userProfile?.full_name || 'Kurumi Tokisaki'}</Text>
-              <View style={styles.vipBadge}>
-                <Ionicons name="shield-checkmark" size={12} color="#FFD700" />
-                <Text style={styles.vipText}>{userProfile?.is_vip ? 'VIP 4K' : (userProfile?.role === 'admin' ? 'ADMIN' : 'MEMBER')}</Text>
+              <Text style={styles.userName}>{displayName}</Text>
+              <View style={[styles.vipBadge, !isVip && { backgroundColor: 'rgba(255, 255, 255, 0.08)' }]}>
+                <Ionicons name="shield-checkmark" size={12} color={isVip ? '#FFD700' : CinemaColors.textMuted} />
+                <Text style={[styles.vipText, !isVip && { color: CinemaColors.textSecondary }]}>{vipText}</Text>
               </View>
             </View>
-            <Text style={styles.userEmail}>{userProfile?.email || 'kurumi124@gmail.com'}</Text>
-            <Text style={styles.membershipExpiry}>
-              {userProfile?.vip_expires_at
-                ? `Hạn dùng VIP: ${new Date(userProfile.vip_expires_at).toLocaleDateString('vi-VN')}`
-                : 'CINESTREAM Member'}
-            </Text>
+            <Text style={styles.userEmail}>{displayEmail}</Text>
+            <Text style={styles.membershipExpiry}>{displayExpiry}</Text>
           </View>
         </View>
 
@@ -114,7 +147,7 @@ export default function ProfileScreen() {
               <Ionicons name="time" size={16} color={CinemaColors.primary} />
             </View>
             <Text style={styles.statValue}>
-              184<Text style={styles.statUnit}>h</Text>
+              {userProfile?.totalWatchedHours ?? 0}<Text style={styles.statUnit}>h</Text>
             </Text>
             <Text style={styles.statLabel}>Số giờ xem</Text>
           </View>

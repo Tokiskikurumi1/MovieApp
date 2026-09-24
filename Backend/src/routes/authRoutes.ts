@@ -4,6 +4,7 @@ import {
   login,
   getMe,
   updateProfile,
+  changePassword,
   checkExists,
   checkEmail,
   resetPassword,
@@ -19,5 +20,6 @@ router.post('/check-email', checkEmail);
 router.post('/reset-password', resetPassword);
 router.get('/me', authenticate, getMe);
 router.put('/profile', authenticate, updateProfile);
+router.post('/change-password', authenticate, changePassword);
 
 export default router;

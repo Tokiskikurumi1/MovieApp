@@ -185,18 +185,25 @@ export async function getMe(req: AuthRequest, res: Response) {
     }
 
     const u = rows[0];
+    const isVip = Boolean(u.vip_tier && u.vip_tier !== 'Free');
     return res.json({
       success: true,
       data: {
         id: u.id,
         fullName: u.full_name,
+        full_name: u.full_name,
         email: u.email,
         phone: u.phone,
-        avatar: u.avatar,
+        phoneNumber: u.phone,
+        avatar: u.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
+        avatar_url: u.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
         role: u.role,
-        vipTier: u.vip_tier,
+        vipTier: u.vip_tier || 'Free',
+        vip_tier: u.vip_tier || 'Free',
+        is_vip: isVip,
         vipExpiry: u.vip_expiry,
-        totalWatchedHours: u.total_watched_hours,
+        vip_expires_at: u.vip_expiry,
+        totalWatchedHours: u.total_watched_hours || 0,
         status: u.status,
         createdAt: u.created_at,
       },
@@ -212,13 +219,130 @@ export async function updateProfile(req: AuthRequest, res: Response) {
       return res.status(401).json({ success: false, message: 'Chưa xác thực' });
     }
 
-    const { fullName, avatar, phone } = req.body;
+    const fullName = req.body.fullName || req.body.full_name;
+    const avatar = req.body.avatar || req.body.avatar_url;
+    const phone = req.body.phone || req.body.phoneNumber;
+
     await pool.query(
       'UPDATE users SET full_name = COALESCE(?, full_name), avatar = COALESCE(?, avatar), phone = COALESCE(?, phone) WHERE id = ?',
-      [fullName, avatar, phone, req.user.id]
+      [fullName ?? null, avatar ?? null, phone ?? null, req.user.id]
     );
 
-    return res.json({ success: true, message: 'Cập nhật thông tin thành công!' });
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT id, full_name, email, phone, avatar, role, vip_tier, vip_expiry, total_watched_hours, status, created_at FROM users WHERE id = ? LIMIT 1',
+      [req.user.id]
+    );
+
+    const u = rows[0];
+    const isVip = Boolean(u.vip_tier && u.vip_tier !== 'Free');
+    const updatedUser = {
+      id: u.id,
+      fullName: u.full_name,
+      full_name: u.full_name,
+      email: u.email,
+      phone: u.phone,
+      phoneNumber: u.phone,
+      avatar: u.avatar,
+      avatar_url: u.avatar,
+      role: u.role,
+      vipTier: u.vip_tier || 'Free',
+      vip_tier: u.vip_tier || 'Free',
+      is_vip: isVip,
+      vipExpiry: u.vip_expiry,
+      vip_expires_at: u.vip_expiry,
+      totalWatchedHours: u.total_watched_hours || 0,
+      status: u.status,
+      createdAt: u.created_at,
+    };
+
+    return res.json({
+      success: true,
+      message: 'Cập nhật thông tin thành công!',
+      data: updatedUser,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+export async function changePassword(req: AuthRequest, res: Response) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Chưa xác thực' });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword) {
+      return res.status(400).json({
+        success: false,
+        field: 'currentPassword',
+        message: 'Vui lòng cung cấp mật khẩu hiện tại',
+      });
+    }
+
+    if (!newPassword) {
+      return res.status(400).json({
+        success: false,
+        field: 'newPassword',
+        message: 'Vui lòng cung cấp mật khẩu mới',
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        field: 'newPassword',
+        message: 'Mật khẩu mới phải có tối thiểu 6 ký tự',
+      });
+    }
+
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT id, password_hash FROM users WHERE id = ? LIMIT 1',
+      [req.user.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
+    }
+
+    const user = rows[0];
+
+    let isPasswordCorrect = false;
+    if (user.password_hash.startsWith('$2a$') || user.password_hash.startsWith('$2b$')) {
+      isPasswordCorrect = await bcrypt.compare(currentPassword, user.password_hash);
+    } else {
+      isPasswordCorrect = currentPassword === user.password_hash;
+    }
+
+    if (!isPasswordCorrect) {
+      return res.status(400).json({
+        success: false,
+        field: 'currentPassword',
+        message: 'Mật khẩu hiện tại không chính xác! Vui lòng kiểm tra lại.',
+      });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+        field: 'newPassword',
+        message: 'Mật khẩu mới không được trùng với mật khẩu hiện tại!',
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
+    await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [
+      newPasswordHash,
+      req.user.id,
+    ]);
+
+    return res.json({
+      success: true,
+      message: 'Đổi mật khẩu thành công! Hãy dùng mật khẩu mới cho các lần đăng nhập tiếp theo.',
+    });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }

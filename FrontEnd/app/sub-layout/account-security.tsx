@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { CinemaColors } from '@/constants/theme';
+import { AuthAPI } from '@/services/API';
 
 interface DeviceSession {
   id: string;
@@ -94,13 +95,15 @@ const AVATAR_PRESETS = [
 export default function AccountSecurityScreen() {
   const router = useRouter();
 
-  // User Profile State
-  const [fullName, setFullName] = useState('Kurumi Tokisaki');
-  const [email] = useState('kurumi124@gmail.com');
-  const [phoneNumber, setPhoneNumber] = useState('0987654321');
+  // User Profile State (Được tải trực tiếp từ tài khoản đang đăng nhập)
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [userAvatar, setUserAvatar] = useState(
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop'
   );
+  const [vipTier, setVipTier] = useState('Free');
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
 
   // Security Switches
   const [twoFactorAuth, setTwoFactorAuth] = useState(false);
@@ -110,12 +113,38 @@ export default function AccountSecurityScreen() {
   // Device Sessions State
   const [devices, setDevices] = useState<DeviceSession[]>(INITIAL_DEVICES);
 
+  // Tải thông tin tài khoản đang đăng nhập từ Backend API
+  useEffect(() => {
+    setIsProfileLoading(true);
+    AuthAPI.getMe()
+      .then((res) => {
+        if (res.success && res.data) {
+          const u = res.data;
+          setFullName(u.fullName || u.full_name || '');
+          setEmail(u.email || '');
+          setPhoneNumber(u.phone || u.phoneNumber || '');
+          if (u.avatar || u.avatar_url) {
+            setUserAvatar(u.avatar || u.avatar_url);
+            setTempAvatar(u.avatar || u.avatar_url);
+          }
+          setVipTier(u.vipTier || u.vip_tier || 'Free');
+        }
+      })
+      .catch((err) => {
+        console.warn('Lỗi tải dữ liệu tài khoản:', err.message);
+      })
+      .finally(() => {
+        setIsProfileLoading(false);
+      });
+  }, []);
+
   // -------------------------------------------------------------
   // FORM 1: THAY ĐỔI ẢNH ĐẠI DIỆN (AVATAR PICKER)
   // -------------------------------------------------------------
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
   const [tempAvatar, setTempAvatar] = useState(userAvatar);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
 
   const openAvatarModal = () => {
     setTempAvatar(userAvatar);
@@ -177,11 +206,24 @@ export default function AccountSecurityScreen() {
     }
   };
 
-  // Lưu avatar
-  const handleSaveAvatar = () => {
-    setUserAvatar(tempAvatar);
-    setIsAvatarModalVisible(false);
-    Alert.alert('Thành công', 'Đã cập nhật ảnh đại diện mới!');
+  // Lưu avatar vào cơ sở dữ liệu qua Backend API
+  const handleSaveAvatar = async () => {
+    if (isSavingAvatar) return;
+    setIsSavingAvatar(true);
+    try {
+      const res = await AuthAPI.updateProfile({ avatar: tempAvatar });
+      if (res.success) {
+        setUserAvatar(tempAvatar);
+        setIsAvatarModalVisible(false);
+        Alert.alert('Thành công 🎉', 'Đã cập nhật ảnh đại diện mới vào tài khoản!');
+      } else {
+        Alert.alert('Lỗi', res.message || 'Không thể cập nhật ảnh đại diện');
+      }
+    } catch (err: any) {
+      Alert.alert('Lỗi', err.message || 'Không thể kết nối máy chủ');
+    } finally {
+      setIsSavingAvatar(false);
+    }
   };
 
   // -------------------------------------------------------------
@@ -191,6 +233,7 @@ export default function AccountSecurityScreen() {
   const [tempName, setTempName] = useState(fullName);
   const [tempPhone, setTempPhone] = useState(phoneNumber);
   const [profileErrors, setProfileErrors] = useState<{ name?: string; phone?: string }>({});
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const openEditProfileModal = () => {
     setTempName(fullName);
@@ -227,13 +270,30 @@ export default function AccountSecurityScreen() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSaveProfile = () => {
-    if (!validateProfileForm()) return;
+  const handleSaveProfile = async () => {
+    if (!validateProfileForm() || isSavingProfile) return;
+    setIsSavingProfile(true);
+    try {
+      const cleanName = tempName.trim();
+      const cleanPhone = tempPhone.replace(/\s+/g, '');
+      const res = await AuthAPI.updateProfile({
+        fullName: cleanName,
+        phone: cleanPhone,
+      });
 
-    setFullName(tempName.trim());
-    setPhoneNumber(tempPhone.replace(/\s+/g, ''));
-    setIsEditProfileVisible(false);
-    Alert.alert('Thành công', 'Thông tin cá nhân đã được cập nhật!');
+      if (res.success) {
+        setFullName(cleanName);
+        setPhoneNumber(cleanPhone);
+        setIsEditProfileVisible(false);
+        Alert.alert('Thành công 🎉', 'Thông tin cá nhân đã được lưu thành công!');
+      } else {
+        Alert.alert('Lỗi', res.message || 'Không thể cập nhật thông tin');
+      }
+    } catch (err: any) {
+      Alert.alert('Lỗi', err.message || 'Không thể kết nối máy chủ');
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   // -------------------------------------------------------------
@@ -251,6 +311,7 @@ export default function AccountSecurityScreen() {
     newPass?: string;
     confirmPass?: string;
   }>({});
+  const [isChangingPass, setIsChangingPass] = useState(false);
 
   const openChangePassModal = () => {
     setCurrentPassword('');
@@ -306,14 +367,81 @@ export default function AccountSecurityScreen() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleChangePassword = () => {
-    if (!validatePasswordForm()) return;
+  const handleChangePassword = async () => {
+    if (!validatePasswordForm() || isChangingPass) return;
+    setIsChangingPass(true);
+    try {
+      const res = await AuthAPI.changePassword({
+        currentPassword,
+        newPassword,
+      });
 
-    setIsChangePassVisible(false);
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    Alert.alert('Thành công', 'Đổi mật khẩu thành công! Hãy dùng mật khẩu mới cho lần đăng nhập sau.');
+      if (res.success) {
+        setIsChangePassVisible(false);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        Alert.alert(
+          'Đổi mật khẩu thành công! 🔒',
+          'Mật khẩu của bạn đã được cập nhật an toàn. Vui lòng ghi nhớ mật khẩu mới cho các lần đăng nhập tiếp theo.'
+        );
+      } else {
+        const field = res.field;
+        const msg = res.message || 'Vui lòng kiểm tra lại thông tin';
+        if (
+          field === 'currentPassword' ||
+          field === 'currentPass' ||
+          msg.toLowerCase().includes('hiện tại') ||
+          msg.toLowerCase().includes('mật khẩu cũ')
+        ) {
+          setPasswordErrors((prev) => ({
+            ...prev,
+            currentPass: msg,
+          }));
+        } else if (
+          field === 'newPassword' ||
+          field === 'newPass' ||
+          msg.toLowerCase().includes('mật khẩu mới')
+        ) {
+          setPasswordErrors((prev) => ({
+            ...prev,
+            newPass: msg,
+          }));
+        } else {
+          Alert.alert('Không thể đổi mật khẩu', msg);
+        }
+      }
+    } catch (err: any) {
+      const field = err?.field || err?.data?.field;
+      const msg = err?.data?.message || err?.message || 'Lỗi kết nối máy chủ';
+
+      const isCurrentPassErr =
+        field === 'currentPassword' ||
+        field === 'currentPass' ||
+        msg.toLowerCase().includes('hiện tại') ||
+        msg.toLowerCase().includes('mật khẩu cũ');
+
+      const isNewPassErr =
+        field === 'newPassword' ||
+        field === 'newPass' ||
+        msg.toLowerCase().includes('mật khẩu mới');
+
+      if (isCurrentPassErr) {
+        setPasswordErrors((prev) => ({
+          ...prev,
+          currentPass: msg,
+        }));
+      } else if (isNewPassErr) {
+        setPasswordErrors((prev) => ({
+          ...prev,
+          newPass: msg,
+        }));
+      } else {
+        Alert.alert('Lỗi đổi mật khẩu', msg);
+      }
+    } finally {
+      setIsChangingPass(false);
+    }
   };
 
   // -------------------------------------------------------------
@@ -428,14 +556,16 @@ export default function AccountSecurityScreen() {
           <View style={styles.userOverviewInfo}>
             <View style={styles.nameBadgeRow}>
               <Text style={styles.profileName} numberOfLines={1}>
-                {fullName}
+                {fullName || (isProfileLoading ? 'Đang tải...' : 'Khách hàng')}
               </Text>
-              <View style={styles.vipTag}>
-                <Ionicons name="shield-checkmark" size={11} color="#FFD700" />
-                <Text style={styles.vipTagText}>VIP 4K</Text>
+              <View style={[styles.vipTag, (!vipTier || vipTier === 'Free') && { backgroundColor: 'rgba(255, 255, 255, 0.08)' }]}>
+                <Ionicons name="shield-checkmark" size={11} color={vipTier && vipTier !== 'Free' ? '#FFD700' : CinemaColors.textMuted} />
+                <Text style={[styles.vipTagText, (!vipTier || vipTier === 'Free') && { color: CinemaColors.textSecondary }]}>
+                  {vipTier && vipTier !== 'Free' ? vipTier : 'MEMBER'}
+                </Text>
               </View>
             </View>
-            <Text style={styles.profileEmail}>{email}</Text>
+            <Text style={styles.profileEmail}>{email || (isProfileLoading ? 'Đang tải...' : 'Chưa liên kết email')}</Text>
             <Text style={styles.securityScoreText}>
               <Ionicons name="checkmark-circle" size={12} color="#10B981" /> Trạng thái: An toàn cao
             </Text>
@@ -808,16 +938,22 @@ export default function AccountSecurityScreen() {
               <TouchableOpacity
                 style={styles.modalCancelBtn}
                 onPress={() => setIsAvatarModalVisible(false)}
+                disabled={isSavingAvatar}
                 activeOpacity={0.8}
               >
                 <Text style={styles.modalCancelBtnText}>Hủy</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.modalSubmitBtn}
+                style={[styles.modalSubmitBtn, isSavingAvatar && { opacity: 0.7 }]}
                 onPress={handleSaveAvatar}
+                disabled={isSavingAvatar}
                 activeOpacity={0.85}
               >
-                <Text style={styles.modalSubmitBtnText}>Lưu Ảnh Này</Text>
+                {isSavingAvatar ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSubmitBtnText}>Lưu Ảnh Này</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -914,16 +1050,22 @@ export default function AccountSecurityScreen() {
               <TouchableOpacity
                 style={styles.modalCancelBtn}
                 onPress={() => setIsEditProfileVisible(false)}
+                disabled={isSavingProfile}
                 activeOpacity={0.8}
               >
                 <Text style={styles.modalCancelBtnText}>Hủy</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.modalSubmitBtn}
+                style={[styles.modalSubmitBtn, isSavingProfile && { opacity: 0.7 }]}
                 onPress={handleSaveProfile}
+                disabled={isSavingProfile}
                 activeOpacity={0.85}
               >
-                <Text style={styles.modalSubmitBtnText}>Lưu Thay Đổi</Text>
+                {isSavingProfile ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSubmitBtnText}>Lưu Thay Đổi</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -1124,16 +1266,22 @@ export default function AccountSecurityScreen() {
               <TouchableOpacity
                 style={styles.modalCancelBtn}
                 onPress={() => setIsChangePassVisible(false)}
+                disabled={isChangingPass}
                 activeOpacity={0.8}
               >
                 <Text style={styles.modalCancelBtnText}>Hủy</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.modalSubmitBtn}
+                style={[styles.modalSubmitBtn, isChangingPass && { opacity: 0.7 }]}
                 onPress={handleChangePassword}
+                disabled={isChangingPass}
                 activeOpacity={0.85}
               >
-                <Text style={styles.modalSubmitBtnText}>Xác Nhận</Text>
+                {isChangingPass ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSubmitBtnText}>Xác Nhận Đổi</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -1572,15 +1720,17 @@ const styles = StyleSheet.create({
   },
   errorRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 5,
+    alignItems: 'flex-start',
+    gap: 5,
+    marginTop: 6,
     paddingLeft: 2,
   },
   errorText: {
-    fontSize: 11.5,
+    fontSize: 12,
     color: CinemaColors.error,
     fontWeight: '500',
+    flex: 1,
+    lineHeight: 16,
   },
   passwordInputWrapper: {
     flexDirection: 'row',
