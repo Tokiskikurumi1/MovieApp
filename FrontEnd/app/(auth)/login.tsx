@@ -285,7 +285,7 @@ export default function LoginScreen() {
                 <Text style={styles.socialButtonText}>Google</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.socialButton} activeOpacity={0.75}>
+              {/* <TouchableOpacity style={styles.socialButton} activeOpacity={0.75}>
                 <Ionicons name="logo-apple" size={20} color={CinemaColors.apple} />
                 <Text style={styles.socialButtonText}>Apple</Text>
               </TouchableOpacity>
@@ -293,7 +293,7 @@ export default function LoginScreen() {
               <TouchableOpacity style={styles.socialButton} activeOpacity={0.75}>
                 <Ionicons name="logo-facebook" size={20} color={CinemaColors.facebook} />
                 <Text style={styles.socialButtonText}>Facebook</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
 
             {/* Guest Browsing */}

@@ -82,11 +82,6 @@ export default function HelpCenterScreen() {
   const [selectedCategory, setSelectedCategory] = useState('Tất cả');
   const [expandedFaqId, setExpandedFaqId] = useState<string | null>('faq-1');
 
-  // Ticket Form States
-  const [ticketTopic, setTicketTopic] = useState('Lỗi phát video');
-  const [ticketContent, setTicketContent] = useState('');
-  const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
-
   // Live Chat States (Realtime Socket.io với Admin)
   const [isLiveChatVisible, setIsLiveChatVisible] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -209,26 +204,17 @@ export default function HelpCenterScreen() {
   };
 
   const handleSendEmail = () => {
-    Linking.openURL('mailto:support@cinestream.vn?subject=Yêu cầu hỗ trợ CINESTREAM').catch(() => {
-      Alert.alert('Thông báo', 'Địa chỉ email hỗ trợ: support@cinestream.vn');
-    });
-  };
+    const email = 'support@cinestream.vn';
+    const subject = encodeURIComponent('Yêu cầu hỗ trợ CINESTREAM');
+    const mailtoUrl = `mailto:${email}?subject=${subject}`;
 
-  const handleSubmitTicket = () => {
-    if (!ticketContent.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập mô tả chi tiết vấn đề bạn đang gặp phải.');
-      return;
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.location.href = mailtoUrl;
+    } else {
+      Linking.openURL(mailtoUrl).catch(() => {
+        Alert.alert('Gửi Email Hỗ Trợ', `Vui lòng gửi email trực tiếp đến: ${email}`);
+      });
     }
-
-    setIsSubmittingTicket(true);
-    setTimeout(() => {
-      setIsSubmittingTicket(false);
-      setTicketContent('');
-      Alert.alert(
-        'Đã gửi yêu cầu thành công! 🎫',
-        'Mã yêu cầu hỗ trợ: #CS-99482. Đội ngũ kỹ thuật viên 24/7 sẽ phản hồi qua email của bạn trong vòng 15-30 phút.'
-      );
-    }, 800);
   };
 
   const handleSendChatMessage = () => {
@@ -468,57 +454,27 @@ export default function HelpCenterScreen() {
           )}
         </View>
 
-        {/* Submit a Support Ticket Form */}
-        <View style={styles.ticketSection}>
-          <Text style={styles.sectionHeading}>GỬI PHẢN HỒI / BÁO LỖI (TICKET)</Text>
-          <View style={styles.ticketCard}>
-            <Text style={styles.ticketInputLabel}>CHỦ ĐỀ CẦN HỖ TRỢ</Text>
-            <View style={styles.topicOptionsRow}>
-              {['Lỗi phát video', 'Tài khoản VIP', 'Thanh toán', 'Góp ý'].map((topic) => (
-                <TouchableOpacity
-                  key={topic}
-                  style={[
-                    styles.topicChip,
-                    ticketTopic === topic && styles.topicChipActive,
-                  ]}
-                  activeOpacity={0.75}
-                  onPress={() => setTicketTopic(topic)}
-                >
-                  <Text
-                    style={[
-                      styles.topicChipText,
-                      ticketTopic === topic && styles.topicChipTextActive,
-                    ]}
-                  >
-                    {topic}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+        {/* Direct Email Support Banner */}
+        <View style={styles.emailDirectCard}>
+          <View style={styles.emailDirectHeader}>
+            <View style={styles.emailDirectIconCircle}>
+              <Ionicons name="mail" size={24} color="#3B82F6" />
             </View>
-
-            <Text style={styles.ticketInputLabel}>MÔ TẢ CHI TIẾT</Text>
-            <TextInput
-              style={styles.ticketTextArea}
-              placeholder="Vui lòng mô tả chi tiết sự cố bạn gặp phải kèm tên phim / thiết bị..."
-              placeholderTextColor={CinemaColors.textMuted}
-              multiline
-              numberOfLines={4}
-              value={ticketContent}
-              onChangeText={setTicketContent}
-            />
-
-            <TouchableOpacity
-              style={styles.submitTicketBtn}
-              activeOpacity={0.85}
-              onPress={handleSubmitTicket}
-              disabled={isSubmittingTicket}
-            >
-              <Text style={styles.submitTicketText}>
-                {isSubmittingTicket ? 'Đang gửi yêu cầu...' : 'Gửi Yêu Cầu Hỗ Trợ'}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.emailDirectTitle}>Bạn cần hỗ trợ chuyên sâu?</Text>
+              <Text style={styles.emailDirectSubtitle}>
+                Gửi thư trực tiếp tới hòm thư kỹ thuật & hỗ trợ khách hàng của CINESTREAM.
               </Text>
-              <Ionicons name="send" size={16} color="#FFFFFF" />
-            </TouchableOpacity>
+            </View>
           </View>
+          <TouchableOpacity
+            style={styles.emailDirectBtn}
+            activeOpacity={0.85}
+            onPress={handleSendEmail}
+          >
+            <Ionicons name="paper-plane" size={17} color="#FFFFFF" />
+            <Text style={styles.emailDirectBtnText}>Gửi Thư Tới support@cinestream.vn</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -829,70 +785,52 @@ const styles = StyleSheet.create({
     color: CinemaColors.textMuted,
   },
 
-  /* Ticket Section */
-  ticketSection: {
-    marginTop: 6,
-  },
-  ticketCard: {
+  /* Direct Email Support Banner */
+  emailDirectCard: {
     backgroundColor: CinemaColors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: CinemaColors.border,
+    marginTop: 8,
   },
-  ticketInputLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: CinemaColors.textMuted,
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  topicOptionsRow: {
+  emailDirectHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignItems: 'center',
+    gap: 12,
     marginBottom: 14,
   },
-  topicChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: CinemaColors.surfaceElevated,
+  emailDirectIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  topicChipActive: {
-    backgroundColor: CinemaColors.primary,
-  },
-  topicChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: CinemaColors.textSecondary,
-  },
-  topicChipTextActive: {
-    color: '#FFFFFF',
+  emailDirectTitle: {
+    fontSize: 14.5,
     fontWeight: '700',
-  },
-  ticketTextArea: {
-    backgroundColor: CinemaColors.surfaceElevated,
-    borderRadius: 10,
-    padding: 12,
     color: CinemaColors.textPrimary,
-    fontSize: 13,
-    minHeight: 90,
-    textAlignVertical: 'top',
-    marginBottom: 16,
+    marginBottom: 3,
   },
-  submitTicketBtn: {
+  emailDirectSubtitle: {
+    fontSize: 12,
+    color: CinemaColors.textSecondary,
+    lineHeight: 16,
+  },
+  emailDirectBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: CinemaColors.primary,
+    backgroundColor: '#2563EB',
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     gap: 8,
   },
-  submitTicketText: {
+  emailDirectBtnText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '700',
   },
 
