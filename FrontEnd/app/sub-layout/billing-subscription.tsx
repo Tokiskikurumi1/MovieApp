@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,12 @@ import {
   StatusBar,
   Modal,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
+import { UserAPI } from '@/services/API';
 
 interface SubscriptionPlan {
   id: string;
@@ -120,19 +122,77 @@ export default function BillingSubscriptionScreen() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'momo' | 'zalopay' | 'card' | 'apple'>('momo');
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
+  const [transactions, setTransactions] = useState<TransactionItem[]>(TRANSACTIONS);
+  const [isLoadingTx, setIsLoadingTx] = useState(false);
+  const [isProcessingUpgrade, setIsProcessingUpgrade] = useState(false);
+
+  const fetchTransactions = () => {
+    setIsLoadingTx(true);
+    UserAPI.getTransactions()
+      .then((res) => {
+        if (res.success && res.data && res.data.length > 0) {
+          setTransactions(res.data);
+        }
+      })
+      .catch((err) => console.warn('Lỗi lấy giao dịch:', err))
+      .finally(() => setIsLoadingTx(false));
+  };
+
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
 
   const handleOpenPayment = (plan: SubscriptionPlan) => {
     setSelectedPlan(plan);
     setIsPaymentModalVisible(true);
   };
 
-  const handleConfirmPayment = () => {
-    setIsPaymentModalVisible(false);
-    Alert.alert(
-      'Thanh toán thành công! 🎉',
-      `Bạn đã đăng ký thành công ${selectedPlan?.name}. Thời hạn gói VIP đã được cập nhật tự động.`,
-      [{ text: 'Tuyệt vời', onPress: () => {} }]
-    );
+  const handleConfirmPayment = async () => {
+    if (!selectedPlan) return;
+    setIsProcessingUpgrade(true);
+
+    try {
+      const pmMap: Record<string, string> = {
+        momo: 'MoMo',
+        zalopay: 'ZaloPay',
+        card: 'Visa/Mastercard',
+        apple: 'MoMo',
+      };
+
+      const res = await UserAPI.upgradeSubscription({
+        packageId: selectedPlan.id,
+        paymentMethod: pmMap[selectedPaymentMethod] || 'MoMo',
+      });
+
+      setIsPaymentModalVisible(false);
+      setIsProcessingUpgrade(false);
+
+      if (res.success) {
+        Alert.alert(
+          'Thanh toán thành công! 🎉',
+          res.message || `Bạn đã đăng ký thành công ${selectedPlan?.name}. Mã đơn: ${res.data?.orderCode}`,
+          [
+            {
+              text: 'Xem Lịch Sử',
+              onPress: () => {
+                setActiveTab('history');
+                fetchTransactions();
+              },
+            },
+            {
+              text: 'OK',
+              onPress: () => fetchTransactions(),
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Thất bại', res.message || 'Có lỗi xảy ra khi xử lý giao dịch');
+      }
+    } catch (error: any) {
+      setIsProcessingUpgrade(false);
+      setIsPaymentModalVisible(false);
+      Alert.alert('Lỗi kết nối', error.message || 'Không thể kết nối đến máy chủ thanh toán');
+    }
   };
 
   return (
@@ -294,9 +354,12 @@ export default function BillingSubscriptionScreen() {
           /* TAB 2: LỊCH SỬ GIAO DỊCH                                  */
           /* ========================================================= */
           <View style={styles.historySection}>
-            <Text style={styles.sectionHeading}>LỊCH SỬ THANH TOÁN GẦN ĐÂY</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={styles.sectionHeading}>LỊCH SỬ THANH TOÁN GẦN ĐÂY</Text>
+              {isLoadingTx && <ActivityIndicator size="small" color={CinemaColors.primary} />}
+            </View>
 
-            {TRANSACTIONS.map((tx) => (
+            {(transactions.length > 0 ? transactions : TRANSACTIONS).map((tx) => (
               <TouchableOpacity
                 key={tx.id}
                 style={styles.txCard}
@@ -403,11 +466,16 @@ export default function BillingSubscriptionScreen() {
 
             {/* Confirm Payment Button */}
             <TouchableOpacity
-              style={styles.confirmPayBtn}
+              style={[styles.confirmPayBtn, isProcessingUpgrade && { opacity: 0.6 }]}
               activeOpacity={0.85}
+              disabled={isProcessingUpgrade}
               onPress={handleConfirmPayment}
             >
-              <Text style={styles.confirmPayText}>Thanh Toán Ngay</Text>
+              {isProcessingUpgrade ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.confirmPayText}>Thanh Toán Ngay</Text>
+              )}
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

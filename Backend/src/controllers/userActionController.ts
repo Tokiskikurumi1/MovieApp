@@ -381,3 +381,124 @@ export async function clearAllWatchHistory(req: AuthRequest, res: Response) {
     return res.status(500).json({ success: false, message: error.message });
   }
 }
+
+// 9. Lấy lịch sử giao dịch nạp VIP của người dùng (Transactions)
+export async function getTransactions(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.user?.id || 2;
+
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT id, order_code as code, package_name as planName, amount,
+              payment_method as paymentMethod, status, created_at as createdAt
+       FROM transactions
+       WHERE user_id = ?
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+
+    const formatted = rows.map((tx) => {
+      let paymentIcon = 'wallet-outline';
+      const pm = String(tx.paymentMethod);
+      if (pm.includes('Visa') || pm.includes('Card')) {
+        paymentIcon = 'card-outline';
+      } else if (pm.includes('QR')) {
+        paymentIcon = 'qr-code-outline';
+      } else if (pm.includes('MoMo')) {
+        paymentIcon = 'phone-portrait-outline';
+      }
+
+      return {
+        id: String(tx.id),
+        code: tx.code,
+        planName: tx.planName,
+        amount: `${Number(tx.amount).toLocaleString('vi-VN')}đ`,
+        rawAmount: Number(tx.amount),
+        paymentMethod: tx.paymentMethod,
+        paymentIcon,
+        status: tx.status,
+        date: new Date(tx.createdAt).toLocaleString('vi-VN', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      };
+    });
+
+    return res.json({ success: true, data: formatted });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// 10. Đăng ký & Nâng cấp Gói cước VIP (Subscription Upgrade)
+export async function upgradeSubscription(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.user?.id || 2;
+    const { packageId = '6m', paymentMethod = 'MoMo' } = req.body;
+
+    // Chuẩn hóa phương thức thanh toán theo ENUM DB: ('MoMo','VietQR','ZaloPay','Visa/Mastercard')
+    let validMethod: 'MoMo' | 'VietQR' | 'ZaloPay' | 'Visa/Mastercard' = 'MoMo';
+    const pmLower = String(paymentMethod).toLowerCase();
+    if (pmLower.includes('vietqr') || pmLower.includes('qr')) {
+      validMethod = 'VietQR';
+    } else if (pmLower.includes('zalo')) {
+      validMethod = 'ZaloPay';
+    } else if (pmLower.includes('visa') || pmLower.includes('master') || pmLower.includes('card')) {
+      validMethod = 'Visa/Mastercard';
+    } else {
+      validMethod = 'MoMo';
+    }
+
+    const planConfig: Record<
+      string,
+      { dbPkgId: '1m' | '6m' | '1y'; name: string; amount: number; days: number; tier: 'VIP Standard' | 'VIP 4K' }
+    > = {
+      'plan-1m': { dbPkgId: '1m', name: 'Gói 1 Tháng VIP', amount: 69000, days: 30, tier: 'VIP Standard' },
+      '1m': { dbPkgId: '1m', name: 'Gói 1 Tháng VIP', amount: 69000, days: 30, tier: 'VIP Standard' },
+      'plan-6m': { dbPkgId: '6m', name: 'Gói 6 Tháng VIP 4K', amount: 349000, days: 180, tier: 'VIP 4K' },
+      '6m': { dbPkgId: '6m', name: 'Gói 6 Tháng VIP 4K', amount: 349000, days: 180, tier: 'VIP 4K' },
+      'plan-12m': { dbPkgId: '1y', name: 'Gói 1 Năm Siêu Cấp', amount: 649000, days: 365, tier: 'VIP 4K' },
+      '1y': { dbPkgId: '1y', name: 'Gói 1 Năm Siêu Cấp', amount: 649000, days: 365, tier: 'VIP 4K' },
+    };
+
+    const selected = planConfig[packageId] || planConfig['6m'];
+    const orderCode = `CINE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    // 1. Tạo bản ghi giao dịch thành công trong transactions
+    await pool.query(
+      `INSERT INTO transactions (order_code, user_id, package_id, package_name, amount, payment_method, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'success')`,
+      [orderCode, userId, selected.dbPkgId, selected.name, selected.amount, validMethod]
+    );
+
+    // 2. Nâng cấp hạn VIP cho User
+    await pool.query(
+      `UPDATE users 
+       SET vip_tier = ?, 
+           vip_expiry = DATE_ADD(GREATEST(COALESCE(vip_expiry, NOW()), NOW()), INTERVAL ? DAY)
+       WHERE id = ?`,
+      [selected.tier, selected.days, userId]
+    );
+
+    const [userRows] = await pool.query<RowDataPacket[]>(
+      'SELECT id, full_name, email, vip_tier, vip_expiry FROM users WHERE id = ?',
+      [userId]
+    );
+
+    return res.json({
+      success: true,
+      message: `Chúc mừng! Bạn đã nâng cấp thành công ${selected.name}!`,
+      data: {
+        orderCode,
+        planName: selected.name,
+        amount: selected.amount,
+        vipTier: userRows[0]?.vip_tier,
+        vipExpiry: userRows[0]?.vip_expiry,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}

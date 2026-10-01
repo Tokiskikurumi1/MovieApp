@@ -9,6 +9,8 @@ import {
   toggleLikeComment,
   deleteWatchHistory,
   clearAllWatchHistory,
+  getTransactions,
+  upgradeSubscription,
 } from '../controllers/userActionController';
 import { optionalAuthenticate } from '../middlewares/authMiddleware';
 
@@ -28,5 +30,9 @@ router.delete('/watch-history', optionalAuthenticate, clearAllWatchHistory);
 router.get('/movies/:movieIdOrSlug/comments', optionalAuthenticate, getMovieComments);
 router.post('/comments', optionalAuthenticate, createComment);
 router.post('/comments/:commentId/like', optionalAuthenticate, toggleLikeComment);
+
+// Gói cước VIP & Lịch sử giao dịch
+router.get('/transactions', optionalAuthenticate, getTransactions);
+router.post('/subscription/upgrade', optionalAuthenticate, upgradeSubscription);
 
 export default router;
