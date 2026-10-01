@@ -78,4 +78,24 @@ export const AdminAPI = {
       method: 'PUT',
       body: JSON.stringify({ status }),
     }),
+
+  // Quản lý thông báo đẩy
+  getNotifications: () => fetchAdminJson('/admin/notifications'),
+  createNotification: (data: {
+    title: string;
+    message: string;
+    type?: string;
+    movieId?: number;
+    movieSlug?: string;
+    image?: string;
+    targetAudience?: 'all' | 'vip' | 'free';
+    actionRoute?: string;
+  }) =>
+    fetchAdminJson('/admin/notifications', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  deleteNotification: (id: string | number) =>
+    fetchAdminJson(`/admin/notifications/${id}`, { method: 'DELETE' }),
 };
+

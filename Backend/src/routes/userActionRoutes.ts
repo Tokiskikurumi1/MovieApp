@@ -12,6 +12,11 @@ import {
   getTransactions,
   upgradeSubscription,
 } from '../controllers/userActionController';
+import {
+  getUserNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+} from '../controllers/notificationController';
 import { optionalAuthenticate } from '../middlewares/authMiddleware';
 
 const router = Router();
@@ -34,5 +39,10 @@ router.post('/comments/:commentId/like', optionalAuthenticate, toggleLikeComment
 // Gói cước VIP & Lịch sử giao dịch
 router.get('/transactions', optionalAuthenticate, getTransactions);
 router.post('/subscription/upgrade', optionalAuthenticate, upgradeSubscription);
+
+// Thông báo người dùng
+router.get('/notifications', optionalAuthenticate, getUserNotifications);
+router.post('/notifications/:id/read', optionalAuthenticate, markNotificationAsRead);
+router.post('/notifications/read-all', optionalAuthenticate, markAllNotificationsAsRead);
 
 export default router;

@@ -9,6 +9,7 @@ import {
   Image,
   StatusBar,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -27,11 +28,20 @@ export default function NotificationsScreen() {
   const {
     notifications,
     unreadCount,
+    isLoading,
+    refreshNotifications,
     markAsRead,
     markAllAsRead,
     clearAll,
   } = useNotifications();
   const [selectedTab, setSelectedTab] = useState('all');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshNotifications();
+    setRefreshing(false);
+  };
 
   const filteredNotifications = notifications.filter((item) => {
     if (selectedTab === 'unread') return !item.isRead;
@@ -64,9 +74,16 @@ export default function NotificationsScreen() {
     markAsRead(item.id);
 
     if (item.actionRoute) {
-      router.push(item.actionRoute as any);
+      if (typeof item.actionRoute === 'string') {
+        router.push(item.actionRoute as any);
+      } else {
+        router.push(item.actionRoute as any);
+      }
+    } else if (item.movieSlug) {
+      router.push(`/movie/${item.movieSlug}` as any);
     }
   };
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -134,6 +151,14 @@ export default function NotificationsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={CinemaColors.primary}
+            colors={[CinemaColors.primary]}
+          />
+        }
       >
         {filteredNotifications.length > 0 ? (
           filteredNotifications.map((item) => (

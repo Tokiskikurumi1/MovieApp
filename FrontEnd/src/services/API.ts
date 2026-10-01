@@ -236,3 +236,17 @@ export const AuthAPI = {
       body: JSON.stringify(data),
     }),
 };
+
+export const NotificationAPI = {
+  getNotifications: () =>
+    fetchJson<{ success: boolean; unreadCount: number; data: any[] }>('/user/notifications'),
+  markAsRead: (id: string | number) =>
+    fetchJson<{ success: boolean; message: string }>(`/user/notifications/${id}/read`, {
+      method: 'POST',
+    }),
+  markAllAsRead: () =>
+    fetchJson<{ success: boolean; message: string }>('/user/notifications/read-all', {
+      method: 'POST',
+    }),
+};
+

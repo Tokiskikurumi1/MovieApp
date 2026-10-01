@@ -205,11 +205,24 @@ CREATE TABLE IF NOT EXISTS notifications (
     title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
     type ENUM('movie', 'vip', 'promo', 'system') DEFAULT 'system',
+    movie_id INT NULL,
+    movie_slug VARCHAR(255) NULL,
+    image VARCHAR(500) NULL,
     target_audience ENUM('all', 'vip', 'free') DEFAULT 'all',
     action_route VARCHAR(255) DEFAULT '/(tabs)',
     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     read_count INT DEFAULT 0,
     total_sent INT DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 14.1. Bảng Trạng thái đọc thông báo của người dùng (user_notification_reads)
+CREATE TABLE IF NOT EXISTS user_notification_reads (
+    user_id INT NOT NULL,
+    notification_id INT NOT NULL,
+    read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, notification_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 15. Bảng Phiếu hỗ trợ người dùng (support_tickets)
