@@ -135,17 +135,23 @@ export const UserAPI = {
       body: JSON.stringify({ movieIdOrSlug }),
     }),
 
-  // Lưu tiến độ xem
+  // Lưu tiến độ xem (Resume watching)
   saveWatchProgress: (data: {
     movieIdOrSlug: string;
     episodeId?: number;
-    progress: number;
+    progress?: number;
     durationLeft?: string;
+    currentTime?: number;
+    duration?: number;
   }) =>
     fetchJson('/user/watch-progress', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // Lấy mốc thời gian xem gần nhất để tiếp tục xem
+  getWatchProgress: (movieIdOrSlug: string) =>
+    fetchJson(`/user/watch-progress/${movieIdOrSlug}`),
 
   // Xóa lịch sử xem
   deleteWatchHistory: (movieIdOrHistoryId: string | number) =>

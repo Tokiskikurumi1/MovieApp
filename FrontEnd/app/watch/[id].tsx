@@ -368,7 +368,11 @@ export default function WatchMovieScreen() {
   // Recommendations State (Content-Based)
   const [recommendations, setRecommendations] = useState<any[]>([]);
 
-  // Fetch real details and comments from Backend
+  // Resume & Watch Progress States
+  const [initialSeekTime, setInitialSeekTime] = useState<number>(0);
+  const lastSavedTimeRef = useRef<number>(0);
+
+  // Fetch real details, watch progress, recommendations and comments from Backend
   useEffect(() => {
     if (!id) return;
     MovieAPI.getMovieDetail(id)
@@ -382,16 +386,24 @@ export default function WatchMovieScreen() {
           if (res.data.similarMovies && res.data.similarMovies.length > 0) {
             setRecommendations(res.data.similarMovies);
           }
-          // Tự động lưu vào lịch sử xem phim
-          UserAPI.saveWatchProgress({
-            movieIdOrSlug: id,
-            episodeId: res.data.episodes?.[0]?.id,
-            progress: 0.15,
-            durationLeft: res.data.duration || '45 phút còn lại',
-          }).catch(() => {});
         }
       })
       .catch((err) => console.warn('Lỗi tải phim từ Backend:', err));
+
+    // Lấy mốc thời gian đã xem lần trước (Resume watching)
+    UserAPI.getWatchProgress(id)
+      .then((res) => {
+        if (res.success && res.data) {
+          if (res.data.currentTime && res.data.currentTime > 5) {
+            setInitialSeekTime(res.data.currentTime);
+            lastSavedTimeRef.current = res.data.currentTime;
+          }
+          if (res.data.episodeId) {
+            setSelectedEpisodeId(res.data.episodeId);
+          }
+        }
+      })
+      .catch((err) => console.warn('Lỗi lấy tiến độ xem:', err));
 
     MovieAPI.getRecommendations(id, 8)
       .then((res) => {
@@ -409,6 +421,38 @@ export default function WatchMovieScreen() {
       })
       .catch((err) => console.warn('Lỗi tải bình luận từ Backend:', err));
   }, [id]);
+
+  // Xử lý lưu mốc thời gian xem định kỳ
+  const handleTimeUpdate = (curSec: number, totalSec: number) => {
+    if (Math.abs(curSec - lastSavedTimeRef.current) >= 10 && curSec > 3) {
+      lastSavedTimeRef.current = curSec;
+      const minLeft = totalSec > curSec ? Math.round((totalSec - curSec) / 60) : 0;
+      const durationLeftStr = minLeft > 0 ? `${minLeft} phút còn lại` : 'Sắp kết thúc';
+      const progress = totalSec > 0 ? Number((curSec / totalSec).toFixed(4)) : 0;
+
+      UserAPI.saveWatchProgress({
+        movieIdOrSlug: id,
+        episodeId: selectedEpisodeId,
+        currentTime: curSec,
+        duration: totalSec,
+        durationLeft: durationLeftStr,
+        progress,
+      }).catch(() => {});
+    }
+  };
+
+  // Lưu tiến độ khi rời màn hình
+  useEffect(() => {
+    return () => {
+      if (lastSavedTimeRef.current > 5) {
+        UserAPI.saveWatchProgress({
+          movieIdOrSlug: id,
+          episodeId: selectedEpisodeId,
+          currentTime: lastSavedTimeRef.current,
+        }).catch(() => {});
+      }
+    };
+  }, [id, selectedEpisodeId]);
 
   const commentInputRef = useRef<TextInput>(null);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -611,6 +655,8 @@ export default function WatchMovieScreen() {
         title={movie?.title || 'CineStream'}
         episodeTitle={currentEpisode?.title || `Tập ${selectedEpisodeId}`}
         posterUrl={movie?.banner || movie?.poster || currentEpisode?.thumbnail}
+        initialTime={initialSeekTime}
+        onTimeUpdate={handleTimeUpdate}
         isFullscreen={isFullscreen}
         onToggleFullscreen={handleToggleFullscreen}
         onBack={handlePlayerBack}

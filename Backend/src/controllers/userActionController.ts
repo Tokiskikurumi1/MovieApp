@@ -85,11 +85,61 @@ export async function toggleFavorite(req: AuthRequest, res: Response) {
   }
 }
 
-// 3. Lưu tiến độ xem (Continue Watching)
+// 3. Lưu tiến độ xem (Continue Watching - mốc thời gian cụ thể)
 export async function saveWatchProgress(req: AuthRequest, res: Response) {
   try {
     const userId = req.user?.id || 2;
-    const { movieIdOrSlug, episodeId, progress, durationLeft } = req.body;
+    const { movieIdOrSlug, episodeId, progress, durationLeft, currentTime, duration } = req.body;
+
+    const [movies] = await pool.query<RowDataPacket[]>(
+      'SELECT id FROM movies WHERE id = ? OR slug = ? LIMIT 1',
+      [isNaN(Number(movieIdOrSlug)) ? -1 : Number(movieIdOrSlug), movieIdOrSlug]
+    );
+
+    if (movies.length === 0) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy phim' });
+    }
+
+    const movieId = movies[0].id;
+    const safeCurrentTime = Math.max(0, parseInt(currentTime) || 0);
+    const safeDuration = Math.max(0, parseInt(duration) || 0);
+    const computedProgress =
+      safeDuration > 0
+        ? Math.min(1.0, Math.max(0.0, Number((safeCurrentTime / safeDuration).toFixed(4))))
+        : (progress || 0);
+
+    await pool.query(
+      `INSERT INTO watch_history (user_id, movie_id, episode_id, progress, duration_left, current_time, duration)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         episode_id = VALUES(episode_id),
+         progress = VALUES(progress),
+         duration_left = VALUES(duration_left),
+         current_time = VALUES(current_time),
+         duration = VALUES(duration),
+         last_watched_at = CURRENT_TIMESTAMP`,
+      [
+        userId,
+        movieId,
+        episodeId || null,
+        computedProgress,
+        durationLeft || null,
+        safeCurrentTime,
+        safeDuration,
+      ]
+    );
+
+    return res.json({ success: true, message: 'Đã lưu tiến độ xem' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// 3.1. Lấy mốc thời gian xem gần nhất để tiếp tục xem (Resume watching)
+export async function getWatchProgress(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.user?.id || 2;
+    const { movieIdOrSlug } = req.params;
 
     const [movies] = await pool.query<RowDataPacket[]>(
       'SELECT id FROM movies WHERE id = ? OR slug = ? LIMIT 1',
@@ -102,18 +152,19 @@ export async function saveWatchProgress(req: AuthRequest, res: Response) {
 
     const movieId = movies[0].id;
 
-    await pool.query(
-      `INSERT INTO watch_history (user_id, movie_id, episode_id, progress, duration_left)
-       VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         episode_id = VALUES(episode_id),
-         progress = VALUES(progress),
-         duration_left = VALUES(duration_left),
-         last_watched_at = CURRENT_TIMESTAMP`,
-      [userId, movieId, episodeId || null, progress || 0, durationLeft || null]
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT episode_id as episodeId, current_time as currentTime, duration, progress, duration_left as durationLeft, last_watched_at as lastWatchedAt
+       FROM watch_history
+       WHERE user_id = ? AND movie_id = ?
+       LIMIT 1`,
+      [userId, movieId]
     );
 
-    return res.json({ success: true, message: 'Đã lưu tiến độ xem' });
+    if (rows.length === 0) {
+      return res.json({ success: true, data: null });
+    }
+
+    return res.json({ success: true, data: rows[0] });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }

@@ -3,6 +3,7 @@ import {
   getFavorites,
   toggleFavorite,
   saveWatchProgress,
+  getWatchProgress,
   getMovieComments,
   createComment,
   toggleLikeComment,
@@ -19,6 +20,7 @@ router.post('/favorites/toggle', optionalAuthenticate, toggleFavorite);
 
 // Tiến độ xem phim & Lịch sử xem
 router.post('/watch-progress', optionalAuthenticate, saveWatchProgress);
+router.get('/watch-progress/:movieIdOrSlug', optionalAuthenticate, getWatchProgress);
 router.delete('/watch-history/:movieIdOrHistoryId', optionalAuthenticate, deleteWatchHistory);
 router.delete('/watch-history', optionalAuthenticate, clearAllWatchHistory);
 
