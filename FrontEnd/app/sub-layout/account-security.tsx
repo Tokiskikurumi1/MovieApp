@@ -694,7 +694,7 @@ export default function AccountSecurityScreen() {
             <View style={styles.divider} />
 
             {/* Xác thực 2 bước (2FA) */}
-            <View style={styles.rowItem}>
+            {/* <View style={styles.rowItem}>
               <View style={styles.rowLeft}>
                 <View style={styles.iconCircle}>
                   <Ionicons name="shield-checkmark-outline" size={18} color={CinemaColors.primary} />
@@ -710,12 +710,12 @@ export default function AccountSecurityScreen() {
                 trackColor={{ false: CinemaColors.border, true: CinemaColors.primary }}
                 thumbColor="#FFFFFF"
               />
-            </View>
+            </View> */}
 
-            <View style={styles.divider} />
+            {/* <View style={styles.divider} /> */}
 
             {/* Đăng nhập sinh trắc học */}
-            <View style={styles.rowItem}>
+            {/* <View style={styles.rowItem}>
               <View style={styles.rowLeft}>
                 <View style={styles.iconCircle}>
                   <Ionicons name="finger-print-outline" size={18} color={CinemaColors.primary} />
@@ -731,12 +731,12 @@ export default function AccountSecurityScreen() {
                 trackColor={{ false: CinemaColors.border, true: CinemaColors.primary }}
                 thumbColor="#FFFFFF"
               />
-            </View>
+            </View> */}
 
-            <View style={styles.divider} />
+            {/* <View style={styles.divider} /> */}
 
             {/* Cảnh báo đăng nhập lạ */}
-            <View style={styles.rowItem}>
+            {/* <View style={styles.rowItem}>
               <View style={styles.rowLeft}>
                 <View style={styles.iconCircle}>
                   <Ionicons name="notifications-outline" size={18} color={CinemaColors.primary} />
@@ -752,12 +752,12 @@ export default function AccountSecurityScreen() {
                 trackColor={{ false: CinemaColors.border, true: CinemaColors.primary }}
                 thumbColor="#FFFFFF"
               />
-            </View>
+            </View> */}
           </View>
         </View>
 
         {/* ---------------- 4. QUẢN LÝ THIẾT BỊ ĐĂNG NHẬP ---------------- */}
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionHeading}>THIẾT BỊ ĐANG ĐĂNG NHẬP ({devices.length})</Text>
             {devices.length > 1 && (
@@ -816,7 +816,7 @@ export default function AccountSecurityScreen() {
               </React.Fragment>
             ))}
           </View>
-        </View>
+        </View> */}
 
         {/* ---------------- 5. VÙNG NGUY HIỂM (DANGER ZONE) ---------------- */}
         <View style={styles.section}>

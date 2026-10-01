@@ -17,12 +17,6 @@ import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { AuthAPI, setAuthToken } from '@/services/API';
 
-// Fake test account credentials
-const TEST_ACCOUNT = {
-  usernames: ['kurumi124@gmail.com', '0987654321'],
-  password: 'Kurumi1234@',
-};
-
 export default function LoginScreen() {
   const router = useRouter();
 
@@ -62,22 +56,16 @@ export default function LoginScreen() {
         if (res.success && res.data?.token) {
           setAuthToken(res.data.token);
           router.replace('/(tabs)');
+        } else {
+          setErrors({
+            general: res.message || 'Tài khoản hoặc mật khẩu không chính xác',
+          });
         }
       })
       .catch((err) => {
-        const isValidUser = TEST_ACCOUNT.usernames.some(
-          (u) => u.toLowerCase() === trimmedAccount.toLowerCase()
-        );
-        const isValidPassword = password === TEST_ACCOUNT.password;
-
-        if (isValidUser && isValidPassword) {
-          router.replace('/(tabs)');
-        } else {
-          setErrors({
-            account: err.message || 'Tài khoản hoặc mật khẩu không chính xác',
-            password: err.message || 'Tài khoản hoặc mật khẩu không chính xác',
-          });
-        }
+        setErrors({
+          general: err.message || 'Tài khoản hoặc mật khẩu không chính xác',
+        });
       })
       .finally(() => {
         setIsLoading(false);
@@ -144,7 +132,7 @@ export default function LoginScreen() {
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="kurumi124@gmail.com hoặc 0987654321"
+                  placeholder="Nhập email hoặc số điện thoại"
                   placeholderTextColor={CinemaColors.textMuted}
                   autoCapitalize="none"
                   value={account}
@@ -201,7 +189,7 @@ export default function LoginScreen() {
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="Nhập mật khẩu (Kurumi1234@)"
+                  placeholder="Nhập mật khẩu"
                   placeholderTextColor={CinemaColors.textMuted}
                   secureTextEntry={!showPassword}
                   value={password}

@@ -187,7 +187,7 @@ export default function ForgotPasswordScreen() {
     setCountdown(60);
     setErrors((prev) => ({
       ...prev,
-      resendInfo: `Mã mới đã được gửi lại tới ${email}. (Mã test: ${TEST_OTP})`,
+      resendInfo: `Mã mới đã được gửi lại tới ${email}.`,
       otp: undefined,
     }));
   };
@@ -315,7 +315,7 @@ export default function ForgotPasswordScreen() {
                   />
                   <TextInput
                     style={styles.input}
-                    placeholder="kurumi124@gmail.com"
+                    placeholder="email@example.com"
                     placeholderTextColor={CinemaColors.textMuted}
                     keyboardType="email-address"
                     autoCapitalize="none"

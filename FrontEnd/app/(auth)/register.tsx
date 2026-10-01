@@ -85,7 +85,7 @@ export default function RegisterScreen() {
     if (!trimmedEmail) {
       newErrors.email = 'Vui lòng nhập địa chỉ email';
     } else if (!emailRegex.test(trimmedEmail)) {
-      newErrors.email = 'Email không đúng định dạng (vd: kurumi124@gmail.com)';
+      newErrors.email = 'Email không đúng định dạng (vd: example@gmail.com)';
     }
 
     // 4. Kiểm tra Mật khẩu (từ 8 ký tự)
@@ -317,7 +317,7 @@ export default function RegisterScreen() {
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="kurumi124@gmail.com"
+                  placeholder="example@gmail.com"
                   placeholderTextColor={CinemaColors.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -542,10 +542,10 @@ export default function RegisterScreen() {
                 <Text style={styles.socialButtonText}>Google</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.socialButton} activeOpacity={0.75}>
+              {/* <TouchableOpacity style={styles.socialButton} activeOpacity={0.75}>
                 <Ionicons name="logo-apple" size={20} color={CinemaColors.apple} />
                 <Text style={styles.socialButtonText}>Apple</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
           </View>
 
