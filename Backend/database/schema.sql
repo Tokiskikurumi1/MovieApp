@@ -158,6 +158,7 @@ CREATE TABLE IF NOT EXISTS favorites (
 CREATE TABLE IF NOT EXISTS comments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     movie_id INT NOT NULL,
+    episode_id INT NULL COMMENT 'Nếu bình luận ở tập cụ thể thì trỏ vào ID tập phim',
     user_id INT NOT NULL,
     parent_id INT NULL COMMENT 'Nếu là phản hồi (reply) thì trỏ vào ID bình luận cha',
     content TEXT NOT NULL,
@@ -168,6 +169,7 @@ CREATE TABLE IF NOT EXISTS comments (
     FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE,
+    INDEX idx_movie_episode (movie_id, episode_id),
     INDEX idx_movie_parent (movie_id, parent_id),
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

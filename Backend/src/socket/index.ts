@@ -27,26 +27,34 @@ export function initSocket(server: HttpServer) {
 
   io.on('connection', (socket: Socket) => {
     // =========================================================================
-    // 1. PHẦN BÌNH LUẬN & ĐÁNH GIÁ PHIM THEO PHÒNG (MOVIE COMMENTS)
+    // 1. PHẦN BÌNH LUẬN & ĐÁNH GIÁ PHIM THEO PHÒNG (MOVIE & EPISODE COMMENTS)
     // =========================================================================
-    socket.on('join_movie', async (movieIdOrSlug: string | number) => {
+    socket.on('join_movie', async (data: string | number | { movieIdOrSlug: string | number; episodeId?: number | string }) => {
       try {
-        const movieId = await resolveMovieId(movieIdOrSlug);
+        const rawTarget = typeof data === 'object' && data !== null ? data.movieIdOrSlug : data;
+        const episodeId = typeof data === 'object' && data !== null ? data.episodeId : undefined;
+        const movieId = await resolveMovieId(rawTarget);
         if (movieId) {
-          const room = `movie_${movieId}`;
-          socket.join(room);
+          socket.join(`movie_${movieId}`);
+          if (episodeId) {
+            socket.join(`movie_${movieId}_ep_${episodeId}`);
+          }
         }
       } catch (err) {
         console.error('Lỗi join_movie socket:', err);
       }
     });
 
-    socket.on('leave_movie', async (movieIdOrSlug: string | number) => {
+    socket.on('leave_movie', async (data: string | number | { movieIdOrSlug: string | number; episodeId?: number | string }) => {
       try {
-        const movieId = await resolveMovieId(movieIdOrSlug);
+        const rawTarget = typeof data === 'object' && data !== null ? data.movieIdOrSlug : data;
+        const episodeId = typeof data === 'object' && data !== null ? data.episodeId : undefined;
+        const movieId = await resolveMovieId(rawTarget);
         if (movieId) {
-          const room = `movie_${movieId}`;
-          socket.leave(room);
+          socket.leave(`movie_${movieId}`);
+          if (episodeId) {
+            socket.leave(`movie_${movieId}_ep_${episodeId}`);
+          }
         }
       } catch (err) {
         console.error('Lỗi leave_movie socket:', err);
@@ -55,6 +63,8 @@ export function initSocket(server: HttpServer) {
 
     socket.on('send_comment', async (data: {
       movieIdOrSlug: string | number;
+      episodeId?: number | string;
+      parentId?: number;
       content: string;
       rating?: number;
       userId?: number;
@@ -62,16 +72,18 @@ export function initSocket(server: HttpServer) {
       userAvatar?: string;
     }) => {
       try {
-        const { movieIdOrSlug, content, rating = 5, userId = 2, userName, userAvatar } = data;
+        const { movieIdOrSlug, episodeId, parentId, content, rating = 5, userId = 2, userName, userAvatar } = data;
         if (!content || !content.trim()) return;
 
         const movieId = await resolveMovieId(movieIdOrSlug);
         if (!movieId) return;
 
+        const safeEpisodeId = episodeId ? Number(episodeId) || null : null;
+
         const [result] = await pool.query<ResultSetHeader>(
-          `INSERT INTO comments (movie_id, user_id, content, rating, likes, status)
-           VALUES (?, ?, ?, ?, 0, 'approved')`,
-          [movieId, userId, content.trim(), rating]
+          `INSERT INTO comments (movie_id, episode_id, user_id, parent_id, content, rating, likes, status)
+           VALUES (?, ?, ?, ?, ?, ?, 0, 'approved')`,
+          [movieId, safeEpisodeId, userId, parentId || null, content.trim(), rating]
         );
 
         const commentId = result.insertId;
@@ -79,12 +91,14 @@ export function initSocket(server: HttpServer) {
         let senderAvatar = userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop';
 
         const [users] = await pool.query<RowDataPacket[]>(
-          'SELECT full_name, avatar FROM users WHERE id = ? LIMIT 1',
+          'SELECT full_name, avatar, vip_tier FROM users WHERE id = ? LIMIT 1',
           [userId]
         );
+        let isVip = false;
         if (users.length > 0) {
           senderName = users[0].full_name || senderName;
           senderAvatar = users[0].avatar || senderAvatar;
+          isVip = users[0].vip_tier !== 'Free';
         }
 
         const [ratingRows] = await pool.query<RowDataPacket[]>(
@@ -104,6 +118,8 @@ export function initSocket(server: HttpServer) {
         const commentData = {
           id: String(commentId),
           numericId: commentId,
+          episodeId: safeEpisodeId,
+          parentId: parentId || null,
           clientCommentId: (data as any).clientCommentId,
           user: senderName,
           avatar: senderAvatar,
@@ -113,13 +129,18 @@ export function initSocket(server: HttpServer) {
           content: content.trim(),
           likes: 0,
           isLiked: false,
+          isVip,
+          replies: [],
         };
 
-        const room = `movie_${movieId}`;
-        io?.to(room).emit('new_comment', commentData);
+        const movieRoom = `movie_${movieId}`;
+        io?.to(movieRoom).emit('new_comment', commentData);
+        if (safeEpisodeId) {
+          io?.to(`movie_${movieId}_ep_${safeEpisodeId}`).emit('new_comment', commentData);
+        }
 
         if (avgRating) {
-          io?.to(room).emit('update_rating', { movieId, rating: avgRating, totalRatings });
+          io?.to(movieRoom).emit('update_rating', { movieId, rating: avgRating, totalRatings });
         }
       } catch (err) {
         console.error('Lỗi send_comment socket:', err);

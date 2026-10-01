@@ -25,6 +25,7 @@ import { CinemaColors } from '@/constants/theme';
 import { MovieAPI, UserAPI } from '@/services/API';
 import CineVideoPlayer from '@/components/CineVideoPlayer';
 import { useFavorites } from '@/store/favorite-context';
+import { getSocket } from '@/services/socket';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const VIDEO_HEIGHT = (SCREEN_WIDTH * 9) / 16;
@@ -179,6 +180,9 @@ const RECOMMENDATIONS = [
 // -------------------------------------------------------------
 interface CommentReply {
   id: string;
+  numericId?: number;
+  episodeId?: number | null;
+  parentId?: number | null;
   user: string;
   avatar: string;
   time: string;
@@ -189,6 +193,9 @@ interface CommentReply {
 
 interface CommentItemData {
   id: string;
+  numericId?: number;
+  episodeId?: number | null;
+  parentId?: number | null;
   user: string;
   avatar: string;
   time: string;
@@ -412,15 +419,87 @@ export default function WatchMovieScreen() {
         }
       })
       .catch((err) => console.warn('Lỗi tải gợi ý phim:', err));
+  }, [id]);
 
-    UserAPI.getComments(id)
+  // Lấy bình luận và kết nối realtime socket cho phim & từng tập
+  useEffect(() => {
+    if (!id) return;
+
+    // Tải bình luận theo tập (hoặc toàn bộ phim)
+    UserAPI.getComments(id, selectedEpisodeId)
       .then((res) => {
-        if (res.success && res.data && res.data.length > 0) {
+        if (res.success && res.data) {
           setComments(res.data);
         }
       })
       .catch((err) => console.warn('Lỗi tải bình luận từ Backend:', err));
-  }, [id]);
+
+    // Kết nối Realtime Socket
+    const socket = getSocket();
+    socket.emit('join_movie', { movieIdOrSlug: id, episodeId: selectedEpisodeId });
+
+    const handleNewComment = (newComment: any) => {
+      // Nếu comment thuộc về tập khác thì bỏ qua
+      if (
+        newComment.episodeId &&
+        selectedEpisodeId &&
+        Number(newComment.episodeId) !== Number(selectedEpisodeId)
+      ) {
+        return;
+      }
+
+      setComments((prev) => {
+        if (prev.some((c) => c.numericId === newComment.numericId || c.id === newComment.id)) {
+          return prev;
+        }
+
+        if (newComment.parentId) {
+          return prev.map((c) => {
+            if (Number(c.numericId || c.id) === Number(newComment.parentId)) {
+              return {
+                ...c,
+                isRepliesExpanded: true,
+                replies: [...(c.replies || []), newComment],
+              };
+            }
+            return c;
+          });
+        }
+
+        return [newComment, ...prev];
+      });
+    };
+
+    const handleCommentLiked = (data: { commentId: number; likes: number }) => {
+      setComments((prev) =>
+        prev.map((c) => {
+          if (Number(c.numericId || c.id) === Number(data.commentId)) {
+            return { ...c, likes: data.likes };
+          }
+          if (c.replies && c.replies.length > 0) {
+            return {
+              ...c,
+              replies: c.replies.map((r: any) =>
+                Number(r.numericId || r.id) === Number(data.commentId)
+                  ? { ...r, likes: data.likes }
+                  : r
+              ),
+            };
+          }
+          return c;
+        })
+      );
+    };
+
+    socket.on('new_comment', handleNewComment);
+    socket.on('comment_liked', handleCommentLiked);
+
+    return () => {
+      socket.emit('leave_movie', { movieIdOrSlug: id, episodeId: selectedEpisodeId });
+      socket.off('new_comment', handleNewComment);
+      socket.off('comment_liked', handleCommentLiked);
+    };
+  }, [id, selectedEpisodeId]);
 
   // Xử lý lưu mốc thời gian xem định kỳ
   const handleTimeUpdate = (curSec: number, totalSec: number) => {
@@ -525,9 +604,27 @@ export default function WatchMovieScreen() {
   const handleSendComment = () => {
     if (!commentInput.trim()) return;
 
+    const contentText = commentInput.trim();
+    const parentIdNum = replyingTo ? Number(replyingTo.parentId) : undefined;
+
+    const socket = getSocket();
+    if (socket && socket.connected) {
+      socket.emit('send_comment', {
+        movieIdOrSlug: id,
+        episodeId: selectedEpisodeId,
+        parentId: parentIdNum,
+        content: contentText,
+      });
+    }
+
     if (id) {
-      UserAPI.postComment(id, commentInput.trim(), replyingTo ? Number(replyingTo.parentId) : undefined)
-        .catch((e) => console.warn('Lỗi post comment:', e));
+      UserAPI.postComment(
+        id,
+        contentText,
+        5,
+        parentIdNum,
+        selectedEpisodeId
+      ).catch((e) => console.warn('Lỗi post comment:', e));
     }
 
     if (replyingTo) {
@@ -537,7 +634,7 @@ export default function WatchMovieScreen() {
         user: 'Kurumi Tokisaki',
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
         time: 'Vừa xong',
-        content: commentInput.trim(),
+        content: contentText,
         likes: 0,
         isLiked: false,
       };
@@ -563,7 +660,7 @@ export default function WatchMovieScreen() {
         user: 'Kurumi Tokisaki',
         time: 'Vừa xong',
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-        content: commentInput.trim(),
+        content: contentText,
         likes: 0,
         isLiked: false,
         replies: [],
@@ -578,6 +675,14 @@ export default function WatchMovieScreen() {
 
   // Like parent comment
   const handleLikeComment = (commentId: string) => {
+    const socket = getSocket();
+    if (socket && socket.connected) {
+      socket.emit('like_comment', {
+        commentId,
+        movieIdOrSlug: id,
+      });
+    }
+
     UserAPI.toggleLikeComment(commentId).catch((e) => console.warn('Lỗi like comment:', e));
     setComments((prev) =>
       prev.map((c) => {
@@ -1705,11 +1810,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 2,
+    letterSpacing: 0,
   },
   fbCommentText: {
     fontSize: 13.5,
     color: 'rgba(255, 255, 255, 0.92)',
     lineHeight: 19,
+    letterSpacing: 0,
   },
   fbActionRow: {
     flexDirection: 'row',
@@ -1722,12 +1829,14 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: 'rgba(255, 255, 255, 0.45)',
     fontWeight: '500',
+    letterSpacing: 0,
   },
   fbActionBtn: {},
   fbActionText: {
     fontSize: 12,
     fontWeight: '700',
     color: 'rgba(255, 255, 255, 0.65)',
+    letterSpacing: 0,
   },
   fbActionTextLiked: {
     color: CinemaColors.primary,
@@ -1816,6 +1925,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13.5,
     paddingVertical: 2,
+    letterSpacing: 0,
   },
   emojiBtn: {
     paddingLeft: 6,

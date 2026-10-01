@@ -163,12 +163,19 @@ export const UserAPI = {
       method: 'DELETE',
     }),
 
-  // Bình luận
-  getComments: (movieIdOrSlug: string) => fetchJson(`/user/movies/${movieIdOrSlug}/comments`),
-  postComment: (movieIdOrSlug: string, content: string, rating?: number, parentId?: number) =>
+  // Bình luận (hỗ trợ lọc theo tập)
+  getComments: (movieIdOrSlug: string, episodeId?: number | string) =>
+    fetchJson(`/user/movies/${movieIdOrSlug}/comments${episodeId ? `?episodeId=${episodeId}` : ''}`),
+  postComment: (
+    movieIdOrSlug: string,
+    content: string,
+    rating?: number,
+    parentId?: number,
+    episodeId?: number | string
+  ) =>
     fetchJson('/user/comments', {
       method: 'POST',
-      body: JSON.stringify({ movieIdOrSlug, content, rating, parentId }),
+      body: JSON.stringify({ movieIdOrSlug, content, rating, parentId, episodeId }),
     }),
   toggleLikeComment: (commentId: string | number) =>
     fetchJson(`/user/comments/${commentId}/like`, { method: 'POST' }),

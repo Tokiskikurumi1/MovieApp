@@ -170,11 +170,12 @@ export async function getWatchProgress(req: AuthRequest, res: Response) {
   }
 }
 
-// 4. Lấy danh sách bình luận của phim (Phân cấp kiểu Facebook)
+// 4. Lấy danh sách bình luận của phim (Phân cấp kiểu Facebook - hỗ trợ lọc theo tập)
 export async function getMovieComments(req: AuthRequest, res: Response) {
   try {
     const { movieIdOrSlug } = req.params;
     const currentUserId = req.user?.id || 2;
+    const { episodeId } = req.query;
 
     const [movies] = await pool.query<RowDataPacket[]>(
       'SELECT id FROM movies WHERE id = ? OR slug = ? LIMIT 1',
@@ -187,17 +188,25 @@ export async function getMovieComments(req: AuthRequest, res: Response) {
 
     const movieId = movies[0].id;
 
-    // Lấy tất cả bình luận của phim
-    const [comments] = await pool.query<RowDataPacket[]>(
-      `SELECT c.id, c.parent_id, c.content, c.likes, c.created_at,
-              u.id as user_id, u.full_name, u.avatar, u.vip_tier,
-              EXISTS(SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = ?) as is_liked
-       FROM comments c
-       JOIN users u ON c.user_id = u.id
-       WHERE c.movie_id = ? AND c.status = 'approved'
-       ORDER BY c.created_at ASC`,
-      [currentUserId, movieId]
-    );
+    // Lấy danh sách bình luận của phim (lọc theo tập nếu có yêu cầu)
+    let query = `
+      SELECT c.id, c.episode_id, c.parent_id, c.content, c.likes, c.created_at,
+             u.id as user_id, u.full_name, u.avatar, u.vip_tier,
+             EXISTS(SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = ?) as is_liked
+      FROM comments c
+      JOIN users u ON c.user_id = u.id
+      WHERE c.movie_id = ? AND c.status = 'approved'
+    `;
+    const params: any[] = [currentUserId, movieId];
+
+    if (episodeId && episodeId !== 'all') {
+      query += ' AND c.episode_id = ?';
+      params.push(episodeId);
+    }
+
+    query += ' ORDER BY c.created_at ASC';
+
+    const [comments] = await pool.query<RowDataPacket[]>(query, params);
 
     // Gom nhóm cha - con (Nested threads)
     const parentComments: any[] = [];
@@ -207,6 +216,7 @@ export async function getMovieComments(req: AuthRequest, res: Response) {
       const commentObj = {
         id: String(c.id),
         numericId: c.id,
+        episodeId: c.episode_id,
         user: c.full_name,
         avatar: c.avatar,
         time: formatTimeAgo(new Date(c.created_at)),
@@ -244,11 +254,11 @@ export async function getMovieComments(req: AuthRequest, res: Response) {
   }
 }
 
-// 5. Viết bình luận mới hoặc Trả lời bình luận
+// 5. Viết bình luận mới hoặc Trả lời bình luận (hỗ trợ lưu episodeId)
 export async function createComment(req: AuthRequest, res: Response) {
   try {
     const userId = req.user?.id || 2;
-    const { movieIdOrSlug, content, parentId } = req.body;
+    const { movieIdOrSlug, episodeId, content, parentId } = req.body;
 
     if (!content || !content.trim()) {
       return res.status(400).json({ success: false, message: 'Nội dung bình luận không được để trống' });
@@ -266,15 +276,38 @@ export async function createComment(req: AuthRequest, res: Response) {
     const movieId = movies[0].id;
 
     const [result] = await pool.query<ResultSetHeader>(
-      `INSERT INTO comments (movie_id, user_id, parent_id, content, likes, status)
-       VALUES (?, ?, ?, ?, 0, 'approved')`,
-      [movieId, userId, parentId || null, content.trim()]
+      `INSERT INTO comments (movie_id, episode_id, user_id, parent_id, content, likes, status)
+       VALUES (?, ?, ?, ?, ?, 0, 'approved')`,
+      [movieId, episodeId || null, userId, parentId || null, content.trim()]
     );
+
+    const [userRows] = await pool.query<RowDataPacket[]>(
+      'SELECT full_name, avatar, vip_tier FROM users WHERE id = ?',
+      [userId]
+    );
+    const user = userRows[0] || {};
+
+    const newCommentData = {
+      id: String(result.insertId),
+      numericId: result.insertId,
+      movieId,
+      episodeId: episodeId || null,
+      parentId: parentId || null,
+      user: user.full_name || 'Người dùng',
+      avatar: user.avatar || '',
+      time: 'Vừa xong',
+      content: content.trim(),
+      likes: 0,
+      isLiked: false,
+      isVip: user.vip_tier !== 'Free',
+      replies: [],
+    };
 
     return res.status(201).json({
       success: true,
       message: 'Bình luận thành công!',
       commentId: result.insertId,
+      data: newCommentData,
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
