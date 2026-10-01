@@ -365,6 +365,9 @@ export default function WatchMovieScreen() {
     username: string;
   } | null>(null);
 
+  // Recommendations State (Content-Based)
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+
   // Fetch real details and comments from Backend
   useEffect(() => {
     if (!id) return;
@@ -376,6 +379,9 @@ export default function WatchMovieScreen() {
             setEpisodes(res.data.episodes);
             setSelectedEpisodeId(res.data.episodes[0].id);
           }
+          if (res.data.similarMovies && res.data.similarMovies.length > 0) {
+            setRecommendations(res.data.similarMovies);
+          }
           // Tự động lưu vào lịch sử xem phim
           UserAPI.saveWatchProgress({
             movieIdOrSlug: id,
@@ -386,6 +392,14 @@ export default function WatchMovieScreen() {
         }
       })
       .catch((err) => console.warn('Lỗi tải phim từ Backend:', err));
+
+    MovieAPI.getRecommendations(id, 8)
+      .then((res) => {
+        if (res.success && res.data && res.data.length > 0) {
+          setRecommendations(res.data);
+        }
+      })
+      .catch((err) => console.warn('Lỗi tải gợi ý phim:', err));
 
     UserAPI.getComments(id)
       .then((res) => {
@@ -817,48 +831,58 @@ export default function WatchMovieScreen() {
               <View style={styles.recommendationsSection}>
                 <Text style={styles.recommendationsHeading}>Đề xuất cho bạn</Text>
 
-                {RECOMMENDATIONS.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.recCard}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      Alert.alert('Chuyển phim', `Đang tải ${item.title}`);
-                    }}
-                  >
-                    {/* Left Thumbnail with badges */}
-                    <View style={styles.recThumbnailWrapper}>
-                      <Image source={{ uri: item.image }} style={styles.recThumbnailImage} />
+                {(recommendations.length > 0 ? recommendations : RECOMMENDATIONS).map((item: any) => {
+                  const tags: string[] = item.tags || item.genres || ['Phim hay'];
+                  const displayViews = item.views || `${item.rating || '8.8'} ⭐`;
+                  const thumb = item.image || item.poster || item.backdrop;
+                  const badge = item.episodesBadge || (item.type === 'single' ? 'Phim lẻ' : 'Trọn bộ');
 
-                      {/* Bottom-Right Episodes Badge */}
-                      <View style={styles.recBottomBadge}>
-                        <Text style={styles.recBottomBadgeText}>{item.episodesBadge}</Text>
-                      </View>
-                    </View>
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.recCard}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        router.push({
+                          pathname: '/watch/[id]',
+                          params: { id: item.id },
+                        });
+                      }}
+                    >
+                      {/* Left Thumbnail with badges */}
+                      <View style={styles.recThumbnailWrapper}>
+                        <Image source={{ uri: thumb }} style={styles.recThumbnailImage} />
 
-                    {/* Right Info Column */}
-                    <View style={styles.recInfoCol}>
-                      <Text style={styles.recTitle} numberOfLines={2}>
-                        {item.title}
-                      </Text>
-
-                      {/* Genre Tags */}
-                      <View style={styles.recTagsRow}>
-                        {item.tags.map((tag, idx) => (
-                          <View key={idx} style={styles.recTagBadge}>
-                            <Text style={styles.recTagText}>{tag}</Text>
-                          </View>
-                        ))}
+                        {/* Bottom-Right Episodes Badge */}
+                        <View style={styles.recBottomBadge}>
+                          <Text style={styles.recBottomBadgeText}>{badge}</Text>
+                        </View>
                       </View>
 
-                      {/* Views Count */}
-                      <View style={styles.recViewsRow}>
-                        <Ionicons name="play-outline" size={13} color={CinemaColors.textMuted} />
-                        <Text style={styles.recViewsText}>{item.views}</Text>
+                      {/* Right Info Column */}
+                      <View style={styles.recInfoCol}>
+                        <Text style={styles.recTitle} numberOfLines={2}>
+                          {item.title}
+                        </Text>
+
+                        {/* Genre Tags */}
+                        <View style={styles.recTagsRow}>
+                          {tags.slice(0, 3).map((tag, idx) => (
+                            <View key={idx} style={styles.recTagBadge}>
+                              <Text style={styles.recTagText}>{tag}</Text>
+                            </View>
+                          ))}
+                        </View>
+
+                        {/* Views Count */}
+                        <View style={styles.recViewsRow}>
+                          <Ionicons name="play-outline" size={13} color={CinemaColors.textMuted} />
+                          <Text style={styles.recViewsText}>{displayViews}</Text>
+                        </View>
                       </View>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </ScrollView>
           ) : (

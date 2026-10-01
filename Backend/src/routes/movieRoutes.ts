@@ -7,6 +7,7 @@ import {
   getMovies,
   getMovieDetail,
   getCategories,
+  getMovieRecommendations,
 } from '../controllers/movieController';
 import { optionalAuthenticate } from '../middlewares/authMiddleware';
 
@@ -18,6 +19,7 @@ router.get('/new-releases', getNewReleases);
 router.get('/continue-watching', optionalAuthenticate, getContinueWatching);
 router.get('/categories', getCategories);
 router.get('/', getMovies);
+router.get('/:idOrSlug/recommendations', getMovieRecommendations);
 router.get('/:idOrSlug', getMovieDetail);
 
 export default router;
