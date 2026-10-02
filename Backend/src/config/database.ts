@@ -47,6 +47,18 @@ export async function initDatabase() {
     const schemaSql = fs.readFileSync(schemaPath, 'utf8');
     await pool.query(schemaSql);
     console.log('✅ Đã khởi tạo đầy đủ các bảng (movies, categories, countries, episodes).');
+
+    // Tự động kiểm tra và thêm cột nếu database được tạo từ phiên bản cũ
+    try {
+      const [cols] = await pool.query("SHOW COLUMNS FROM watch_history LIKE 'current_time'");
+      if ((cols as any[]).length === 0) {
+        await pool.query("ALTER TABLE watch_history ADD COLUMN `current_time` INT DEFAULT 0 COMMENT 'Số giây đã xem' AFTER progress");
+      }
+      const [cols2] = await pool.query("SHOW COLUMNS FROM watch_history LIKE 'duration'");
+      if ((cols2 as any[]).length === 0) {
+        await pool.query("ALTER TABLE watch_history ADD COLUMN duration INT DEFAULT 0 COMMENT 'Tổng thời lượng tính bằng giây' AFTER `current_time`");
+      }
+    } catch (_) {}
   }
 
   return pool;

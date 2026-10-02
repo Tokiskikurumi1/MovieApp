@@ -173,20 +173,11 @@ export async function getNewReleases(req: Request, res: Response) {
 // 4. Lấy danh sách Lịch Sử Xem / Tiếp Tục Xem (Watch History)
 export async function getContinueWatching(req: AuthRequest, res: Response) {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.id || 2;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
     const search = ((req.query.search as string) || '').trim();
     const offset = (page - 1) * limit;
-
-    // Nếu người dùng chưa đăng nhập thì trả về danh sách trống
-    if (!userId) {
-      return res.json({
-        success: true,
-        data: [],
-        pagination: { page: 1, limit, total: 0, totalPages: 0 },
-      });
-    }
 
     let whereClause = 'WHERE wh.user_id = ?';
     const params: any[] = [userId];

@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS watch_history (
     movie_id INT NOT NULL,
     episode_id INT NULL,
     progress DECIMAL(5, 4) DEFAULT 0.0000 COMMENT 'Tỉ lệ xem từ 0.00 đến 1.00 (ví dụ 0.68 = 68%)',
-    current_time INT DEFAULT 0 COMMENT 'Số giây đã xem',
+    `current_time` INT DEFAULT 0 COMMENT 'Số giây đã xem',
     duration INT DEFAULT 0 COMMENT 'Tổng thời lượng tính bằng giây',
     duration_left VARCHAR(50) NULL COMMENT 'Thời gian còn lại (ví dụ: 42 phút còn lại)',
     last_watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

@@ -109,13 +109,13 @@ export async function saveWatchProgress(req: AuthRequest, res: Response) {
         : (progress || 0);
 
     await pool.query(
-      `INSERT INTO watch_history (user_id, movie_id, episode_id, progress, duration_left, current_time, duration)
+      `INSERT INTO watch_history (user_id, movie_id, episode_id, progress, duration_left, \`current_time\`, duration)
        VALUES (?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          episode_id = VALUES(episode_id),
          progress = VALUES(progress),
          duration_left = VALUES(duration_left),
-         current_time = VALUES(current_time),
+         \`current_time\` = VALUES(\`current_time\`),
          duration = VALUES(duration),
          last_watched_at = CURRENT_TIMESTAMP`,
       [
@@ -153,7 +153,7 @@ export async function getWatchProgress(req: AuthRequest, res: Response) {
     const movieId = movies[0].id;
 
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT episode_id as episodeId, current_time as currentTime, duration, progress, duration_left as durationLeft, last_watched_at as lastWatchedAt
+      `SELECT episode_id as episodeId, \`current_time\` as currentTime, duration, progress, duration_left as durationLeft, last_watched_at as lastWatchedAt
        FROM watch_history
        WHERE user_id = ? AND movie_id = ?
        LIMIT 1`,

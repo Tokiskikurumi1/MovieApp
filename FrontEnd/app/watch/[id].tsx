@@ -503,11 +503,14 @@ export default function WatchMovieScreen() {
 
   // Xử lý lưu mốc thời gian xem định kỳ
   const handleTimeUpdate = (curSec: number, totalSec: number) => {
-    if (Math.abs(curSec - lastSavedTimeRef.current) >= 10 && curSec > 3) {
+    if (
+      (lastSavedTimeRef.current === 0 && curSec >= 1) ||
+      (Math.abs(curSec - lastSavedTimeRef.current) >= 5 && curSec >= 1)
+    ) {
       lastSavedTimeRef.current = curSec;
       const minLeft = totalSec > curSec ? Math.round((totalSec - curSec) / 60) : 0;
       const durationLeftStr = minLeft > 0 ? `${minLeft} phút còn lại` : 'Sắp kết thúc';
-      const progress = totalSec > 0 ? Number((curSec / totalSec).toFixed(4)) : 0;
+      const progress = totalSec > 0 ? Number((curSec / totalSec).toFixed(4)) : 0.05;
 
       UserAPI.saveWatchProgress({
         movieIdOrSlug: id,
@@ -516,14 +519,16 @@ export default function WatchMovieScreen() {
         duration: totalSec,
         durationLeft: durationLeftStr,
         progress,
-      }).catch(() => {});
+      }).catch((err) => {
+        console.warn('Lỗi lưu tiến độ xem:', err);
+      });
     }
   };
 
   // Lưu tiến độ khi rời màn hình
   useEffect(() => {
     return () => {
-      if (lastSavedTimeRef.current > 5) {
+      if (lastSavedTimeRef.current >= 1) {
         UserAPI.saveWatchProgress({
           movieIdOrSlug: id,
           episodeId: selectedEpisodeId,
