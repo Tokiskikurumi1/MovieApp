@@ -16,6 +16,8 @@ interface CineVideoPlayerProps {
   title: string;
   episodeTitle?: string;
   posterUrl?: string;
+  initialTime?: number; // Vị trí giây bắt đầu phát lại (Resume)
+  onTimeUpdate?: (currentTime: number, duration: number) => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
   onBack: () => void;
@@ -29,6 +31,8 @@ export default function CineVideoPlayer({
   title,
   episodeTitle,
   posterUrl,
+  initialTime = 0,
+  onTimeUpdate,
   isFullscreen,
   onToggleFullscreen,
   onBack,
@@ -282,13 +286,66 @@ export default function CineVideoPlayer({
             playBtn.style.display = 'flex';
           });
 
+          // Resume / Initial Time Seek
+          const initialSeekTime = ${Math.floor(initialTime || 0)};
+          let initialSeekDone = false;
+
+          function formatTime(sec) {
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+          }
+
+          function performInitialSeek() {
+            if (!initialSeekDone && initialSeekTime > 3) {
+              initialSeekDone = true;
+              video.currentTime = initialSeekTime;
+              showToast('Tiếp tục xem từ ' + formatTime(initialSeekTime));
+            }
+          }
+
+          video.addEventListener('loadedmetadata', performInitialSeek);
+          video.addEventListener('canplay', performInitialSeek);
+
+          // Báo cáo mốc thời gian đang xem (mỗi 5 giây)
+          let lastReportedSec = -1;
+          video.addEventListener('timeupdate', () => {
+            const cur = Math.floor(video.currentTime);
+            const dur = Math.floor(video.duration || 0);
+            if (Math.abs(cur - lastReportedSec) >= 5 || (cur > 0 && lastReportedSec < 0)) {
+              lastReportedSec = cur;
+              const payload = JSON.stringify({ type: 'timeupdate', currentTime: cur, duration: dur });
+              if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+                window.ReactNativeWebView.postMessage(payload);
+              } else if (window.parent && window.parent.postMessage) {
+                window.parent.postMessage(payload, '*');
+              }
+            }
+          });
+
           // Start initializing stream
           initHls();
         </script>
       </body>
       </html>
     `;
-  }, [effectiveM3u8, posterUrl, title]);
+  }, [effectiveM3u8, posterUrl, title, initialTime]);
+
+  // Lắng nghe postMessage từ iframe trên Web Platform
+  React.useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleWebMessage = (e: MessageEvent) => {
+        try {
+          const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+          if (data && data.type === 'timeupdate') {
+            onTimeUpdate?.(data.currentTime, data.duration);
+          }
+        } catch (_) {}
+      };
+      window.addEventListener('message', handleWebMessage);
+      return () => window.removeEventListener('message', handleWebMessage);
+    }
+  }, [onTimeUpdate]);
 
   return (
     <View style={[styles.container, isFullscreen && styles.fullscreenContainer]}>
@@ -324,6 +381,14 @@ export default function CineVideoPlayer({
               scrollEnabled={false}
               originWhitelist={['*']}
               mixedContentMode="always"
+              onMessage={(event) => {
+                try {
+                  const data = JSON.parse(event.nativeEvent.data);
+                  if (data && data.type === 'timeupdate') {
+                    onTimeUpdate?.(data.currentTime, data.duration);
+                  }
+                } catch (_) {}
+              }}
             />
           </View>
         )

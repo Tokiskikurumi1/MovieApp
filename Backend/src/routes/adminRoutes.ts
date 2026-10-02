@@ -10,6 +10,11 @@ import {
   updateCommentStatus,
   triggerCrawler,
 } from '../controllers/adminController';
+import {
+  getAdminNotifications,
+  createAdminNotification,
+  deleteAdminNotification,
+} from '../controllers/notificationController';
 
 const router = Router();
 
@@ -31,5 +36,10 @@ router.put('/comments/:id/status', updateCommentStatus);
 
 // Kích hoạt cào KKPhim
 router.post('/crawler/run', triggerCrawler);
+
+// Quản lý thông báo đẩy
+router.get('/notifications', getAdminNotifications);
+router.post('/notifications', createAdminNotification);
+router.delete('/notifications/:id', deleteAdminNotification);
 
 export default router;

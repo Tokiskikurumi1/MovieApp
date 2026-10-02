@@ -1,10 +1,12 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { CinemaColors } from '@/constants/theme';
+import { NotificationAPI } from '@/services/API';
+import { getSocket } from '@/services/socket';
 
 export interface NotificationItem {
   id: string;
-  type: 'movie' | 'episode' | 'vip' | 'promo' | 'system';
+  type: 'movie' | 'episode' | 'vip' | 'promo' | 'system' | string;
   title: string;
   message: string;
   time: string;
@@ -13,93 +15,39 @@ export interface NotificationItem {
   icon?: keyof typeof Ionicons.glyphMap;
   iconColor?: string;
   iconBg?: string;
-  actionRoute?: {
-    pathname: string;
-    params?: any;
-  };
+  movieId?: number;
+  movieSlug?: string;
+  actionRoute?:
+    | string
+    | {
+        pathname: string;
+        params?: any;
+      };
 }
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
+const FALLBACK_NOTIFICATIONS: NotificationItem[] = [
   {
     id: 'notif-1',
-    type: 'episode',
-    title: 'Tập Mới Đã Lên Sóng! 🎬',
-    message: 'Nông Dân Nhàn Nhã Ở Dị Giới - Mùa 2 vừa phát hành Tập 3: Cuộc Viếng Thăm Của Tộc Dwarf. Xem ngay chất lượng 4K!',
+    type: 'movie',
+    title: 'Bom Tấn Mới: Mục Thần Ký 🎬',
+    message: 'Mục Thần Ký đã chính thức có mặt trên CINESTREAM với chuẩn hình ảnh Full HD & Vietsub. Xem ngay hôm nay!',
     time: '15 phút trước',
     isRead: false,
-    image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=300&auto=format&fit=crop',
-    actionRoute: {
-      pathname: '/watch/[id]',
-      params: { id: 'anime-1' },
-    },
+    image: 'https://phimimg.com/upload/vod/20241028-1/33727a6c4cec6ab127dbb0092bc99c9e.jpg',
+    movieSlug: 'muc-than-ky',
+    actionRoute: '/movie/muc-than-ky',
   },
   {
     id: 'notif-2',
     type: 'vip',
     title: 'Ưu Đãi VIP Vàng Dành Riêng Cho Bạn ⭐',
-    message: 'Gia hạn gói VIP 1 Năm hôm nay để nhận thêm 30 ngày sử dụng miễn phí + Huy hiệu thành viên độc quyền.',
+    message: 'Nâng cấp gói VIP để trải nghiệm xem phim không quảng cáo, mở khóa chất lượng 4K HDR và âm thanh vòm đỉnh cao.',
     time: '2 giờ trước',
     isRead: false,
     icon: 'diamond',
     iconColor: '#FFD700',
     iconBg: 'rgba(255, 215, 0, 0.15)',
-    actionRoute: {
-      pathname: '/sub-layout/billing-subscription',
-    },
-  },
-  {
-    id: 'notif-3',
-    type: 'movie',
-    title: 'Phim Chiếu Rạp Mới: Deadpool & Wolverine 🔥',
-    message: 'Bom tấn siêu anh hùng Marvel với định dạng 4K HDR & Dolby Atmos đã chính thức có mặt trên CINESTREAM.',
-    time: '5 giờ trước',
-    isRead: false,
-    image: 'https://images.unsplash.com/photo-1568832359672-e36cf5d74f54?q=80&w=300&auto=format&fit=crop',
-    actionRoute: {
-      pathname: '/movie/[id]',
-      params: { id: 'fav-3' },
-    },
-  },
-  {
-    id: 'notif-4',
-    type: 'system',
-    title: 'Đăng Nhập Thiết Bị Mới 📱',
-    message: 'Tài khoản của bạn vừa đăng nhập trên thiết bị iPhone 15 Pro Max tại TP. Hồ Chí Minh. Nếu không phải bạn, hãy đổi mật khẩu ngay.',
-    time: '1 ngày trước',
-    isRead: true,
-    icon: 'shield-checkmark',
-    iconColor: '#10B981',
-    iconBg: 'rgba(16, 185, 129, 0.15)',
-    actionRoute: {
-      pathname: '/sub-layout/account-security',
-    },
-  },
-  {
-    id: 'notif-5',
-    type: 'movie',
-    title: 'Gợi Ý Dành Cho Bạn: Avatar: Dòng Chảy Của Nước',
-    message: 'Dựa trên danh sách phim yêu thích của bạn, bom tấn Avatar 2 đang được 98% khán giả đánh giá 5 sao.',
-    time: '2 ngày trước',
-    isRead: true,
-    image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=300&auto=format&fit=crop',
-    actionRoute: {
-      pathname: '/movie/[id]',
-      params: { id: 'fav-1' },
-    },
-  },
-  {
-    id: 'notif-6',
-    type: 'promo',
-    title: 'Quà Tặng Tri Ân Khách Hàng Thân Thiết 🎁',
-    message: 'Nhận ngay Voucher giảm giá 50.000đ khi thanh toán qua Ví điện tử MoMo trong tuần lễ phim điện ảnh.',
-    time: '3 ngày trước',
-    isRead: true,
-    icon: 'gift',
-    iconColor: CinemaColors.primary,
-    iconBg: 'rgba(255, 51, 75, 0.15)',
-    actionRoute: {
-      pathname: '/sub-layout/billing-subscription',
-    },
+    actionRoute: '/sub-layout/billing-subscription',
   },
 ];
 
@@ -107,6 +55,8 @@ interface NotificationContextType {
   notifications: NotificationItem[];
   unreadCount: number;
   hasUnread: boolean;
+  isLoading: boolean;
+  refreshNotifications: () => Promise<void>;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   deleteNotification: (id: string) => void;
@@ -117,7 +67,61 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<NotificationItem[]>(FALLBACK_NOTIFICATIONS);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await NotificationAPI.getNotifications();
+      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setNotifications(res.data);
+      }
+    } catch (err) {
+      console.warn('Lỗi tải thông báo từ máy chủ:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+
+    // Kết nối Socket.io lắng nghe push notification thời gian thực
+    try {
+      const socket = getSocket();
+      const handleNewNotification = (notif: any) => {
+        const mapped: NotificationItem = {
+          id: notif.id || `notif-${Date.now()}`,
+          type: notif.type || 'movie',
+          title: notif.title,
+          message: notif.message,
+          time: notif.time || 'Vừa xong',
+          isRead: false,
+          image: notif.image,
+          movieId: notif.movieId,
+          movieSlug: notif.movieSlug,
+          actionRoute: notif.actionRoute || (notif.movieSlug ? `/movie/${notif.movieSlug}` : '/(tabs)'),
+        };
+
+        setNotifications((prev) => {
+          // Tránh trùng ID
+          if (prev.some((item) => item.id === mapped.id)) {
+            return prev;
+          }
+          return [mapped, ...prev];
+        });
+      };
+
+      socket.on('new_notification', handleNewNotification);
+
+      return () => {
+        socket.off('new_notification', handleNewNotification);
+      };
+    } catch (socketErr) {
+      console.warn('Socket notification error:', socketErr);
+    }
+  }, [fetchNotifications]);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((item) => !item.isRead).length;
@@ -129,10 +133,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setNotifications((prev) =>
       prev.map((item) => (item.id === id ? { ...item, isRead: true } : item))
     );
+    NotificationAPI.markAsRead(id).catch((err) =>
+      console.warn('Lỗi đồng bộ đã đọc thông báo:', err)
+    );
   };
 
   const markAllAsRead = () => {
     setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
+    NotificationAPI.markAllAsRead().catch((err) =>
+      console.warn('Lỗi đồng bộ đã đọc tất cả thông báo:', err)
+    );
   };
 
   const deleteNotification = (id: string) => {
@@ -159,6 +169,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         notifications,
         unreadCount,
         hasUnread,
+        isLoading,
+        refreshNotifications: fetchNotifications,
         markAsRead,
         markAllAsRead,
         deleteNotification,

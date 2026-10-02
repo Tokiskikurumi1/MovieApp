@@ -470,7 +470,9 @@ export default function MovieDetailScreen() {
           <View style={styles.similarSection}>
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>Tác phẩm tương tự</Text>
-              <Text style={styles.categorySubText}>Phim Sci-Fi chọn lọc</Text>
+              <Text style={styles.categorySubText}>
+                {movie?.genres?.[0] ? `Cùng thể loại ${movie.genres[0]}` : 'Gợi ý chọn lọc'}
+              </Text>
             </View>
 
             <ScrollView
@@ -478,13 +480,19 @@ export default function MovieDetailScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.similarListContent}
             >
-              {SIMILAR_MOVIES.map((movie) => (
+              {((movie?.similarMovies && movie.similarMovies.length > 0)
+                ? movie.similarMovies
+                : SIMILAR_MOVIES
+              ).map((simMovie: any) => (
                 <TouchableOpacity
-                  key={movie.id}
+                  key={simMovie.id}
                   style={[styles.similarCard, { width: similarCardWidth }]}
                   activeOpacity={0.85}
                   onPress={() => {
-                    Alert.alert('Chuyển phim', `Bạn chọn phim ${movie.title}`);
+                    router.push({
+                      pathname: '/movie/[id]',
+                      params: { id: simMovie.id },
+                    });
                   }}
                 >
                   <View
@@ -493,14 +501,17 @@ export default function MovieDetailScreen() {
                       { width: similarCardWidth, height: similarCardWidth * 1.45 },
                     ]}
                   >
-                    <Image source={{ uri: movie.image }} style={styles.similarPoster} />
+                    <Image
+                      source={{ uri: simMovie.image || simMovie.poster || simMovie.backdrop }}
+                      style={styles.similarPoster}
+                    />
                     <View style={styles.similarRatingBadge}>
                       <Ionicons name="star" size={10} color={CinemaColors.primary} />
-                      <Text style={styles.similarRatingText}>{movie.rating}</Text>
+                      <Text style={styles.similarRatingText}>{simMovie.rating || '8.8'}</Text>
                     </View>
                   </View>
                   <Text style={styles.similarTitle} numberOfLines={1}>
-                    {movie.title}
+                    {simMovie.title}
                   </Text>
                 </TouchableOpacity>
               ))}

@@ -120,6 +120,10 @@ export const MovieAPI = {
 
   // 7. Chi tiết phim và tập
   getMovieDetail: (idOrSlug: string) => fetchJson(`/movies/${idOrSlug}`),
+
+  // 8. Thuật toán gợi ý phim thông minh (Content-Based Recommendations)
+  getRecommendations: (idOrSlug: string, limit: number = 10) =>
+    fetchJson(`/movies/${idOrSlug}/recommendations?limit=${limit}`),
 };
 
 export const UserAPI = {
@@ -131,17 +135,23 @@ export const UserAPI = {
       body: JSON.stringify({ movieIdOrSlug }),
     }),
 
-  // Lưu tiến độ xem
+  // Lưu tiến độ xem (Resume watching)
   saveWatchProgress: (data: {
     movieIdOrSlug: string;
     episodeId?: number;
-    progress: number;
+    progress?: number;
     durationLeft?: string;
+    currentTime?: number;
+    duration?: number;
   }) =>
     fetchJson('/user/watch-progress', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // Lấy mốc thời gian xem gần nhất để tiếp tục xem
+  getWatchProgress: (movieIdOrSlug: string) =>
+    fetchJson(`/user/watch-progress/${movieIdOrSlug}`),
 
   // Xóa lịch sử xem
   deleteWatchHistory: (movieIdOrHistoryId: string | number) =>
@@ -153,15 +163,30 @@ export const UserAPI = {
       method: 'DELETE',
     }),
 
-  // Bình luận
-  getComments: (movieIdOrSlug: string) => fetchJson(`/user/movies/${movieIdOrSlug}/comments`),
-  postComment: (movieIdOrSlug: string, content: string, rating?: number, parentId?: number) =>
+  // Bình luận (hỗ trợ lọc theo tập)
+  getComments: (movieIdOrSlug: string, episodeId?: number | string) =>
+    fetchJson(`/user/movies/${movieIdOrSlug}/comments${episodeId ? `?episodeId=${episodeId}` : ''}`),
+  postComment: (
+    movieIdOrSlug: string,
+    content: string,
+    rating?: number,
+    parentId?: number,
+    episodeId?: number | string
+  ) =>
     fetchJson('/user/comments', {
       method: 'POST',
-      body: JSON.stringify({ movieIdOrSlug, content, rating, parentId }),
+      body: JSON.stringify({ movieIdOrSlug, content, rating, parentId, episodeId }),
     }),
   toggleLikeComment: (commentId: string | number) =>
     fetchJson(`/user/comments/${commentId}/like`, { method: 'POST' }),
+
+  // Giao dịch & Gói cước VIP
+  getTransactions: () => fetchJson('/user/transactions'),
+  upgradeSubscription: (data: { packageId: string; paymentMethod: string }) =>
+    fetchJson('/user/subscription/upgrade', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 export const SupportAPI = {
@@ -211,3 +236,17 @@ export const AuthAPI = {
       body: JSON.stringify(data),
     }),
 };
+
+export const NotificationAPI = {
+  getNotifications: () =>
+    fetchJson<{ success: boolean; unreadCount: number; data: any[] }>('/user/notifications'),
+  markAsRead: (id: string | number) =>
+    fetchJson<{ success: boolean; message: string }>(`/user/notifications/${id}/read`, {
+      method: 'POST',
+    }),
+  markAllAsRead: () =>
+    fetchJson<{ success: boolean; message: string }>('/user/notifications/read-all', {
+      method: 'POST',
+    }),
+};
+

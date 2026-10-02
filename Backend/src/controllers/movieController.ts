@@ -427,17 +427,8 @@ export async function getMovieDetail(req: Request, res: Response) {
       [movie.id]
     );
 
-    // Lấy phim tương tự (cùng thể loại)
-    const [similarMovies] = await pool.query<RowDataPacket[]>(
-      `SELECT DISTINCT m.id, m.name, m.slug, m.thumb_url, m.poster_url, m.rating
-       FROM movies m
-       JOIN movie_categories mc ON m.id = mc.movie_id
-       WHERE mc.category_id IN (
-         SELECT category_id FROM movie_categories WHERE movie_id = ?
-       ) AND m.id != ?
-       LIMIT 6`,
-      [movie.id, movie.id]
-    );
+    // Lấy phim tương tự thông minh bằng Content-Based Recommendation
+    const similarMovies = await calculateMovieRecommendations(movie.id, movie.type, 6);
 
     // Tăng lượt xem
     await pool.query('UPDATE movies SET view_count = view_count + 1 WHERE id = ?', [movie.id]);
@@ -480,12 +471,7 @@ export async function getMovieDetail(req: Request, res: Response) {
       countries: countries.map((c) => c.name),
       totalEpisodes: episodes.length,
       episodes: formattedEpisodes,
-      similarMovies: similarMovies.map((sm) => ({
-        id: sm.slug || String(sm.id),
-        title: sm.name,
-        rating: String(sm.rating || '8.8'),
-        image: sm.thumb_url || sm.poster_url,
-      })),
+      similarMovies,
     };
 
     return res.json({ success: true, data: responseData });
@@ -505,3 +491,157 @@ export async function getCategories(req: Request, res: Response) {
     return res.status(500).json({ success: false, message: error.message });
   }
 }
+
+// 8. Thuật toán gợi ý phim thông minh (Content-Based Recommendation Engine)
+export async function calculateMovieRecommendations(movieId: number, movieType: string, limit: number = 10) {
+  // 1. Lấy danh sách thể loại của phim
+  const [catRows] = await pool.query<RowDataPacket[]>(
+    'SELECT category_id FROM movie_categories WHERE movie_id = ?',
+    [movieId]
+  );
+  const categoryIds = catRows.map((r) => r.category_id);
+
+  // 2. Lấy danh sách quốc gia của phim
+  const [countryRows] = await pool.query<RowDataPacket[]>(
+    'SELECT country_id FROM movie_countries WHERE movie_id = ?',
+    [movieId]
+  );
+  const countryIds = countryRows.map((r) => r.country_id);
+
+  let recommendedRows: RowDataPacket[] = [];
+
+  if (categoryIds.length > 0) {
+    const catPlaceholders = categoryIds.map(() => '?').join(',');
+    const hasCountries = countryIds.length > 0;
+    const countryPlaceholders = hasCountries ? countryIds.map(() => '?').join(',') : '';
+
+    const countryCondition = hasCountries
+      ? `(CASE WHEN EXISTS (
+           SELECT 1 FROM movie_countries mco 
+           WHERE mco.movie_id = m.id AND mco.country_id IN (${countryPlaceholders})
+         ) THEN 1.5 ELSE 0.0 END)`
+      : '0.0';
+
+    const query = `
+      SELECT m.id, m.name, m.origin_name, m.slug, m.thumb_url, m.poster_url,
+             m.rating, m.year, m.quality, m.episode_current, m.view_count, m.type,
+             (
+               (COUNT(DISTINCT mc.category_id) * 3.0)
+               + (CASE WHEN m.type = ? THEN 2.0 ELSE 0.0 END)
+               + ${countryCondition}
+               + (COALESCE(m.rating, 8.0) * 0.4)
+               + (LOG10(GREATEST(m.view_count, 1)) * 0.5)
+             ) AS similarity_score
+      FROM movies m
+      JOIN movie_categories mc ON m.id = mc.movie_id
+      WHERE mc.category_id IN (${catPlaceholders})
+        AND m.id != ?
+      GROUP BY m.id
+      ORDER BY similarity_score DESC, m.view_count DESC, m.rating DESC
+      LIMIT ?
+    `;
+
+    const params = [
+      movieType,
+      ...(hasCountries ? countryIds : []),
+      ...categoryIds,
+      movieId,
+      limit,
+    ];
+
+    const [rows] = await pool.query<RowDataPacket[]>(query, params);
+    recommendedRows = rows;
+  } else {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT m.id, m.name, m.origin_name, m.slug, m.thumb_url, m.poster_url,
+              m.rating, m.year, m.quality, m.episode_current, m.view_count, m.type
+       FROM movies m
+       WHERE m.id != ?
+       ORDER BY (CASE WHEN m.type = ? THEN 1 ELSE 0 END) DESC, m.rating DESC, m.view_count DESC
+       LIMIT ?`,
+      [movieId, movieType, limit]
+    );
+    recommendedRows = rows;
+  }
+
+  // Nếu số lượng chưa đủ limit, bổ sung thêm các phim nổi bật khác
+  let finalRows = [...recommendedRows];
+  if (finalRows.length < limit) {
+    const existingIds = [movieId, ...finalRows.map((r) => r.id)];
+    const needed = limit - finalRows.length;
+    const [backupRows] = await pool.query<RowDataPacket[]>(
+      `SELECT m.id, m.name, m.origin_name, m.slug, m.thumb_url, m.poster_url,
+              m.rating, m.year, m.quality, m.episode_current, m.view_count, m.type
+       FROM movies m
+       WHERE m.id NOT IN (${existingIds.map(() => '?').join(',')})
+       ORDER BY m.rating DESC, m.view_count DESC
+       LIMIT ?`,
+      [...existingIds, needed]
+    );
+    finalRows = [...finalRows, ...backupRows];
+  }
+
+  // Format dữ liệu đồng nhất
+  const formatted = await Promise.all(
+    finalRows.map(async (m) => {
+      const [genres] = await pool.query<RowDataPacket[]>(
+        `SELECT c.name FROM categories c
+         JOIN movie_categories mc ON c.id = mc.category_id
+         WHERE mc.movie_id = ? LIMIT 3`,
+        [m.id]
+      );
+
+      const viewsFormatted =
+        m.view_count >= 1000000
+          ? `${(m.view_count / 1000000).toFixed(1)}M lượt xem`
+          : m.view_count >= 1000
+          ? `${(m.view_count / 1000).toFixed(0)}K lượt xem`
+          : `${m.view_count || 120} lượt xem`;
+
+      return {
+        id: m.slug || String(m.id),
+        numericId: m.id,
+        title: m.name,
+        originalTitle: m.origin_name || m.name,
+        rating: String(m.rating || '8.8'),
+        year: String(m.year || '2024'),
+        quality: m.quality || '4K HDR',
+        type: m.type,
+        episodesBadge: m.type === 'single' ? 'Phim lẻ' : (m.episode_current || 'Trọn bộ'),
+        views: viewsFormatted,
+        image: m.thumb_url || m.poster_url,
+        poster: m.thumb_url || m.poster_url,
+        backdrop: m.poster_url || m.thumb_url,
+        tags: genres.map((g) => g.name),
+        genres: genres.map((g) => g.name),
+      };
+    })
+  );
+
+  return formatted;
+}
+
+// 9. API Lấy danh sách gợi ý phim theo ID hoặc Slug
+export async function getMovieRecommendations(req: Request, res: Response) {
+  try {
+    const { idOrSlug } = req.params;
+    const limit = Math.min(20, Math.max(1, parseInt(req.query.limit as string) || 10));
+
+    const [movies] = await pool.query<RowDataPacket[]>(
+      'SELECT id, type FROM movies WHERE slug = ? OR id = ? LIMIT 1',
+      [idOrSlug, isNaN(Number(idOrSlug)) ? -1 : Number(idOrSlug)]
+    );
+
+    if (movies.length === 0) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy phim yêu cầu' });
+    }
+
+    const movie = movies[0];
+    const recommendations = await calculateMovieRecommendations(movie.id, movie.type, limit);
+
+    return res.json({ success: true, data: recommendations });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+

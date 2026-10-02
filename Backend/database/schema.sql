@@ -133,6 +133,8 @@ CREATE TABLE IF NOT EXISTS watch_history (
     movie_id INT NOT NULL,
     episode_id INT NULL,
     progress DECIMAL(5, 4) DEFAULT 0.0000 COMMENT 'Tỉ lệ xem từ 0.00 đến 1.00 (ví dụ 0.68 = 68%)',
+    current_time INT DEFAULT 0 COMMENT 'Số giây đã xem',
+    duration INT DEFAULT 0 COMMENT 'Tổng thời lượng tính bằng giây',
     duration_left VARCHAR(50) NULL COMMENT 'Thời gian còn lại (ví dụ: 42 phút còn lại)',
     last_watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -156,6 +158,7 @@ CREATE TABLE IF NOT EXISTS favorites (
 CREATE TABLE IF NOT EXISTS comments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     movie_id INT NOT NULL,
+    episode_id INT NULL COMMENT 'Nếu bình luận ở tập cụ thể thì trỏ vào ID tập phim',
     user_id INT NOT NULL,
     parent_id INT NULL COMMENT 'Nếu là phản hồi (reply) thì trỏ vào ID bình luận cha',
     content TEXT NOT NULL,
@@ -166,6 +169,7 @@ CREATE TABLE IF NOT EXISTS comments (
     FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE,
+    INDEX idx_movie_episode (movie_id, episode_id),
     INDEX idx_movie_parent (movie_id, parent_id),
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -201,11 +205,24 @@ CREATE TABLE IF NOT EXISTS notifications (
     title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
     type ENUM('movie', 'vip', 'promo', 'system') DEFAULT 'system',
+    movie_id INT NULL,
+    movie_slug VARCHAR(255) NULL,
+    image VARCHAR(500) NULL,
     target_audience ENUM('all', 'vip', 'free') DEFAULT 'all',
     action_route VARCHAR(255) DEFAULT '/(tabs)',
     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     read_count INT DEFAULT 0,
     total_sent INT DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 14.1. Bảng Trạng thái đọc thông báo của người dùng (user_notification_reads)
+CREATE TABLE IF NOT EXISTS user_notification_reads (
+    user_id INT NOT NULL,
+    notification_id INT NOT NULL,
+    read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, notification_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 15. Bảng Phiếu hỗ trợ người dùng (support_tickets)

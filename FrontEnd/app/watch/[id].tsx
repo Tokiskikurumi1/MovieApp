@@ -25,6 +25,7 @@ import { CinemaColors } from '@/constants/theme';
 import { MovieAPI, UserAPI } from '@/services/API';
 import CineVideoPlayer from '@/components/CineVideoPlayer';
 import { useFavorites } from '@/store/favorite-context';
+import { getSocket } from '@/services/socket';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const VIDEO_HEIGHT = (SCREEN_WIDTH * 9) / 16;
@@ -179,6 +180,9 @@ const RECOMMENDATIONS = [
 // -------------------------------------------------------------
 interface CommentReply {
   id: string;
+  numericId?: number;
+  episodeId?: number | null;
+  parentId?: number | null;
   user: string;
   avatar: string;
   time: string;
@@ -189,6 +193,9 @@ interface CommentReply {
 
 interface CommentItemData {
   id: string;
+  numericId?: number;
+  episodeId?: number | null;
+  parentId?: number | null;
   user: string;
   avatar: string;
   time: string;
@@ -365,7 +372,14 @@ export default function WatchMovieScreen() {
     username: string;
   } | null>(null);
 
-  // Fetch real details and comments from Backend
+  // Recommendations State (Content-Based)
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+
+  // Resume & Watch Progress States
+  const [initialSeekTime, setInitialSeekTime] = useState<number>(0);
+  const lastSavedTimeRef = useRef<number>(0);
+
+  // Fetch real details, watch progress, recommendations and comments from Backend
   useEffect(() => {
     if (!id) return;
     MovieAPI.getMovieDetail(id)
@@ -376,25 +390,148 @@ export default function WatchMovieScreen() {
             setEpisodes(res.data.episodes);
             setSelectedEpisodeId(res.data.episodes[0].id);
           }
-          // Tự động lưu vào lịch sử xem phim
-          UserAPI.saveWatchProgress({
-            movieIdOrSlug: id,
-            episodeId: res.data.episodes?.[0]?.id,
-            progress: 0.15,
-            durationLeft: res.data.duration || '45 phút còn lại',
-          }).catch(() => {});
+          if (res.data.similarMovies && res.data.similarMovies.length > 0) {
+            setRecommendations(res.data.similarMovies);
+          }
         }
       })
       .catch((err) => console.warn('Lỗi tải phim từ Backend:', err));
 
-    UserAPI.getComments(id)
+    // Lấy mốc thời gian đã xem lần trước (Resume watching)
+    UserAPI.getWatchProgress(id)
+      .then((res) => {
+        if (res.success && res.data) {
+          if (res.data.currentTime && res.data.currentTime > 5) {
+            setInitialSeekTime(res.data.currentTime);
+            lastSavedTimeRef.current = res.data.currentTime;
+          }
+          if (res.data.episodeId) {
+            setSelectedEpisodeId(res.data.episodeId);
+          }
+        }
+      })
+      .catch((err) => console.warn('Lỗi lấy tiến độ xem:', err));
+
+    MovieAPI.getRecommendations(id, 8)
       .then((res) => {
         if (res.success && res.data && res.data.length > 0) {
+          setRecommendations(res.data);
+        }
+      })
+      .catch((err) => console.warn('Lỗi tải gợi ý phim:', err));
+  }, [id]);
+
+  // Lấy bình luận và kết nối realtime socket cho phim & từng tập
+  useEffect(() => {
+    if (!id) return;
+
+    // Tải bình luận theo tập (hoặc toàn bộ phim)
+    UserAPI.getComments(id, selectedEpisodeId)
+      .then((res) => {
+        if (res.success && res.data) {
           setComments(res.data);
         }
       })
       .catch((err) => console.warn('Lỗi tải bình luận từ Backend:', err));
-  }, [id]);
+
+    // Kết nối Realtime Socket
+    const socket = getSocket();
+    socket.emit('join_movie', { movieIdOrSlug: id, episodeId: selectedEpisodeId });
+
+    const handleNewComment = (newComment: any) => {
+      // Nếu comment thuộc về tập khác thì bỏ qua
+      if (
+        newComment.episodeId &&
+        selectedEpisodeId &&
+        Number(newComment.episodeId) !== Number(selectedEpisodeId)
+      ) {
+        return;
+      }
+
+      setComments((prev) => {
+        if (prev.some((c) => c.numericId === newComment.numericId || c.id === newComment.id)) {
+          return prev;
+        }
+
+        if (newComment.parentId) {
+          return prev.map((c) => {
+            if (Number(c.numericId || c.id) === Number(newComment.parentId)) {
+              return {
+                ...c,
+                isRepliesExpanded: true,
+                replies: [...(c.replies || []), newComment],
+              };
+            }
+            return c;
+          });
+        }
+
+        return [newComment, ...prev];
+      });
+    };
+
+    const handleCommentLiked = (data: { commentId: number; likes: number }) => {
+      setComments((prev) =>
+        prev.map((c) => {
+          if (Number(c.numericId || c.id) === Number(data.commentId)) {
+            return { ...c, likes: data.likes };
+          }
+          if (c.replies && c.replies.length > 0) {
+            return {
+              ...c,
+              replies: c.replies.map((r: any) =>
+                Number(r.numericId || r.id) === Number(data.commentId)
+                  ? { ...r, likes: data.likes }
+                  : r
+              ),
+            };
+          }
+          return c;
+        })
+      );
+    };
+
+    socket.on('new_comment', handleNewComment);
+    socket.on('comment_liked', handleCommentLiked);
+
+    return () => {
+      socket.emit('leave_movie', { movieIdOrSlug: id, episodeId: selectedEpisodeId });
+      socket.off('new_comment', handleNewComment);
+      socket.off('comment_liked', handleCommentLiked);
+    };
+  }, [id, selectedEpisodeId]);
+
+  // Xử lý lưu mốc thời gian xem định kỳ
+  const handleTimeUpdate = (curSec: number, totalSec: number) => {
+    if (Math.abs(curSec - lastSavedTimeRef.current) >= 10 && curSec > 3) {
+      lastSavedTimeRef.current = curSec;
+      const minLeft = totalSec > curSec ? Math.round((totalSec - curSec) / 60) : 0;
+      const durationLeftStr = minLeft > 0 ? `${minLeft} phút còn lại` : 'Sắp kết thúc';
+      const progress = totalSec > 0 ? Number((curSec / totalSec).toFixed(4)) : 0;
+
+      UserAPI.saveWatchProgress({
+        movieIdOrSlug: id,
+        episodeId: selectedEpisodeId,
+        currentTime: curSec,
+        duration: totalSec,
+        durationLeft: durationLeftStr,
+        progress,
+      }).catch(() => {});
+    }
+  };
+
+  // Lưu tiến độ khi rời màn hình
+  useEffect(() => {
+    return () => {
+      if (lastSavedTimeRef.current > 5) {
+        UserAPI.saveWatchProgress({
+          movieIdOrSlug: id,
+          episodeId: selectedEpisodeId,
+          currentTime: lastSavedTimeRef.current,
+        }).catch(() => {});
+      }
+    };
+  }, [id, selectedEpisodeId]);
 
   const commentInputRef = useRef<TextInput>(null);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -467,9 +604,27 @@ export default function WatchMovieScreen() {
   const handleSendComment = () => {
     if (!commentInput.trim()) return;
 
+    const contentText = commentInput.trim();
+    const parentIdNum = replyingTo ? Number(replyingTo.parentId) : undefined;
+
+    const socket = getSocket();
+    if (socket && socket.connected) {
+      socket.emit('send_comment', {
+        movieIdOrSlug: id,
+        episodeId: selectedEpisodeId,
+        parentId: parentIdNum,
+        content: contentText,
+      });
+    }
+
     if (id) {
-      UserAPI.postComment(id, commentInput.trim(), replyingTo ? Number(replyingTo.parentId) : undefined)
-        .catch((e) => console.warn('Lỗi post comment:', e));
+      UserAPI.postComment(
+        id,
+        contentText,
+        5,
+        parentIdNum,
+        selectedEpisodeId
+      ).catch((e) => console.warn('Lỗi post comment:', e));
     }
 
     if (replyingTo) {
@@ -479,7 +634,7 @@ export default function WatchMovieScreen() {
         user: 'Kurumi Tokisaki',
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
         time: 'Vừa xong',
-        content: commentInput.trim(),
+        content: contentText,
         likes: 0,
         isLiked: false,
       };
@@ -505,7 +660,7 @@ export default function WatchMovieScreen() {
         user: 'Kurumi Tokisaki',
         time: 'Vừa xong',
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-        content: commentInput.trim(),
+        content: contentText,
         likes: 0,
         isLiked: false,
         replies: [],
@@ -520,6 +675,14 @@ export default function WatchMovieScreen() {
 
   // Like parent comment
   const handleLikeComment = (commentId: string) => {
+    const socket = getSocket();
+    if (socket && socket.connected) {
+      socket.emit('like_comment', {
+        commentId,
+        movieIdOrSlug: id,
+      });
+    }
+
     UserAPI.toggleLikeComment(commentId).catch((e) => console.warn('Lỗi like comment:', e));
     setComments((prev) =>
       prev.map((c) => {
@@ -597,6 +760,8 @@ export default function WatchMovieScreen() {
         title={movie?.title || 'CineStream'}
         episodeTitle={currentEpisode?.title || `Tập ${selectedEpisodeId}`}
         posterUrl={movie?.banner || movie?.poster || currentEpisode?.thumbnail}
+        initialTime={initialSeekTime}
+        onTimeUpdate={handleTimeUpdate}
         isFullscreen={isFullscreen}
         onToggleFullscreen={handleToggleFullscreen}
         onBack={handlePlayerBack}
@@ -817,48 +982,58 @@ export default function WatchMovieScreen() {
               <View style={styles.recommendationsSection}>
                 <Text style={styles.recommendationsHeading}>Đề xuất cho bạn</Text>
 
-                {RECOMMENDATIONS.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.recCard}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      Alert.alert('Chuyển phim', `Đang tải ${item.title}`);
-                    }}
-                  >
-                    {/* Left Thumbnail with badges */}
-                    <View style={styles.recThumbnailWrapper}>
-                      <Image source={{ uri: item.image }} style={styles.recThumbnailImage} />
+                {(recommendations.length > 0 ? recommendations : RECOMMENDATIONS).map((item: any) => {
+                  const tags: string[] = item.tags || item.genres || ['Phim hay'];
+                  const displayViews = item.views || `${item.rating || '8.8'} ⭐`;
+                  const thumb = item.image || item.poster || item.backdrop;
+                  const badge = item.episodesBadge || (item.type === 'single' ? 'Phim lẻ' : 'Trọn bộ');
 
-                      {/* Bottom-Right Episodes Badge */}
-                      <View style={styles.recBottomBadge}>
-                        <Text style={styles.recBottomBadgeText}>{item.episodesBadge}</Text>
-                      </View>
-                    </View>
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.recCard}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        router.push({
+                          pathname: '/watch/[id]',
+                          params: { id: item.id },
+                        });
+                      }}
+                    >
+                      {/* Left Thumbnail with badges */}
+                      <View style={styles.recThumbnailWrapper}>
+                        <Image source={{ uri: thumb }} style={styles.recThumbnailImage} />
 
-                    {/* Right Info Column */}
-                    <View style={styles.recInfoCol}>
-                      <Text style={styles.recTitle} numberOfLines={2}>
-                        {item.title}
-                      </Text>
-
-                      {/* Genre Tags */}
-                      <View style={styles.recTagsRow}>
-                        {item.tags.map((tag, idx) => (
-                          <View key={idx} style={styles.recTagBadge}>
-                            <Text style={styles.recTagText}>{tag}</Text>
-                          </View>
-                        ))}
+                        {/* Bottom-Right Episodes Badge */}
+                        <View style={styles.recBottomBadge}>
+                          <Text style={styles.recBottomBadgeText}>{badge}</Text>
+                        </View>
                       </View>
 
-                      {/* Views Count */}
-                      <View style={styles.recViewsRow}>
-                        <Ionicons name="play-outline" size={13} color={CinemaColors.textMuted} />
-                        <Text style={styles.recViewsText}>{item.views}</Text>
+                      {/* Right Info Column */}
+                      <View style={styles.recInfoCol}>
+                        <Text style={styles.recTitle} numberOfLines={2}>
+                          {item.title}
+                        </Text>
+
+                        {/* Genre Tags */}
+                        <View style={styles.recTagsRow}>
+                          {tags.slice(0, 3).map((tag, idx) => (
+                            <View key={idx} style={styles.recTagBadge}>
+                              <Text style={styles.recTagText}>{tag}</Text>
+                            </View>
+                          ))}
+                        </View>
+
+                        {/* Views Count */}
+                        <View style={styles.recViewsRow}>
+                          <Ionicons name="play-outline" size={13} color={CinemaColors.textMuted} />
+                          <Text style={styles.recViewsText}>{displayViews}</Text>
+                        </View>
                       </View>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </ScrollView>
           ) : (
@@ -1635,11 +1810,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 2,
+    letterSpacing: 0,
   },
   fbCommentText: {
     fontSize: 13.5,
     color: 'rgba(255, 255, 255, 0.92)',
     lineHeight: 19,
+    letterSpacing: 0,
   },
   fbActionRow: {
     flexDirection: 'row',
@@ -1652,12 +1829,14 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: 'rgba(255, 255, 255, 0.45)',
     fontWeight: '500',
+    letterSpacing: 0,
   },
   fbActionBtn: {},
   fbActionText: {
     fontSize: 12,
     fontWeight: '700',
     color: 'rgba(255, 255, 255, 0.65)',
+    letterSpacing: 0,
   },
   fbActionTextLiked: {
     color: CinemaColors.primary,
@@ -1746,6 +1925,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13.5,
     paddingVertical: 2,
+    letterSpacing: 0,
   },
   emojiBtn: {
     paddingLeft: 6,
