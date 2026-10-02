@@ -58,6 +58,10 @@ export async function initDatabase() {
       if ((cols2 as any[]).length === 0) {
         await pool.query("ALTER TABLE watch_history ADD COLUMN duration INT DEFAULT 0 COMMENT 'Tổng thời lượng tính bằng giây' AFTER `current_time`");
       }
+      const [cols3] = await pool.query("SHOW COLUMNS FROM comments LIKE 'episode_id'");
+      if ((cols3 as any[]).length === 0) {
+        await pool.query("ALTER TABLE comments ADD COLUMN episode_id INT NULL COMMENT 'Nếu bình luận ở tập cụ thể thì trỏ vào ID tập phim' AFTER movie_id");
+      }
     } catch (_) {}
   }
 

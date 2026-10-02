@@ -134,9 +134,11 @@ export function initSocket(server: HttpServer) {
         };
 
         const movieRoom = `movie_${movieId}`;
-        io?.to(movieRoom).emit('new_comment', commentData);
+
         if (safeEpisodeId) {
           io?.to(`movie_${movieId}_ep_${safeEpisodeId}`).emit('new_comment', commentData);
+        } else {
+          io?.to(movieRoom).emit('new_comment', commentData);
         }
 
         if (avgRating) {

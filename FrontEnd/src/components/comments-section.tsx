@@ -118,20 +118,14 @@ export function CommentsSection({
 
     const handleNewComment = (newCmt: any) => {
       setComments((prev) => {
-        if (prev.some((c) => String(c.id) === String(newCmt.id))) return prev;
-        const optIdx = prev.findIndex(
-          (c) =>
-            (newCmt.clientCommentId && (c as any).clientCommentId === newCmt.clientCommentId) ||
-            c.id === newCmt.clientCommentId
-        );
-        if (optIdx !== -1) {
-          const updated = [...prev];
-          updated[optIdx] = {
-            ...updated[optIdx],
-            ...newCmt,
-            id: String(newCmt.id),
-          };
-          return updated;
+        if (
+          prev.some(
+            (c) =>
+              String(c.id) === String(newCmt.id) ||
+              (newCmt.numericId && c.numericId === newCmt.numericId)
+          )
+        ) {
+          return prev;
         }
         return [newCmt, ...prev];
       });
@@ -162,39 +156,34 @@ export function CommentsSection({
 
     const content = newCommentText.trim();
     const ratingVal = showRatingPicker ? userRating : undefined;
-    const clientCommentId = `cmt-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
-    // Gửi qua Socket.io realtime duy nhất khi kết nối, fallback REST API khi ngắt kết nối
+    // Luôn gửi qua REST API có đính kèm JWT token để ghi nhận đúng tài khoản đăng nhập
     if (targetId) {
-      const socket = getSocket();
-      if (socket && socket.connected) {
-        socket.emit('send_comment', {
-          movieIdOrSlug: targetId,
-          content,
-          rating: ratingVal,
-          clientCommentId,
+      UserAPI.postComment(targetId, content, ratingVal)
+        .then((res) => {
+          if (res.success && res.data) {
+            setComments((prev) => {
+              if (
+                prev.some(
+                  (c) =>
+                    String(c.id) === String(res.data.id) ||
+                    (res.data.numericId && c.numericId === res.data.numericId)
+                )
+              ) {
+                return prev;
+              }
+              return [res.data, ...prev];
+            });
+            setVisibleCount((prev) => prev + 1);
+            onCommentAdded?.(res.data);
+          }
+        })
+        .catch((err) => {
+          console.warn('Lỗi post comment:', err);
         });
-      } else {
-        UserAPI.postComment(targetId, content, ratingVal).catch(() => {});
-      }
     }
 
-    const localComment: CommentItem = {
-      id: clientCommentId,
-      user: 'Bạn (Người dùng)',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-      rating: ratingVal,
-      time: 'Vừa xong',
-      content,
-      likes: 0,
-      isLiked: false,
-    };
-    (localComment as any).clientCommentId = clientCommentId;
-
-    setComments((prev) => [localComment, ...prev]);
     setNewCommentText('');
-    setVisibleCount((prev) => prev + 1);
-    onCommentAdded?.(localComment);
     Alert.alert('Thành công', 'Đã đăng bình luận & đánh giá của bạn!');
   };
 
@@ -319,9 +308,17 @@ export function CommentsSection({
       ) : (
         <>
           <View style={styles.commentsList}>
-            {displayedComments.map((item) => (
-              <View key={item.id} style={styles.commentCard}>
-                <Image source={{ uri: item.avatar }} style={styles.commentAvatar} />
+            {displayedComments.map((item) => {
+              const defaultAvatar =
+                'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop';
+              const avatarUri =
+                item.avatar && (item.avatar.startsWith('http://') || item.avatar.startsWith('https://'))
+                  ? item.avatar
+                  : defaultAvatar;
+
+              return (
+                <View key={item.id} style={styles.commentCard}>
+                  <Image source={{ uri: avatarUri }} style={styles.commentAvatar} />
 
                 <View style={styles.commentContentWrapper}>
                   <View style={styles.commentHeader}>
@@ -368,7 +365,8 @@ export function CommentsSection({
                   <Text style={styles.commentBodyText}>{item.content}</Text>
                 </View>
               </View>
-            ))}
+            );
+          })}
           </View>
 
           {/* ----------------- LOAD MORE / PAGINATION FOOTER ----------------- */}

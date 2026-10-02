@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { RowDataPacket, ResultSetHeader } from 'mysql2/promise';
 import { pool } from '../config/database';
 import { AuthRequest } from '../middlewares/authMiddleware';
+import { getIO } from '../socket';
 
 // 1. Lấy danh sách phim yêu thích của người dùng
 export async function getFavorites(req: AuthRequest, res: Response) {
@@ -190,7 +191,7 @@ export async function getMovieComments(req: AuthRequest, res: Response) {
 
     // Lấy danh sách bình luận của phim (lọc theo tập nếu có yêu cầu)
     let query = `
-      SELECT c.id, c.episode_id, c.parent_id, c.content, c.likes, c.created_at,
+      SELECT c.id, c.episode_id, c.parent_id, c.content, c.rating, c.likes, c.created_at,
              u.id as user_id, u.full_name, u.avatar, u.vip_tier,
              EXISTS(SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = ?) as is_liked
       FROM comments c
@@ -202,6 +203,9 @@ export async function getMovieComments(req: AuthRequest, res: Response) {
     if (episodeId && episodeId !== 'all') {
       query += ' AND c.episode_id = ?';
       params.push(episodeId);
+    } else if (!episodeId) {
+      // Trang Chi tiết phim: chỉ lấy đánh giá/bình luận chung của cả bộ phim
+      query += ' AND c.episode_id IS NULL';
     }
 
     query += ' ORDER BY c.created_at ASC';
@@ -221,6 +225,7 @@ export async function getMovieComments(req: AuthRequest, res: Response) {
         avatar: c.avatar,
         time: formatTimeAgo(new Date(c.created_at)),
         content: c.content,
+        rating: c.rating ? Number(c.rating) : 5,
         likes: c.likes,
         isLiked: Boolean(c.is_liked),
         isVip: c.vip_tier !== 'Free',
@@ -258,7 +263,7 @@ export async function getMovieComments(req: AuthRequest, res: Response) {
 export async function createComment(req: AuthRequest, res: Response) {
   try {
     const userId = req.user?.id || 2;
-    const { movieIdOrSlug, episodeId, content, parentId } = req.body;
+    const { movieIdOrSlug, episodeId, content, parentId, rating } = req.body;
 
     if (!content || !content.trim()) {
       return res.status(400).json({ success: false, message: 'Nội dung bình luận không được để trống' });
@@ -274,11 +279,12 @@ export async function createComment(req: AuthRequest, res: Response) {
     }
 
     const movieId = movies[0].id;
+    const ratingVal = rating !== undefined ? Math.max(1, Math.min(5, Number(rating))) : 5;
 
     const [result] = await pool.query<ResultSetHeader>(
-      `INSERT INTO comments (movie_id, episode_id, user_id, parent_id, content, likes, status)
-       VALUES (?, ?, ?, ?, ?, 0, 'approved')`,
-      [movieId, episodeId || null, userId, parentId || null, content.trim()]
+      `INSERT INTO comments (movie_id, episode_id, user_id, parent_id, content, rating, likes, status)
+       VALUES (?, ?, ?, ?, ?, ?, 0, 'approved')`,
+      [movieId, episodeId || null, userId, parentId || null, content.trim(), ratingVal]
     );
 
     const [userRows] = await pool.query<RowDataPacket[]>(
@@ -295,6 +301,7 @@ export async function createComment(req: AuthRequest, res: Response) {
       parentId: parentId || null,
       user: user.full_name || 'Người dùng',
       avatar: user.avatar || '',
+      rating: ratingVal,
       time: 'Vừa xong',
       content: content.trim(),
       likes: 0,
@@ -302,6 +309,16 @@ export async function createComment(req: AuthRequest, res: Response) {
       isVip: user.vip_tier !== 'Free',
       replies: [],
     };
+
+    // Broadcast realtime qua Socket.io đúng phòng tương ứng
+    try {
+      const io = getIO();
+      if (episodeId) {
+        io.to(`movie_${movieId}_ep_${episodeId}`).emit('new_comment', newCommentData);
+      } else {
+        io.to(`movie_${movieId}`).emit('new_comment', newCommentData);
+      }
+    } catch (_) {}
 
     return res.status(201).json({
       success: true,

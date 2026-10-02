@@ -449,17 +449,33 @@ export default function WatchMovieScreen() {
       }
 
       setComments((prev) => {
-        if (prev.some((c) => c.numericId === newComment.numericId || c.id === newComment.id)) {
+        if (
+          prev.some(
+            (c) =>
+              String(c.id) === String(newComment.id) ||
+              (newComment.numericId && c.numericId === newComment.numericId)
+          )
+        ) {
           return prev;
         }
 
         if (newComment.parentId) {
           return prev.map((c) => {
             if (Number(c.numericId || c.id) === Number(newComment.parentId)) {
+              const currentReplies = c.replies || [];
+              if (
+                currentReplies.some(
+                  (r: any) =>
+                    String(r.id) === String(newComment.id) ||
+                    (newComment.numericId && r.numericId === newComment.numericId)
+                )
+              ) {
+                return c;
+              }
               return {
                 ...c,
                 isRepliesExpanded: true,
-                replies: [...(c.replies || []), newComment],
+                replies: [...currentReplies, newComment],
               };
             }
             return c;
@@ -612,16 +628,6 @@ export default function WatchMovieScreen() {
     const contentText = commentInput.trim();
     const parentIdNum = replyingTo ? Number(replyingTo.parentId) : undefined;
 
-    const socket = getSocket();
-    if (socket && socket.connected) {
-      socket.emit('send_comment', {
-        movieIdOrSlug: id,
-        episodeId: selectedEpisodeId,
-        parentId: parentIdNum,
-        content: contentText,
-      });
-    }
-
     if (id) {
       UserAPI.postComment(
         id,
@@ -629,49 +635,50 @@ export default function WatchMovieScreen() {
         5,
         parentIdNum,
         selectedEpisodeId
-      ).catch((e) => console.warn('Lỗi post comment:', e));
+      )
+        .then((res) => {
+          if (res.success && res.data) {
+            setComments((prev) => {
+              if (
+                prev.some(
+                  (c) =>
+                    String(c.id) === String(res.data.id) ||
+                    (res.data.numericId && c.numericId === res.data.numericId)
+                )
+              ) {
+                return prev;
+              }
+              if (res.data.parentId) {
+                return prev.map((c) => {
+                  if (Number(c.numericId || c.id) === Number(res.data.parentId)) {
+                    const currentReplies = c.replies || [];
+                    if (
+                      currentReplies.some(
+                        (r: any) =>
+                          String(r.id) === String(res.data.id) ||
+                          (res.data.numericId && r.numericId === res.data.numericId)
+                      )
+                    ) {
+                      return c;
+                    }
+                    return {
+                      ...c,
+                      isRepliesExpanded: true,
+                      replies: [...currentReplies, res.data],
+                    };
+                  }
+                  return c;
+                });
+              }
+              return [res.data, ...prev];
+            });
+          }
+        })
+        .catch((e) => console.warn('Lỗi post comment:', e));
     }
 
     if (replyingTo) {
-      // Adding a reply under parent comment
-      const newReply: CommentReply = {
-        id: `r-${Date.now()}`,
-        user: 'Kurumi Tokisaki',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-        time: 'Vừa xong',
-        content: contentText,
-        likes: 0,
-        isLiked: false,
-      };
-
-      setComments((prev) =>
-        prev.map((c) => {
-          if (c.id === replyingTo.parentId) {
-            return {
-              ...c,
-              isRepliesExpanded: true,
-              replies: [...(c.replies || []), newReply],
-            };
-          }
-          return c;
-        })
-      );
-
       setReplyingTo(null);
-    } else {
-      // Adding a top-level comment
-      const newComment: CommentItemData = {
-        id: `c-${Date.now()}`,
-        user: 'Kurumi Tokisaki',
-        time: 'Vừa xong',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-        content: contentText,
-        likes: 0,
-        isLiked: false,
-        replies: [],
-      };
-
-      setComments([newComment, ...comments]);
     }
 
     setCommentInput('');
@@ -1061,7 +1068,16 @@ export default function WatchMovieScreen() {
                     {/* 1. TOP-LEVEL PARENT COMMENT */}
                     <View style={styles.fbCommentRow}>
                       {/* Left User Avatar */}
-                      <Image source={{ uri: comment.avatar }} style={styles.fbAvatar} />
+                      <Image
+                        source={{
+                          uri:
+                            comment.avatar &&
+                            (comment.avatar.startsWith('http://') || comment.avatar.startsWith('https://'))
+                              ? comment.avatar
+                              : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
+                        }}
+                        style={styles.fbAvatar}
+                      />
 
                       <View style={styles.fbCommentBody}>
                         {/* Dark Rounded Comment Bubble */}
@@ -1121,7 +1137,16 @@ export default function WatchMovieScreen() {
                         {(comment.isRepliesExpanded !== false) &&
                           comment.replies.map((reply) => (
                             <View key={reply.id} style={styles.fbReplyRow}>
-                              <Image source={{ uri: reply.avatar }} style={styles.fbReplyAvatar} />
+                              <Image
+                                source={{
+                                  uri:
+                                    reply.avatar &&
+                                    (reply.avatar.startsWith('http://') || reply.avatar.startsWith('https://'))
+                                      ? reply.avatar
+                                      : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
+                                }}
+                                style={styles.fbReplyAvatar}
+                              />
 
                               <View style={styles.fbCommentBody}>
                                 {/* Reply Bubble */}
