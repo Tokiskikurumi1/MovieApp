@@ -235,6 +235,14 @@ export const AuthAPI = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+  uploadAvatar: (image: string) =>
+    fetchJson<{ success: boolean; message: string; avatar: string; avatar_url: string }>(
+      '/auth/upload-avatar',
+      {
+        method: 'POST',
+        body: JSON.stringify({ image }),
+      }
+    ),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     fetchJson('/auth/change-password', {
       method: 'POST',

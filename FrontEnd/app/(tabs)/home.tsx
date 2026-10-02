@@ -18,6 +18,7 @@ import { BrandLogo } from '@/components/brand-logo';
 import { TopAppBar } from '@/components/top-app-bar';
 import { MovieAPI, UserAPI } from '@/services/API';
 import { useFavorites } from '@/store/favorite-context';
+import { useAuth } from '@/store/auth-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -229,6 +230,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { refreshUser } = useAuth();
 
   // Dynamic Data from Backend API (with initial fallback)
   const [featuredMovies, setFeaturedMovies] = useState(FEATURED_MOVIES);
@@ -259,8 +261,9 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      refreshUser();
       loadContinueWatching();
-    }, [loadContinueWatching])
+    }, [refreshUser, loadContinueWatching])
   );
 
   // Load live data from Backend API

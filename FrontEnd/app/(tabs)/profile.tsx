@@ -16,6 +16,8 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
 import { AuthAPI, UserAPI, setAuthToken } from '@/services/API';
 import { useFavorites } from '@/store/favorite-context';
+import { useAuth } from '@/store/auth-context';
+import { getValidAvatarUri, DEFAULT_AVATAR_URI } from '@/constants/avatar';
 
 interface UserProfileData {
   id?: number | string;
@@ -42,21 +44,25 @@ export default function ProfileScreen() {
   const [notifications, setNotifications] = useState(true);
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
 
-  const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
+  const { user: authUser, avatarUri: authAvatarUri, refreshUser, logout: contextLogout } = useAuth();
+  const [userProfile, setUserProfile] = useState<UserProfileData | null>(authUser);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
   const { favorites } = useFavorites();
   const favoriteCount = favorites.length;
 
   const loadProfile = useCallback(() => {
+    refreshUser();
     AuthAPI.getMe()
       .then((res) => {
         if (res.success && res.data) {
           setUserProfile(res.data);
+          setAvatarLoadError(false);
         }
       })
       .catch((err) => {
         console.warn('Lỗi tải thông tin tài khoản:', err.message);
       });
-  }, []);
+  }, [refreshUser]);
 
   // Tự động làm mới thông tin tài khoản mỗi khi chuyển về màn hình Profile
   useFocusEffect(
@@ -67,17 +73,16 @@ export default function ProfileScreen() {
 
   const handleConfirmLogout = () => {
     setIsLogoutModalVisible(false);
-    setAuthToken(null);
+    contextLogout();
     setUserProfile(null);
     router.replace('/(auth)/login' as any);
   };
 
   const displayName = userProfile?.fullName || userProfile?.full_name || 'Khách hàng';
   const displayEmail = userProfile?.email || 'Chưa liên kết email';
-  const displayAvatar =
-    userProfile?.avatar ||
-    userProfile?.avatar_url ||
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop';
+  const displayAvatar = getValidAvatarUri(
+    userProfile?.avatar || userProfile?.avatar_url || authAvatarUri
+  );
   const isVip = Boolean(userProfile?.is_vip || (userProfile?.vipTier && userProfile.vipTier !== 'Free'));
   const vipText = isVip
     ? (userProfile?.vipTier || 'VIP 4K')
@@ -115,8 +120,9 @@ export default function ProfileScreen() {
         <View style={styles.profileCard}>
           <View style={styles.avatarWrapper}>
             <Image
-              source={{ uri: displayAvatar }}
+              source={{ uri: avatarLoadError ? DEFAULT_AVATAR_URI : displayAvatar }}
               style={styles.avatarImage}
+              onError={() => setAvatarLoadError(true)}
             />
             <TouchableOpacity
               style={styles.editAvatarBadge}

@@ -21,6 +21,8 @@ import { useRouter, Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { CinemaColors } from '@/constants/theme';
 import { AuthAPI } from '@/services/API';
+import { useAuth } from '@/store/auth-context';
+import { getValidAvatarUri, DEFAULT_AVATAR_URI } from '@/constants/avatar';
 
 interface DeviceSession {
   id: string;
@@ -60,6 +62,11 @@ const INITIAL_DEVICES: DeviceSession[] = [
 
 // Preset Avatars for Cinema / Anime App
 const AVATAR_PRESETS = [
+  {
+    id: 'av-default',
+    name: 'Mặc định',
+    uri: DEFAULT_AVATAR_URI,
+  },
   {
     id: 'av-1',
     name: 'Kurumi Tokisaki',
@@ -139,15 +146,18 @@ export default function AccountSecurityScreen() {
   }, []);
 
   // -------------------------------------------------------------
-  // FORM 1: THAY ĐỔI ẢNH ĐẠI DIỆN (AVATAR PICKER)
+  // FORM 1: THAY ĐỔI ẢNH ĐẠI DIỆN (AVATAR PICKER - CLOUDINARY UPLOAD)
   // -------------------------------------------------------------
+  const { updateAvatar: contextUpdateAvatar } = useAuth();
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
   const [tempAvatar, setTempAvatar] = useState(userAvatar);
+  const [selectedBase64, setSelectedBase64] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
 
   const openAvatarModal = () => {
     setTempAvatar(userAvatar);
+    setSelectedBase64(null);
     setIsAvatarModalVisible(true);
   };
 
@@ -165,13 +175,17 @@ export default function AccountSecurityScreen() {
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.85,
+        quality: 0.8,
+        base64: true,
       });
 
       setIsUploading(false);
 
       if (!result.canceled && result.assets && result.assets[0].uri) {
         setTempAvatar(result.assets[0].uri);
+        if (result.assets[0].base64) {
+          setSelectedBase64(result.assets[0].base64);
+        }
       }
     } catch (error) {
       setIsUploading(false);
@@ -192,13 +206,17 @@ export default function AccountSecurityScreen() {
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.85,
+        quality: 0.8,
+        base64: true,
       });
 
       setIsUploading(false);
 
       if (!result.canceled && result.assets && result.assets[0].uri) {
         setTempAvatar(result.assets[0].uri);
+        if (result.assets[0].base64) {
+          setSelectedBase64(result.assets[0].base64);
+        }
       }
     } catch (error) {
       setIsUploading(false);
@@ -206,21 +224,36 @@ export default function AccountSecurityScreen() {
     }
   };
 
-  // Lưu avatar vào cơ sở dữ liệu qua Backend API
+  // Lưu avatar vào cơ sở dữ liệu qua Backend API & Cloudinary
   const handleSaveAvatar = async () => {
     if (isSavingAvatar) return;
     setIsSavingAvatar(true);
     try {
-      const res = await AuthAPI.updateProfile({ avatar: tempAvatar });
-      if (res.success) {
-        setUserAvatar(tempAvatar);
-        setIsAvatarModalVisible(false);
-        Alert.alert('Thành công 🎉', 'Đã cập nhật ảnh đại diện mới vào tài khoản!');
+      let finalAvatarUrl = tempAvatar;
+
+      if (selectedBase64) {
+        // Tải ảnh trực tiếp lên Cloudinary thông qua Backend
+        const base64Data = `data:image/jpeg;base64,${selectedBase64}`;
+        const uploadRes = await AuthAPI.uploadAvatar(base64Data);
+        if (uploadRes && uploadRes.success && uploadRes.avatar) {
+          finalAvatarUrl = uploadRes.avatar;
+        } else {
+          throw new Error(uploadRes?.message || 'Không thể tải ảnh lên Cloudinary');
+        }
       } else {
-        Alert.alert('Lỗi', res.message || 'Không thể cập nhật ảnh đại diện');
+        const res = await AuthAPI.updateProfile({ avatar: tempAvatar });
+        if (!res.success) {
+          throw new Error(res.message || 'Không thể cập nhật ảnh đại diện');
+        }
       }
+
+      setUserAvatar(finalAvatarUrl);
+      contextUpdateAvatar(finalAvatarUrl);
+      setSelectedBase64(null);
+      setIsAvatarModalVisible(false);
+      Alert.alert('Thành công 🎉', 'Đã lưu ảnh đại diện lên Cloudinary và cập nhật tài khoản!');
     } catch (err: any) {
-      Alert.alert('Lỗi', err.message || 'Không thể kết nối máy chủ');
+      Alert.alert('Lỗi lưu ảnh', err.message || 'Không thể kết nối máy chủ');
     } finally {
       setIsSavingAvatar(false);
     }
@@ -547,7 +580,7 @@ export default function AccountSecurityScreen() {
             activeOpacity={0.85}
             onPress={openAvatarModal}
           >
-            <Image source={{ uri: userAvatar }} style={styles.avatarImage} />
+            <Image source={{ uri: getValidAvatarUri(userAvatar) }} style={styles.avatarImage} />
             <View style={styles.avatarEditBtn}>
               <Ionicons name="camera" size={13} color="#FFFFFF" />
             </View>
@@ -600,7 +633,7 @@ export default function AccountSecurityScreen() {
                   <Text style={styles.itemSubValue}>Chạm để chọn từ thư viện hoặc chụp mới</Text>
                 </View>
               </View>
-              <Image source={{ uri: userAvatar }} style={styles.smallAvatarThumbnail} />
+              <Image source={{ uri: getValidAvatarUri(userAvatar) }} style={styles.smallAvatarThumbnail} />
             </TouchableOpacity>
 
             <View style={styles.divider} />

@@ -27,6 +27,7 @@ import CineVideoPlayer from '@/components/CineVideoPlayer';
 import { useFavorites } from '@/store/favorite-context';
 import { getSocket } from '@/services/socket';
 import { ReportCommentModal, ReportTargetComment } from '@/components/ReportCommentModal';
+import { getValidAvatarUri, DEFAULT_AVATAR_URI } from '@/constants/avatar';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const VIDEO_HEIGHT = (SCREEN_WIDTH * 9) / 16;
@@ -222,7 +223,7 @@ const INITIAL_COMMENTS: CommentItemData[] = [
         id: 'r-1-1',
         user: 'Võ Thiết VN',
         time: '1 giờ',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
+        avatar: 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png',
         content: 'Tôi tới bầu bạn vs bro đây',
         likes: 4,
         isLiked: false,
@@ -1081,13 +1082,7 @@ export default function WatchMovieScreen() {
                     <View style={styles.fbCommentRow}>
                       {/* Left User Avatar */}
                       <Image
-                        source={{
-                          uri:
-                            comment.avatar &&
-                            (comment.avatar.startsWith('http://') || comment.avatar.startsWith('https://'))
-                              ? comment.avatar
-                              : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
-                        }}
+                        source={{ uri: getValidAvatarUri(comment.avatar) }}
                         style={styles.fbAvatar}
                       />
 
@@ -1161,13 +1156,7 @@ export default function WatchMovieScreen() {
                           comment.replies.map((reply) => (
                             <View key={reply.id} style={styles.fbReplyRow}>
                               <Image
-                                source={{
-                                  uri:
-                                    reply.avatar &&
-                                    (reply.avatar.startsWith('http://') || reply.avatar.startsWith('https://'))
-                                      ? reply.avatar
-                                      : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
-                                }}
+                                source={{ uri: getValidAvatarUri(reply.avatar) }}
                                 style={styles.fbReplyAvatar}
                               />
 

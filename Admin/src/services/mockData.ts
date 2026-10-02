@@ -340,7 +340,7 @@ export const INITIAL_USERS: User[] = [
     id: 'user-2',
     fullName: 'Nguyễn Thanh Minh',
     email: 'minh.admin@cinestream.com',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
+    avatar: 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png',
     role: 'admin',
     vipTier: 'VIP 4K',
     vipExpiry: '2030-01-01',

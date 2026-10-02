@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(150) UNIQUE NULL,
     phone VARCHAR(20) UNIQUE NULL,
     password_hash VARCHAR(255) NOT NULL,
-    avatar VARCHAR(500) DEFAULT 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
+    avatar VARCHAR(500) DEFAULT 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png',
     role ENUM('admin', 'moderator', 'user') DEFAULT 'user',
     vip_tier ENUM('Free', 'VIP Standard', 'VIP 4K') DEFAULT 'Free',
     vip_expiry DATETIME NULL,

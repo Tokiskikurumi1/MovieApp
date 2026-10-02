@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { CinemaColors } from '@/constants/theme';
 import { getSocket } from '@/services/socket';
 import { UserAPI } from '@/services/API';
+import { useAuth } from '@/store/auth-context';
+import { getValidAvatarUri, DEFAULT_AVATAR_URI } from '@/constants/avatar';
 import { ReportCommentModal, ReportTargetComment } from './ReportCommentModal';
 
 export interface CommentItem {
@@ -31,7 +33,7 @@ const DEFAULT_COMMENTS: CommentItem[] = [
   {
     id: 'cmt-1',
     user: 'Trần Hoàng Nam',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
+    avatar: 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png',
     rating: 5,
     time: '2 giờ trước',
     content: 'Kỹ xảo vượt xa kỳ vọng! Phân cảnh du hành qua hố đen Nebula đỉnh cao thực sự, âm thanh Dolby Atmos làm rung chuyển cả phòng.',
@@ -99,6 +101,7 @@ export function CommentsSection({
   const [newCommentText, setNewCommentText] = useState('');
   const [userRating, setUserRating] = useState(5);
   const [visibleCount, setVisibleCount] = useState(initialVisibleCount);
+  const { avatarUri: authAvatarUri } = useAuth();
   const [reportingComment, setReportingComment] = useState<ReportTargetComment | null>(null);
   const [isReportModalVisible, setIsReportModalVisible] = useState(false);
 
@@ -252,7 +255,7 @@ export function CommentsSection({
         <View style={styles.inputTopRow}>
           <Image
             source={{
-              uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
+              uri: getValidAvatarUri(authAvatarUri),
             }}
             style={styles.inputAvatar}
           />
@@ -321,12 +324,7 @@ export function CommentsSection({
         <>
           <View style={styles.commentsList}>
             {displayedComments.map((item) => {
-              const defaultAvatar =
-                'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop';
-              const avatarUri =
-                item.avatar && (item.avatar.startsWith('http://') || item.avatar.startsWith('https://'))
-                  ? item.avatar
-                  : defaultAvatar;
+              const avatarUri = getValidAvatarUri(item.avatar);
 
               return (
                 <View key={item.id} style={styles.commentCard}>

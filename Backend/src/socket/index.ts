@@ -93,7 +93,7 @@ export function initSocket(server: HttpServer) {
 
         const commentId = result.insertId;
         let senderName = userName || 'Khán giả CINESTREAM';
-        let senderAvatar = userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop';
+        let senderAvatar = userAvatar || 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png';
 
         const [users] = await pool.query<RowDataPacket[]>(
           'SELECT full_name, avatar, vip_tier FROM users WHERE id = ? LIMIT 1',

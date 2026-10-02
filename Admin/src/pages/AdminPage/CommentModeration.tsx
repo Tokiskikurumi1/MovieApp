@@ -345,7 +345,7 @@ export const CommentModeration: React.FC = () => {
                         comment.user.avatar &&
                         (comment.user.avatar.startsWith('http://') || comment.user.avatar.startsWith('https://'))
                           ? comment.user.avatar
-                          : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop'
+                          : 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png'
                       }
                       alt={comment.user.name}
                       style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)' }}

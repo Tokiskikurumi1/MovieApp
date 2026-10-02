@@ -8,6 +8,7 @@ import {
   checkExists,
   checkEmail,
   resetPassword,
+  uploadAvatar,
 } from '../controllers/authController';
 import { authenticate } from '../middlewares/authMiddleware';
 
@@ -20,6 +21,7 @@ router.post('/check-email', checkEmail);
 router.post('/reset-password', resetPassword);
 router.get('/me', authenticate, getMe);
 router.put('/profile', authenticate, updateProfile);
+router.post('/upload-avatar', authenticate, uploadAvatar);
 router.post('/change-password', authenticate, changePassword);
 
 export default router;

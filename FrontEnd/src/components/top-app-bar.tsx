@@ -11,6 +11,8 @@ import { useRouter } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { useNotifications } from '@/store/notification-context';
+import { useAuth } from '@/store/auth-context';
+import { getValidAvatarUri, DEFAULT_AVATAR_URI } from '@/constants/avatar';
 
 interface TopAppBarProps {
   avatarUri?: string;
@@ -22,11 +24,8 @@ interface TopAppBarProps {
   rightActions?: React.ReactNode;
 }
 
-const DEFAULT_AVATAR =
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop';
-
 export const TopAppBar: React.FC<TopAppBarProps> = ({
-  avatarUri = DEFAULT_AVATAR,
+  avatarUri,
   hasNotification,
   showSearch = false,
   onSearchPress,
@@ -36,7 +35,22 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
 }) => {
   const router = useRouter();
   const { hasUnread } = useNotifications();
+  const { avatarUri: authAvatarUri, user, refreshUser } = useAuth();
+  const [imageLoadError, setImageLoadError] = React.useState(false);
+
+  // Tự động kiểm tra tài khoản và lấy avatar mới nhất ngay khi header hiển thị
+  React.useEffect(() => {
+    if (!user) {
+      refreshUser();
+    }
+  }, [user, refreshUser]);
+
   const showBadge = hasNotification !== undefined ? hasNotification : hasUnread;
+  const finalAvatar = getValidAvatarUri(avatarUri || authAvatarUri);
+
+  React.useEffect(() => {
+    setImageLoadError(false);
+  }, [finalAvatar]);
 
   const handleNotificationPress = () => {
     if (onNotificationPress) {
@@ -90,8 +104,9 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
           onPress={handleAvatarPress}
         >
           <Image
-            source={{ uri: avatarUri }}
+            source={{ uri: imageLoadError ? DEFAULT_AVATAR_URI : finalAvatar }}
             style={styles.avatarImage}
+            onError={() => setImageLoadError(true)}
           />
         </TouchableOpacity>
       </View>

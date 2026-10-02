@@ -14,7 +14,7 @@ const DEFAULT_ADMIN: AdminUser = {
   name: 'Admin CINESTREAM',
   email: 'admin@cinestream.com',
   role: 'Super Admin',
-  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
+  avatar: 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png',
   lastLogin: new Date().toLocaleString('vi-VN'),
 };
 

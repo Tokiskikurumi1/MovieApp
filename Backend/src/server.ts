@@ -4,7 +4,7 @@ import { initDatabase } from './config/database';
 import { initSocket } from './socket';
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({ override: true });
 
 const PORT = process.env.PORT || 5000;
 

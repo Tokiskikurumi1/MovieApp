@@ -16,9 +16,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { AuthAPI, setAuthToken } from '@/services/API';
+import { useAuth } from '@/store/auth-context';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { login: contextLogin } = useAuth();
 
   const [account, setAccount] = useState('');
   const [password, setPassword] = useState('');
@@ -55,6 +57,9 @@ export default function LoginScreen() {
       .then((res) => {
         if (res.success && res.data?.token) {
           setAuthToken(res.data.token);
+          if (res.data.user) {
+            contextLogin(res.data.user, res.data.token);
+          }
           router.replace('/(tabs)');
         } else {
           setErrors({

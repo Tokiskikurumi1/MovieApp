@@ -29,7 +29,7 @@ export async function getMySupportSession(req: AuthRequest, res: Response) {
       id: userId,
       full_name: 'Khách hàng CINESTREAM',
       email: 'user@gmail.com',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
+      avatar: 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png',
     };
 
     // Tìm ticket gần nhất của người dùng
@@ -136,7 +136,7 @@ export async function getAllSupportTickets(req: AuthRequest, res: Response) {
             id: t.user_id,
             name: t.user_name || 'Khách hàng',
             email: t.user_email || 'user@gmail.com',
-            avatar: t.user_avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
+            avatar: t.user_avatar || 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png',
           },
           subject: t.subject,
           message: t.message,

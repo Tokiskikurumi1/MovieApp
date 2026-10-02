@@ -32,7 +32,7 @@ export const UserManagement: React.FC = () => {
             id: String(u.id),
             fullName: u.full_name || 'Khách hàng',
             email: u.email,
-            avatar: u.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
+            avatar: u.avatar_url || 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png',
             vipTier: u.is_vip ? 'VIP 4K' : 'Free',
             vipExpiresAt: u.vip_expires_at ? new Date(u.vip_expires_at).toLocaleDateString('vi-VN') : 'Không có',
             status: u.is_banned ? 'banned' : 'active',

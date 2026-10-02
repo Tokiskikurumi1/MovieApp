@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { RowDataPacket, ResultSetHeader } from 'mysql2/promise';
 import { pool } from '../config/database';
 import { AuthRequest } from '../middlewares/authMiddleware';
+import cloudinary from '../config/cloudinary';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'cinestream_super_secret_jwt_key_2026';
 
@@ -77,7 +78,7 @@ export async function register(req: Request, res: Response) {
           phone,
           role: 'user',
           vipTier: 'Free',
-          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop',
+          avatar: 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png',
         },
       },
     });
@@ -195,8 +196,8 @@ export async function getMe(req: AuthRequest, res: Response) {
         email: u.email,
         phone: u.phone,
         phoneNumber: u.phone,
-        avatar: u.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-        avatar_url: u.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
+        avatar: u.avatar || 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png',
+        avatar_url: u.avatar || 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png',
         role: u.role,
         vipTier: u.vip_tier || 'Free',
         vip_tier: u.vip_tier || 'Free',
@@ -223,9 +224,25 @@ export async function updateProfile(req: AuthRequest, res: Response) {
     const avatar = req.body.avatar || req.body.avatar_url;
     const phone = req.body.phone || req.body.phoneNumber;
 
+    let finalAvatar = avatar;
+    if (avatar && typeof avatar === 'string' && avatar.startsWith('data:image/')) {
+      try {
+        const uploadRes = await cloudinary.uploader.upload(avatar, {
+          folder: 'cinestream_avatars',
+          transformation: [
+            { width: 350, height: 350, crop: 'fill', gravity: 'face' },
+            { quality: 'auto', fetch_format: 'auto' },
+          ],
+        });
+        finalAvatar = uploadRes.secure_url;
+      } catch (cErr) {
+        console.warn('Lỗi Cloudinary trong updateProfile:', cErr);
+      }
+    }
+
     await pool.query(
       'UPDATE users SET full_name = COALESCE(?, full_name), avatar = COALESCE(?, avatar), phone = COALESCE(?, phone) WHERE id = ?',
-      [fullName ?? null, avatar ?? null, phone ?? null, req.user.id]
+      [fullName ?? null, finalAvatar ?? null, phone ?? null, req.user.id]
     );
 
     const [rows] = await pool.query<RowDataPacket[]>(
@@ -259,6 +276,51 @@ export async function updateProfile(req: AuthRequest, res: Response) {
       success: true,
       message: 'Cập nhật thông tin thành công!',
       data: updatedUser,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Tải ảnh đại diện người dùng lên Cloudinary
+export async function uploadAvatar(req: AuthRequest, res: Response) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Chưa xác thực người dùng' });
+    }
+
+    const { image } = req.body;
+    if (!image) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp dữ liệu hình ảnh' });
+    }
+
+    // Tải ảnh lên Cloudinary
+    let secureUrl = image;
+    try {
+      const uploadRes = await cloudinary.uploader.upload(image, {
+        folder: 'cinestream_avatars',
+        transformation: [
+          { width: 350, height: 350, crop: 'fill', gravity: 'face' },
+          { quality: 'auto', fetch_format: 'auto' },
+        ],
+      });
+      secureUrl = uploadRes.secure_url;
+    } catch (cErr: any) {
+      console.error('Cloudinary upload error:', cErr);
+      return res.status(500).json({
+        success: false,
+        message: 'Lỗi tải ảnh lên Cloudinary: ' + (cErr.message || 'Kiểm tra lại Cloud Name / API Key'),
+      });
+    }
+
+    // Cập nhật URL ảnh Cloudinary vào MySQL
+    await pool.query('UPDATE users SET avatar = ? WHERE id = ?', [secureUrl, req.user.id]);
+
+    return res.json({
+      success: true,
+      message: 'Tải lên và lưu ảnh đại diện Cloudinary thành công!',
+      avatar: secureUrl,
+      avatar_url: secureUrl,
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
