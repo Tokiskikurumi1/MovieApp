@@ -58,6 +58,10 @@ export const AdminAPI = {
       method: 'PUT',
       body: JSON.stringify({ status }),
     }),
+  deleteComment: (id: string | number) =>
+    fetchAdminJson(`/admin/comments/${id}`, { method: 'DELETE' }),
+  dismissReports: (id: string | number) =>
+    fetchAdminJson(`/admin/comments/${id}/dismiss-reports`, { method: 'POST' }),
 
   // Kích hoạt cào KKPhim
   triggerCrawler: (fromPage = 1, toPage = 1, slug?: string) =>

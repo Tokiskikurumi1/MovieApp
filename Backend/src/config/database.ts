@@ -62,6 +62,22 @@ export async function initDatabase() {
       if ((cols3 as any[]).length === 0) {
         await pool.query("ALTER TABLE comments ADD COLUMN episode_id INT NULL COMMENT 'Nếu bình luận ở tập cụ thể thì trỏ vào ID tập phim' AFTER movie_id");
       }
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS comment_reports (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          comment_id INT NOT NULL,
+          user_id INT NULL,
+          reason VARCHAR(255) NOT NULL,
+          details TEXT NULL,
+          status ENUM('pending', 'reviewed', 'dismissed') DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+          INDEX idx_comment_reports_comment (comment_id),
+          INDEX idx_comment_reports_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
     } catch (_) {}
   }
 

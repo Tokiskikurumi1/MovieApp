@@ -26,6 +26,11 @@ export function initSocket(server: HttpServer) {
   });
 
   io.on('connection', (socket: Socket) => {
+    socket.on('join_admin', () => {
+      socket.join('admin_room');
+      socket.join('support_admin');
+    });
+
     // =========================================================================
     // 1. PHẦN BÌNH LUẬN & ĐÁNH GIÁ PHIM THEO PHÒNG (MOVIE & EPISODE COMMENTS)
     // =========================================================================

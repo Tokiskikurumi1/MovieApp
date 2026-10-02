@@ -228,38 +228,59 @@ export async function updateUserVip(req: Request, res: Response) {
   }
 }
 
-// 7. Quản lý bình luận
+// 7. Quản lý bình luận & Báo cáo vi phạm
 export async function getAdminComments(req: Request, res: Response) {
   try {
     const [rows] = await pool.query<RowDataPacket[]>(
       `SELECT c.id, c.content, c.likes, c.status, c.created_at as createdAt,
               m.id as movieId, m.name as movieTitle, m.thumb_url as moviePoster,
               u.id as userId, u.full_name as userName, u.avatar as userAvatar,
-              (u.vip_tier != 'Free') as userIsVip
+              (u.vip_tier != 'Free') as userIsVip,
+              (SELECT COUNT(*) FROM comment_reports cr WHERE cr.comment_id = c.id AND cr.status = 'pending') as reportCount
        FROM comments c
        JOIN movies m ON c.movie_id = m.id
        JOIN users u ON c.user_id = u.id
-       ORDER BY c.created_at DESC
-       LIMIT 50`
+       ORDER BY reportCount DESC, c.created_at DESC
+       LIMIT 100`
     );
 
-    const formattedComments = rows.map((c) => ({
-      id: String(c.id),
-      movieId: String(c.movieId),
-      movieTitle: c.movieTitle,
-      moviePoster: c.moviePoster,
-      user: {
-        id: String(c.userId),
-        name: c.userName,
-        avatar: c.userAvatar,
-        isVip: Boolean(c.userIsVip),
-      },
-      content: c.content,
-      likes: c.likes,
-      replyCount: 0,
-      status: c.status,
-      createdAt: c.createdAt,
-    }));
+    const formattedComments = await Promise.all(
+      rows.map(async (c) => {
+        let reports: any[] = [];
+        if (Number(c.reportCount) > 0) {
+          const [repRows] = await pool.query<RowDataPacket[]>(
+            `SELECT cr.id, cr.reason, cr.details, cr.status, cr.created_at as createdAt,
+                    ru.full_name as reporterName, ru.email as reporterEmail
+             FROM comment_reports cr
+             LEFT JOIN users ru ON cr.user_id = ru.id
+             WHERE cr.comment_id = ? AND cr.status = 'pending'
+             ORDER BY cr.created_at DESC`,
+            [c.id]
+          );
+          reports = repRows;
+        }
+
+        return {
+          id: String(c.id),
+          movieId: String(c.movieId),
+          movieTitle: c.movieTitle,
+          moviePoster: c.moviePoster,
+          user: {
+            id: String(c.userId),
+            name: c.userName,
+            avatar: c.userAvatar,
+            isVip: Boolean(c.userIsVip),
+          },
+          content: c.content,
+          likes: c.likes,
+          replyCount: 0,
+          status: c.status,
+          reportCount: Number(c.reportCount) || 0,
+          reports,
+          createdAt: c.createdAt,
+        };
+      })
+    );
 
     return res.json({ success: true, data: formattedComments });
   } catch (error: any) {
@@ -275,6 +296,28 @@ export async function updateCommentStatus(req: Request, res: Response) {
 
     await pool.query('UPDATE comments SET status = ? WHERE id = ?', [status, id]);
     return res.json({ success: true, message: `Đã cập nhật trạng thái bình luận thành: ${status}` });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// 8.1. Xóa bình luận
+export async function deleteComment(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM comments WHERE id = ?', [id]);
+    return res.json({ success: true, message: 'Đã xóa bình luận vĩnh viễn' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// 8.2. Bỏ qua các báo cáo của bình luận
+export async function dismissCommentReports(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    await pool.query("UPDATE comment_reports SET status = 'dismissed' WHERE comment_id = ?", [id]);
+    return res.json({ success: true, message: 'Đã bỏ qua các báo cáo vi phạm của bình luận này' });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }

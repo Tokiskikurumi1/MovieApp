@@ -519,3 +519,79 @@ export async function upgradeSubscription(req: AuthRequest, res: Response) {
     return res.status(500).json({ success: false, message: error.message });
   }
 }
+
+// 8. Báo cáo bình luận vi phạm
+export async function reportComment(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.user?.id || 2;
+    const { commentId } = req.params;
+    const { reason, details } = req.body;
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn lý do báo cáo bình luận' });
+    }
+
+    // Kiểm tra bình luận có tồn tại không
+    const [cmtRows] = await pool.query<RowDataPacket[]>(
+      `SELECT c.id, c.content, c.movie_id, m.name as movieTitle, u.full_name as authorName
+       FROM comments c
+       JOIN movies m ON c.movie_id = m.id
+       JOIN users u ON c.user_id = u.id
+       WHERE c.id = ? LIMIT 1`,
+      [commentId]
+    );
+
+    if (cmtRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Bình luận không tồn tại hoặc đã bị xóa' });
+    }
+
+    const cmt = cmtRows[0];
+
+    // Thêm báo cáo vào database
+    const [result] = await pool.query<ResultSetHeader>(
+      `INSERT INTO comment_reports (comment_id, user_id, reason, details, status)
+       VALUES (?, ?, ?, ?, 'pending')`,
+      [commentId, userId, reason.trim(), details ? details.trim() : null]
+    );
+
+    // Lấy thông tin người báo cáo
+    const [reporterRows] = await pool.query<RowDataPacket[]>(
+      'SELECT full_name, email FROM users WHERE id = ? LIMIT 1',
+      [userId]
+    );
+    const reporter = reporterRows[0] || {};
+
+    // Gửi realtime thông báo tới Admin qua Socket.io
+    const reportPayload = {
+      id: result.insertId,
+      commentId: Number(commentId),
+      movieTitle: cmt.movieTitle,
+      commentContent: cmt.content,
+      commentAuthor: cmt.authorName,
+      reporterName: reporter.full_name || 'Người dùng',
+      reporterEmail: reporter.email || '',
+      reason: reason.trim(),
+      details: details ? details.trim() : '',
+      createdAt: new Date().toISOString(),
+      status: 'pending',
+    };
+
+    try {
+      const io = getIO();
+      io.emit('new_comment_report', reportPayload);
+      io.to('support_admin').emit('new_comment_report', reportPayload);
+      io.to('admin_room').emit('new_comment_report', reportPayload);
+    } catch (e) {
+      console.warn('Lỗi emit socket new_comment_report:', e);
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Báo cáo bình luận đã được gửi tới quản trị viên để kiểm duyệt.',
+      data: reportPayload,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+

@@ -26,6 +26,7 @@ import { MovieAPI, UserAPI } from '@/services/API';
 import CineVideoPlayer from '@/components/CineVideoPlayer';
 import { useFavorites } from '@/store/favorite-context';
 import { getSocket } from '@/services/socket';
+import { ReportCommentModal, ReportTargetComment } from '@/components/ReportCommentModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const VIDEO_HEIGHT = (SCREEN_WIDTH * 9) / 16;
@@ -371,6 +372,17 @@ export default function WatchMovieScreen() {
     parentId: string;
     username: string;
   } | null>(null);
+  const [reportingComment, setReportingComment] = useState<ReportTargetComment | null>(null);
+  const [isReportModalVisible, setIsReportModalVisible] = useState(false);
+
+  const handleOpenReport = (item: any) => {
+    setReportingComment({
+      id: item.numericId || item.id,
+      user: item.user,
+      content: item.content,
+    });
+    setIsReportModalVisible(true);
+  };
 
   // Recommendations State (Content-Based)
   const [recommendations, setRecommendations] = useState<any[]>([]);
@@ -1080,10 +1092,21 @@ export default function WatchMovieScreen() {
                       />
 
                       <View style={styles.fbCommentBody}>
-                        {/* Dark Rounded Comment Bubble */}
-                        <View style={styles.fbBubble}>
-                          <Text style={styles.fbUsername}>{comment.user}</Text>
-                          <Text style={styles.fbCommentText}>{comment.content}</Text>
+                        {/* Dark Rounded Comment Bubble + ... Button beside it */}
+                        <View style={styles.fbBubbleRow}>
+                          <View style={styles.fbBubble}>
+                            <Text style={styles.fbUsername}>{comment.user}</Text>
+                            <Text style={styles.fbCommentText}>{comment.content}</Text>
+                          </View>
+
+                          <TouchableOpacity
+                            style={styles.fbMoreBtn}
+                            onPress={() => handleOpenReport(comment)}
+                            activeOpacity={0.7}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="ellipsis-horizontal" size={15} color="rgba(255, 255, 255, 0.45)" />
+                          </TouchableOpacity>
                         </View>
 
                         {/* Bottom Action Row (Time, Thích, Phản hồi) */}
@@ -1149,10 +1172,21 @@ export default function WatchMovieScreen() {
                               />
 
                               <View style={styles.fbCommentBody}>
-                                {/* Reply Bubble */}
-                                <View style={styles.fbBubble}>
-                                  <Text style={styles.fbUsername}>{reply.user}</Text>
-                                  <Text style={styles.fbCommentText}>{reply.content}</Text>
+                                {/* Reply Bubble + ... Button beside it */}
+                                <View style={styles.fbBubbleRow}>
+                                  <View style={styles.fbBubble}>
+                                    <Text style={styles.fbUsername}>{reply.user}</Text>
+                                    <Text style={styles.fbCommentText}>{reply.content}</Text>
+                                  </View>
+
+                                  <TouchableOpacity
+                                    style={styles.fbMoreBtn}
+                                    onPress={() => handleOpenReport(reply)}
+                                    activeOpacity={0.7}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                  >
+                                    <Ionicons name="ellipsis-horizontal" size={14} color="rgba(255, 255, 255, 0.45)" />
+                                  </TouchableOpacity>
                                 </View>
 
                                 {/* Reply Actions */}
@@ -1389,6 +1423,13 @@ export default function WatchMovieScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Modal Báo Cáo Bình Luận & Modal Thành Công */}
+      <ReportCommentModal
+        visible={isReportModalVisible}
+        comment={reportingComment}
+        onClose={() => setIsReportModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -1827,13 +1868,25 @@ const styles = StyleSheet.create({
   fbCommentBody: {
     flex: 1,
   },
+  fbBubbleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   fbBubble: {
     backgroundColor: '#1E2028',
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 8,
     alignSelf: 'flex-start',
-    maxWidth: '96%',
+    maxWidth: '88%',
+  },
+  fbMoreBtn: {
+    padding: 6,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   fbUsername: {
     fontSize: 13,

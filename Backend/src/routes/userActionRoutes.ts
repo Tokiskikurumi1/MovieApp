@@ -11,6 +11,7 @@ import {
   clearAllWatchHistory,
   getTransactions,
   upgradeSubscription,
+  reportComment,
 } from '../controllers/userActionController';
 import {
   getUserNotifications,
@@ -35,6 +36,7 @@ router.delete('/watch-history', optionalAuthenticate, clearAllWatchHistory);
 router.get('/movies/:movieIdOrSlug/comments', optionalAuthenticate, getMovieComments);
 router.post('/comments', optionalAuthenticate, createComment);
 router.post('/comments/:commentId/like', optionalAuthenticate, toggleLikeComment);
+router.post('/comments/:commentId/report', optionalAuthenticate, reportComment);
 
 // Gói cước VIP & Lịch sử giao dịch
 router.get('/transactions', optionalAuthenticate, getTransactions);

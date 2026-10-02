@@ -8,6 +8,8 @@ import {
   updateUserVip,
   getAdminComments,
   updateCommentStatus,
+  deleteComment,
+  dismissCommentReports,
   triggerCrawler,
 } from '../controllers/adminController';
 import {
@@ -33,6 +35,8 @@ router.put('/users/:id/vip', updateUserVip);
 // Quản lý bình luận
 router.get('/comments', getAdminComments);
 router.put('/comments/:id/status', updateCommentStatus);
+router.delete('/comments/:id', deleteComment);
+router.post('/comments/:id/dismiss-reports', dismissCommentReports);
 
 // Kích hoạt cào KKPhim
 router.post('/crawler/run', triggerCrawler);

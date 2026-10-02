@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CinemaColors } from '@/constants/theme';
 import { getSocket } from '@/services/socket';
 import { UserAPI } from '@/services/API';
+import { ReportCommentModal, ReportTargetComment } from './ReportCommentModal';
 
 export interface CommentItem {
   id: string;
@@ -98,6 +99,17 @@ export function CommentsSection({
   const [newCommentText, setNewCommentText] = useState('');
   const [userRating, setUserRating] = useState(5);
   const [visibleCount, setVisibleCount] = useState(initialVisibleCount);
+  const [reportingComment, setReportingComment] = useState<ReportTargetComment | null>(null);
+  const [isReportModalVisible, setIsReportModalVisible] = useState(false);
+
+  const handleOpenReport = (item: CommentItem) => {
+    setReportingComment({
+      id: item.numericId || item.id,
+      user: item.user,
+      content: item.content,
+    });
+    setIsReportModalVisible(true);
+  };
 
   // Tải bình luận thực từ backend và lắng nghe Socket.io realtime
   useEffect(() => {
@@ -345,21 +357,36 @@ export function CommentsSection({
                       </View>
                     </View>
 
-                    {/* Like Button */}
-                    <TouchableOpacity
-                      style={[styles.likeButton, item.isLiked && styles.likeButtonActive]}
-                      onPress={() => handleToggleLike(item.id)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name={item.isLiked ? 'thumbs-up' : 'thumbs-up-outline'}
-                        size={14}
-                        color={item.isLiked ? CinemaColors.primary : CinemaColors.textMuted}
-                      />
-                      <Text style={[styles.likeText, item.isLiked && styles.likeTextActive]}>
-                        {item.likes}
-                      </Text>
-                    </TouchableOpacity>
+                    {/* Action Column: Like Button + ... (Report) Button */}
+                    <View style={styles.commentActionsCol}>
+                      <TouchableOpacity
+                        style={[styles.likeButton, item.isLiked && styles.likeButtonActive]}
+                        onPress={() => handleToggleLike(item.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name={item.isLiked ? 'thumbs-up' : 'thumbs-up-outline'}
+                          size={13}
+                          color={item.isLiked ? CinemaColors.primary : CinemaColors.textMuted}
+                        />
+                        <Text style={[styles.likeText, item.isLiked && styles.likeTextActive]}>
+                          {item.likes}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.moreButton}
+                        onPress={() => handleOpenReport(item)}
+                        activeOpacity={0.7}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons
+                          name="ellipsis-horizontal"
+                          size={15}
+                          color={CinemaColors.textMuted}
+                        />
+                      </TouchableOpacity>
+                    </View>
                   </View>
 
                   <Text style={styles.commentBodyText}>{item.content}</Text>
@@ -403,6 +430,13 @@ export function CommentsSection({
           </View>
         </>
       )}
+
+      {/* Modal Báo Cáo Bình Luận & Modal Thành Công */}
+      <ReportCommentModal
+        visible={isReportModalVisible}
+        comment={reportingComment}
+        onClose={() => setIsReportModalVisible(false)}
+      />
     </View>
   );
 }
@@ -575,6 +609,18 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 11,
     color: CinemaColors.textMuted,
+  },
+  commentActionsCol: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  moreButton: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: CinemaColors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   likeButton: {
     flexDirection: 'row',

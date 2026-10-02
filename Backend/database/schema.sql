@@ -250,6 +250,21 @@ CREATE TABLE IF NOT EXISTS ticket_replies (
     FOREIGN KEY (ticket_id) REFERENCES support_tickets(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 17. Bảng Báo cáo bình luận (comment_reports)
+CREATE TABLE IF NOT EXISTS comment_reports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    comment_id INT NOT NULL,
+    user_id INT NULL,
+    reason VARCHAR(255) NOT NULL,
+    details TEXT NULL,
+    status ENUM('pending', 'reviewed', 'dismissed') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_comment_reports_comment (comment_id),
+    INDEX idx_comment_reports_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ==============================================================================
 -- TẠO SẴN DỮ LIỆU MẪU BAN ĐẦU (SEED USERS ĐỒNG BỘ VỚI FRONTEND & ADMIN)
 -- ==============================================================================

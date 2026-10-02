@@ -179,6 +179,11 @@ export const UserAPI = {
     }),
   toggleLikeComment: (commentId: string | number) =>
     fetchJson(`/user/comments/${commentId}/like`, { method: 'POST' }),
+  reportComment: (commentId: string | number, reason: string, details?: string) =>
+    fetchJson(`/user/comments/${commentId}/report`, {
+      method: 'POST',
+      body: JSON.stringify({ reason, details }),
+    }),
 
   // Giao dịch & Gói cước VIP
   getTransactions: () => fetchJson('/user/transactions'),
