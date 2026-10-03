@@ -17,13 +17,29 @@ export default function TabLayout() {
           backgroundColor: '#0D0F18',
           borderTopWidth: 1,
           borderTopColor: 'rgba(255, 255, 255, 0.08)',
-          height: Platform.OS === 'ios' ? 84 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 10,
-          paddingTop: 8,
+          height: Platform.select({
+            ios: 84,
+            web: 70,
+            default: 66,
+          }),
+          paddingBottom: Platform.select({
+            ios: 24,
+            web: 8,
+            default: 10,
+          }),
+          paddingTop: Platform.select({
+            ios: 8,
+            web: 6,
+            default: 8,
+          }),
+        },
+        tabBarItemStyle: {
+          paddingVertical: 2,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
+          lineHeight: 14,
         },
       }}
     >

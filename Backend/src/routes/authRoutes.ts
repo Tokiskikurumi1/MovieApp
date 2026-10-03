@@ -7,8 +7,11 @@ import {
   changePassword,
   checkExists,
   checkEmail,
+  forgotPassword,
+  verifyOtp,
   resetPassword,
   uploadAvatar,
+  googleLogin,
 } from '../controllers/authController';
 import { authenticate } from '../middlewares/authMiddleware';
 
@@ -16,8 +19,11 @@ const router = Router();
 
 router.post('/register', register);
 router.post('/login', login);
+router.post('/google', googleLogin);
 router.post('/check-exists', checkExists);
 router.post('/check-email', checkEmail);
+router.post('/forgot-password', forgotPassword);
+router.post('/verify-otp', verifyOtp);
 router.post('/reset-password', resetPassword);
 router.get('/me', authenticate, getMe);
 router.put('/profile', authenticate, updateProfile);

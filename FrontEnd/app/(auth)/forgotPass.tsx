@@ -17,9 +17,6 @@ import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { AuthAPI } from '@/services/API';
 
-// Fake Test OTP constant
-const TEST_OTP = '1111';
-
 export default function ForgotPasswordScreen() {
   const router = useRouter();
 
@@ -59,7 +56,7 @@ export default function ForgotPasswordScreen() {
     return () => clearInterval(timer);
   }, [step, countdown]);
 
-  // Step 1: Send OTP to Email (Kiểm tra email có tồn tại trong cơ sở dữ liệu MySQL không)
+  // Step 1: Send OTP to Email (Gửi mã 4 số về Gmail đăng ký)
   const handleSendCode = async () => {
     const trimmedEmail = email.trim();
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -77,22 +74,18 @@ export default function ForgotPasswordScreen() {
     setErrors({});
 
     try {
-      // Kiểm tra sự tồn tại của email trong cơ sở dữ liệu MySQL
-      const res = await AuthAPI.checkEmail(trimmedEmail);
+      // Gọi API gửi mã OTP 4 số về email
+      const res = await AuthAPI.forgotPassword(trimmedEmail);
       setIsLoading(false);
 
-      if (!res.exists) {
-        setErrors({ email: 'Email này chưa được đăng ký trong hệ thống!' });
-        return;
-      }
-
-      // Email tồn tại -> Chuyển sang Bước 2 nhập OTP
+      // Chuyển sang Bước 2 nhập OTP
       setStep(2);
       setCountdown(60);
       setOtp(['', '', '', '']);
+      setErrors({ resendInfo: res.message || `Mã 4 số đã được gửi tới ${trimmedEmail}` });
     } catch (err: any) {
       setIsLoading(false);
-      setErrors({ email: err.message || 'Lỗi kiểm tra email, vui lòng thử lại!' });
+      setErrors({ email: err.message || 'Lỗi gửi mã xác thực, vui lòng thử lại!' });
     }
   };
 
@@ -120,8 +113,8 @@ export default function ForgotPasswordScreen() {
     }
   };
 
-  // Step 2: Verify OTP
-  const handleVerifyOtp = () => {
+  // Step 2: Verify OTP 4 số từ Server
+  const handleVerifyOtp = async () => {
     const enteredOtp = otp.join('');
 
     if (enteredOtp.length < 4) {
@@ -132,17 +125,15 @@ export default function ForgotPasswordScreen() {
     setIsLoading(true);
     setErrors({});
 
-    setTimeout(() => {
+    try {
+      await AuthAPI.verifyOtp(email.trim(), enteredOtp);
       setIsLoading(false);
-
-      if (enteredOtp !== TEST_OTP) {
-        setErrors({ otp: `Mã OTP không chính xác. Vui lòng nhập lại` });
-        return;
-      }
-
-      // OTP chính xác -> Chuyển sang Bước 3
+      // OTP chính xác -> Chuyển sang Bước 3 đặt mật khẩu mới
       setStep(3);
-    }, 500);
+    } catch (err: any) {
+      setIsLoading(false);
+      setErrors({ otp: err.message || 'Mã OTP không chính xác hoặc đã hết hạn!' });
+    }
   };
 
   // Step 3: Save New Password
@@ -170,7 +161,7 @@ export default function ForgotPasswordScreen() {
     setErrors({});
 
     try {
-      const res = await AuthAPI.resetPassword(email.trim(), newPassword);
+      const res = await AuthAPI.resetPassword(email.trim(), newPassword, otp.join(''));
       setIsLoading(false);
       setErrors({ success: res.message || 'Đặt lại mật khẩu thành công! Đang chuyển về Đăng nhập...' });
       setTimeout(() => {
@@ -182,14 +173,23 @@ export default function ForgotPasswordScreen() {
     }
   };
 
-  const handleResendCode = () => {
-    if (countdown > 0) return;
-    setCountdown(60);
-    setErrors((prev) => ({
-      ...prev,
-      resendInfo: `Mã mới đã được gửi lại tới ${email}.`,
-      otp: undefined,
-    }));
+  // Gửi lại mã OTP qua Gmail
+  const handleResendCode = async () => {
+    if (countdown > 0 || isLoading) return;
+    setIsLoading(true);
+    setErrors((prev) => ({ ...prev, resendInfo: undefined, otp: undefined }));
+    try {
+      const res = await AuthAPI.forgotPassword(email.trim());
+      setIsLoading(false);
+      setCountdown(60);
+      setOtp(['', '', '', '']);
+      setErrors({
+        resendInfo: res.message || `Mã 4 số mới đã được gửi lại tới ${email}.`,
+      });
+    } catch (err: any) {
+      setIsLoading(false);
+      setErrors({ otp: err.message || 'Không thể gửi lại mã, vui lòng thử lại!' });
+    }
   };
 
   const handleBack = () => {

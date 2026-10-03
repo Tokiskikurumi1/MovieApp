@@ -209,6 +209,11 @@ export const AuthAPI = {
       method: 'POST',
       body: JSON.stringify({ account, password: pass }),
     }),
+  googleLogin: (tokenData: { idToken?: string; accessToken?: string; user?: any }) =>
+    fetchJson('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify(tokenData),
+    }),
   register: (fullName: string, phone: string, email: string, pass: string) =>
     fetchJson('/auth/register', {
       method: 'POST',
@@ -224,10 +229,20 @@ export const AuthAPI = {
       method: 'POST',
       body: JSON.stringify({ email }),
     }),
-  resetPassword: (email: string, newPassword: string) =>
-    fetchJson('/auth/reset-password', {
+  forgotPassword: (email: string) =>
+    fetchJson<{ success: boolean; message: string }>('/auth/forgot-password', {
       method: 'POST',
-      body: JSON.stringify({ email, newPassword }),
+      body: JSON.stringify({ email }),
+    }),
+  verifyOtp: (email: string, otp: string) =>
+    fetchJson<{ success: boolean; message: string }>('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    }),
+  resetPassword: (email: string, newPassword: string, otp?: string) =>
+    fetchJson<{ success: boolean; message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, newPassword, otp }),
     }),
   getMe: () => fetchJson('/auth/me'),
   updateProfile: (data: { fullName?: string; phone?: string; avatar?: string }) =>

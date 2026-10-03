@@ -1,10 +1,14 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import axios from 'axios';
+import crypto from 'crypto';
 import { RowDataPacket, ResultSetHeader } from 'mysql2/promise';
 import { pool } from '../config/database';
 import { AuthRequest } from '../middlewares/authMiddleware';
 import cloudinary from '../config/cloudinary';
+import { sendOtpEmail } from '../services/emailService';
+import { OtpService } from '../services/otpService';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'cinestream_super_secret_jwt_key_2026';
 
@@ -167,6 +171,146 @@ export async function login(req: Request, res: Response) {
   } catch (error: any) {
     console.error('Lỗi đăng nhập:', error);
     return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Đăng nhập bằng Google OAuth
+export async function googleLogin(req: Request, res: Response) {
+  try {
+    const { idToken, accessToken, user: clientUser } = req.body;
+
+    if (!idToken && !accessToken && !clientUser?.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin xác thực Google (idToken hoặc accessToken)',
+      });
+    }
+
+    let email = clientUser?.email || '';
+    let name = clientUser?.name || '';
+    let picture = clientUser?.photo || clientUser?.picture || '';
+
+    // 1. Xác thực và lấy thông tin từ Google API nếu có accessToken
+    if (accessToken) {
+      try {
+        const googleRes = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          timeout: 8000,
+        });
+        if (googleRes.data && googleRes.data.email) {
+          email = googleRes.data.email;
+          name = googleRes.data.name || name;
+          picture = googleRes.data.picture || picture;
+        }
+      } catch (gErr: any) {
+        console.warn('Lỗi lấy thông tin Google qua accessToken:', gErr.message);
+      }
+    }
+
+    // 2. Xác thực và lấy thông tin từ Google API nếu có idToken
+    if (!email && idToken) {
+      try {
+        const tokenRes = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`, {
+          timeout: 8000,
+        });
+        if (tokenRes.data && tokenRes.data.email) {
+          email = tokenRes.data.email;
+          name = tokenRes.data.name || name;
+          picture = tokenRes.data.picture || picture;
+        }
+      } catch (tErr: any) {
+        console.warn('Lỗi xác thực idToken Google:', tErr.message);
+      }
+    }
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể xác thực danh tính với Google. Vui lòng thử lại.',
+      });
+    }
+
+    email = email.trim().toLowerCase();
+
+    // 3. Tìm kiếm người dùng trong Database
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT id, full_name, email, phone, avatar, role, vip_tier, total_watched_hours, status FROM users WHERE LOWER(email) = ? LIMIT 1',
+      [email]
+    );
+
+    let dbUser: any;
+    const defaultAvatar = 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png';
+
+    if (rows.length > 0) {
+      dbUser = rows[0];
+      if (dbUser.status === 'banned') {
+        return res.status(403).json({
+          success: false,
+          message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ CINESTREAM.',
+        });
+      }
+
+      // Tự động cập nhật avatar từ Google nếu người dùng chưa có hoặc đang dùng avatar mặc định
+      const currentAvatar = dbUser.avatar || '';
+      const isDefault = !currentAvatar || currentAvatar.includes('default_avatar.png') || currentAvatar.includes('photo-1535713875002');
+      if (picture && isDefault) {
+        await pool.query('UPDATE users SET avatar = ?, last_active = CURRENT_TIMESTAMP WHERE id = ?', [picture, dbUser.id]);
+        dbUser.avatar = picture;
+      } else {
+        await pool.query('UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE id = ?', [dbUser.id]);
+      }
+    } else {
+      // 4. Tạo tài khoản mới cho người dùng Google
+      const finalAvatar = picture || defaultAvatar;
+      const randomPassword = crypto.randomBytes(16).toString('hex');
+      const passwordHash = await bcrypt.hash(randomPassword, 10);
+      const fullName = name.trim() || email.split('@')[0];
+
+      const [insertRes]: any = await pool.query(
+        `INSERT INTO users (full_name, email, password_hash, avatar, role, vip_tier, total_watched_hours, status)
+         VALUES (?, ?, ?, ?, 'user', 'Free', 0, 'active')`,
+        [fullName, email, passwordHash, finalAvatar]
+      );
+
+      dbUser = {
+        id: insertRes.insertId,
+        full_name: fullName,
+        email,
+        phone: null,
+        avatar: finalAvatar,
+        role: 'user',
+        vip_tier: 'Free',
+        total_watched_hours: 0,
+      };
+    }
+
+    // 5. Ký JWT token
+    const token = jwt.sign(
+      { id: dbUser.id, email: dbUser.email, role: dbUser.role, vip_tier: dbUser.vip_tier },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Đăng nhập Google thành công!',
+      data: {
+        token,
+        user: {
+          id: dbUser.id,
+          fullName: dbUser.full_name,
+          email: dbUser.email,
+          phone: dbUser.phone,
+          role: dbUser.role,
+          vipTier: dbUser.vip_tier,
+          avatar: dbUser.avatar,
+          totalWatchedHours: dbUser.total_watched_hours || 0,
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error('Lỗi googleLogin:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Lỗi xử lý đăng nhập Google' });
   }
 }
 
@@ -472,15 +616,96 @@ export async function checkEmail(req: Request, res: Response) {
   }
 }
 
-// 7. Đặt lại mật khẩu mới
+// 7. Gửi mã OTP 4 số về Gmail để quên mật khẩu
+export async function forgotPassword(req: Request, res: Response) {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp địa chỉ email hợp lệ' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Kiểm tra xem email có tồn tại trong hệ thống không
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT id, full_name, email FROM users WHERE LOWER(email) = ? LIMIT 1',
+      [normalizedEmail]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Email này chưa được đăng ký trong hệ thống CINESTREAM!',
+      });
+    }
+
+    const user = rows[0];
+
+    // Tạo mã OTP 4 số ngẫu nhiên (1000 - 9999)
+    const otp = OtpService.generateOtp();
+    OtpService.saveOtp(normalizedEmail, otp);
+
+    // Gửi email chứa mã OTP qua Gmail SMTP
+    const emailResult = await sendOtpEmail(normalizedEmail, otp, user.full_name);
+
+    return res.json({
+      success: true,
+      message: emailResult.success
+        ? 'Mã xác thực 4 số đã được gửi về Gmail của bạn! Vui lòng kiểm tra hòm thư.'
+        : 'Đã tạo mã xác thực thành công (vui lòng kiểm tra console server nếu chưa cấu hình Gmail App Password).',
+    });
+  } catch (error: any) {
+    console.error('Lỗi forgotPassword:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Lỗi xử lý quên mật khẩu' });
+  }
+}
+
+// 8. Xác thực mã OTP 4 chữ số
+export async function verifyOtp(req: Request, res: Response) {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ email và mã OTP' });
+    }
+
+    const result = OtpService.verifyOtp(email, otp);
+    if (!result.valid) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+
+    return res.json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// 9. Đặt lại mật khẩu mới (có xác thực OTP)
 export async function resetPassword(req: Request, res: Response) {
   try {
-    const { email, newPassword } = req.body;
+    const { email, newPassword, otp } = req.body;
 
     if (!email || !newPassword) {
       return res.status(400).json({
         success: false,
         message: 'Vui lòng cung cấp đầy đủ email và mật khẩu mới',
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Kiểm tra tính hợp lệ của OTP nếu có gửi lên hoặc đã verify ở bước trước
+    if (otp) {
+      const verifyRes = OtpService.verifyOtp(normalizedEmail, otp);
+      if (!verifyRes.valid) {
+        return res.status(400).json({ success: false, message: verifyRes.message });
+      }
+    } else if (!OtpService.isVerified(normalizedEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng xác thực mã OTP trước khi đặt lại mật khẩu!',
       });
     }
 
@@ -493,7 +718,7 @@ export async function resetPassword(req: Request, res: Response) {
 
     const [rows] = await pool.query<RowDataPacket[]>(
       'SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1',
-      [email.trim().toLowerCase()]
+      [normalizedEmail]
     );
 
     if (rows.length === 0) {
@@ -508,8 +733,11 @@ export async function resetPassword(req: Request, res: Response) {
 
     await pool.query('UPDATE users SET password_hash = ? WHERE LOWER(email) = ?', [
       passwordHash,
-      email.trim().toLowerCase(),
+      normalizedEmail,
     ]);
+
+    // Xóa OTP khỏi bộ nhớ sau khi đổi mật khẩu thành công
+    OtpService.clearOtp(normalizedEmail);
 
     return res.json({
       success: true,

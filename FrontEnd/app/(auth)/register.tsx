@@ -16,9 +16,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { AuthAPI } from '@/services/API';
+import { useGoogleAuth } from '@/hooks/useGoogleAuth';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { signInWithGoogle, isLoading: isGoogleLoading, error: googleError } = useGoogleAuth();
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -193,10 +195,10 @@ export default function RegisterScreen() {
           )}
 
           {/* API Error Banner */}
-          {errors.apiError && (
+          {(errors.apiError || googleError) && (
             <View style={[styles.successBox, { backgroundColor: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.35)' }]}>
               <Ionicons name="alert-circle" size={18} color={CinemaColors.error} />
-              <Text style={[styles.successText, { color: CinemaColors.error }]}>{errors.apiError}</Text>
+              <Text style={[styles.successText, { color: CinemaColors.error }]}>{errors.apiError || googleError}</Text>
             </View>
           )}
 
@@ -537,9 +539,20 @@ export default function RegisterScreen() {
 
             {/* Quick Social */}
             <View style={styles.socialRow}>
-              <TouchableOpacity style={styles.socialButton} activeOpacity={0.75}>
-                <Ionicons name="logo-google" size={20} color={CinemaColors.google} />
-                <Text style={styles.socialButtonText}>Google</Text>
+              <TouchableOpacity
+                style={styles.socialButton}
+                activeOpacity={0.75}
+                onPress={() => signInWithGoogle()}
+                disabled={isGoogleLoading || isLoading}
+              >
+                {isGoogleLoading ? (
+                  <ActivityIndicator size="small" color={CinemaColors.google} />
+                ) : (
+                  <>
+                    <Ionicons name="logo-google" size={20} color={CinemaColors.google} />
+                    <Text style={styles.socialButtonText}>Google</Text>
+                  </>
+                )}
               </TouchableOpacity>
 
               {/* <TouchableOpacity style={styles.socialButton} activeOpacity={0.75}>
