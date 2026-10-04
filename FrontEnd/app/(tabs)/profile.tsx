@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { CinemaColors } from '@/constants/theme';
-import { AuthAPI, UserAPI, setAuthToken } from '@/services/API';
+import { AuthAPI, UserAPI, MovieAPI, setAuthToken } from '@/services/API';
 import { useFavorites } from '@/store/favorite-context';
 import { useAuth } from '@/store/auth-context';
 import { getValidAvatarUri, DEFAULT_AVATAR_URI } from '@/constants/avatar';
@@ -34,6 +34,11 @@ interface UserProfileData {
   vipExpiry?: string;
   vip_expires_at?: string;
   totalWatchedHours?: number;
+  total_watched_hours?: number;
+  watchedMoviesCount?: number;
+  watched_movies_count?: number;
+  favoriteCount?: number;
+  favorites_count?: number;
 }
 
 export default function ProfileScreen() {
@@ -47,22 +52,48 @@ export default function ProfileScreen() {
   const { user: authUser, avatarUri: authAvatarUri, refreshUser, logout: contextLogout } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfileData | null>(authUser);
   const [avatarLoadError, setAvatarLoadError] = useState(false);
-  const { favorites } = useFavorites();
-  const favoriteCount = favorites.length;
+  const { favorites, refreshFavorites } = useFavorites();
+  const [watchedMoviesCount, setWatchedMoviesCount] = useState<number>(0);
+  const [recentWatched, setRecentWatched] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
 
   const loadProfile = useCallback(() => {
     refreshUser();
+    refreshFavorites().catch(() => {});
     AuthAPI.getMe()
       .then((res) => {
         if (res.success && res.data) {
           setUserProfile(res.data);
           setAvatarLoadError(false);
+          if (res.data.watchedMoviesCount !== undefined) {
+            setWatchedMoviesCount(Number(res.data.watchedMoviesCount));
+          }
         }
       })
       .catch((err) => {
         console.warn('Lỗi tải thông tin tài khoản:', err.message);
       });
-  }, [refreshUser]);
+
+    // Đồng bộ số lượng phim đã xem & danh sách phim đã xem gần đây
+    setIsLoadingHistory(true);
+    MovieAPI.getContinueWatching({ page: 1, limit: 10 })
+      .then((res) => {
+        if (res && res.success) {
+          if (res.pagination?.total !== undefined) {
+            setWatchedMoviesCount(res.pagination.total);
+          }
+          if (Array.isArray(res.data)) {
+            setRecentWatched(res.data);
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Lỗi tải phim đã xem gần đây:', err);
+      })
+      .finally(() => {
+        setIsLoadingHistory(false);
+      });
+  }, [refreshUser, refreshFavorites]);
 
   // Tự động làm mới thông tin tài khoản mỗi khi chuyển về màn hình Profile
   useFocusEffect(
@@ -95,6 +126,10 @@ export default function ProfileScreen() {
     : isVip
     ? 'Gói VIP Đang hoạt động'
     : 'CINESTREAM Member';
+
+  const displayWatchedHours = userProfile?.totalWatchedHours ?? userProfile?.total_watched_hours ?? 0;
+  const displayWatchedMovies = watchedMoviesCount || userProfile?.watchedMoviesCount || userProfile?.watched_movies_count || 0;
+  const displayFavorites = favorites.length > 0 ? favorites.length : (userProfile?.favoriteCount ?? userProfile?.favorites_count ?? 0);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -148,25 +183,35 @@ export default function ProfileScreen() {
 
         {/* User Stats Card (Số giờ xem, Phim đã xem, Yêu thích) */}
         <View style={styles.statsCard}>
-          <View style={styles.statItem}>
+          <TouchableOpacity
+            style={styles.statItem}
+            activeOpacity={0.75}
+            onPress={() => router.push('/sub-layout/continue-watching' as any)}
+          >
             <View style={styles.statIconBadge}>
               <Ionicons name="time" size={16} color={CinemaColors.primary} />
             </View>
             <Text style={styles.statValue}>
-              {userProfile?.totalWatchedHours ?? 0}<Text style={styles.statUnit}>h</Text>
+              {displayWatchedHours}<Text style={styles.statUnit}>h</Text>
             </Text>
             <Text style={styles.statLabel}>Số giờ xem</Text>
-          </View>
+            <Text style={styles.statSubText}>Thời lượng</Text>
+          </TouchableOpacity>
 
           <View style={styles.statDivider} />
 
-          <View style={styles.statItem}>
+          <TouchableOpacity
+            style={styles.statItem}
+            activeOpacity={0.75}
+            onPress={() => router.push('/sub-layout/continue-watching' as any)}
+          >
             <View style={styles.statIconBadge}>
               <Ionicons name="play-circle" size={17} color={CinemaColors.primary} />
             </View>
-            <Text style={styles.statValue}>96</Text>
+            <Text style={styles.statValue}>{displayWatchedMovies}</Text>
             <Text style={styles.statLabel}>Phim đã xem</Text>
-          </View>
+            <Text style={styles.statSubText}>Tiếp tục xem</Text>
+          </TouchableOpacity>
 
           <View style={styles.statDivider} />
 
@@ -178,9 +223,213 @@ export default function ProfileScreen() {
             <View style={styles.statIconBadge}>
               <Ionicons name="heart" size={16} color={CinemaColors.primary} />
             </View>
-            <Text style={styles.statValue}>{favoriteCount}</Text>
+            <Text style={styles.statValue}>{displayFavorites}</Text>
             <Text style={styles.statLabel}>Yêu thích</Text>
+            <Text style={styles.statSubText}>Đã lưu</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* ----------------- PHIM ĐÃ XEM GẦN ĐÂY ----------------- */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionTitleWithBadge}>
+              <Ionicons name="time-outline" size={17} color={CinemaColors.primary} />
+              <Text style={styles.sectionTitleText}>Phim đã xem gần đây</Text>
+              <View style={styles.countPill}>
+                <Text style={styles.countPillText}>{displayWatchedMovies}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/sub-layout/continue-watching' as any)}
+              style={styles.seeAllBtn}
+            >
+              <Text style={styles.seeAllBtnText}>Xem tất cả</Text>
+              <Ionicons name="chevron-forward" size={13} color={CinemaColors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          {recentWatched.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalListContent}
+            >
+              {recentWatched.map((item, idx) => {
+                const targetId = item.movieId || item.id || item.numericId;
+                const progressPercent = Math.min(100, Math.max(0, Number(item.progress) || 0));
+                return (
+                  <TouchableOpacity
+                    key={`watched-${item.historyId || item.id || idx}`}
+                    style={styles.watchedCard}
+                    activeOpacity={0.8}
+                    onPress={() => router.push(`/movie/${targetId}` as any)}
+                  >
+                    <View style={styles.watchedImageWrapper}>
+                      <Image
+                        source={{
+                          uri: item.image || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=400',
+                        }}
+                        style={styles.watchedImage}
+                      />
+                      <View style={styles.playIconOverlay}>
+                        <Ionicons name="play" size={14} color="#FFFFFF" style={{ marginLeft: 2 }} />
+                      </View>
+                      <View style={styles.progressBarTrack}>
+                        <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+                      </View>
+                    </View>
+                    <Text style={styles.watchedTitle} numberOfLines={1}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.watchedSubtitle} numberOfLines={1}>
+                      {item.episode || (item.durationLeft ? `Còn ${item.durationLeft}` : `${progressPercent}% hoàn thành`)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyCard}>
+              <Ionicons name="play-outline" size={24} color={CinemaColors.textMuted} />
+              <Text style={styles.emptyCardText}>Chưa có phim trong lịch sử xem</Text>
+              <TouchableOpacity
+                style={styles.emptyCardBtn}
+                activeOpacity={0.8}
+                onPress={() => router.push('/(tabs)' as any)}
+              >
+                <Text style={styles.emptyCardBtnText}>Khám phá phim ngay</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* ----------------- PHIM YÊU THÍCH ----------------- */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionTitleWithBadge}>
+              <Ionicons name="heart-outline" size={17} color={CinemaColors.primary} />
+              <Text style={styles.sectionTitleText}>Phim yêu thích</Text>
+              <View style={styles.countPill}>
+                <Text style={styles.countPillText}>{displayFavorites}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/(tabs)/favorite' as any)}
+              style={styles.seeAllBtn}
+            >
+              <Text style={styles.seeAllBtnText}>Xem tất cả</Text>
+              <Ionicons name="chevron-forward" size={13} color={CinemaColors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          {favorites.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalListContent}
+            >
+              {favorites.map((item, idx) => {
+                const targetId = item.id || item.numericId;
+                return (
+                  <TouchableOpacity
+                    key={`fav-${item.id || item.numericId || idx}`}
+                    style={styles.favoriteCard}
+                    activeOpacity={0.8}
+                    onPress={() => router.push(`/movie/${targetId}` as any)}
+                  >
+                    <View style={styles.favoriteImageWrapper}>
+                      <Image
+                        source={{
+                          uri: item.image || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=400',
+                        }}
+                        style={styles.favoriteImage}
+                      />
+                      {Boolean(item.rating) && (
+                        <View style={styles.favoriteRatingBadge}>
+                          <Ionicons name="star" size={10} color="#FFD700" />
+                          <Text style={styles.favoriteRatingText}>{item.rating}</Text>
+                        </View>
+                      )}
+                      {Boolean(item.quality) && (
+                        <View style={styles.favoriteQualityBadge}>
+                          <Text style={styles.favoriteQualityText}>{item.quality}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.favoriteTitle} numberOfLines={1}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.favoriteSubtitle} numberOfLines={1}>
+                      {item.year || item.genres || 'HD'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyCard}>
+              <Ionicons name="heart-dislike-outline" size={24} color={CinemaColors.textMuted} />
+              <Text style={styles.emptyCardText}>Chưa có phim trong danh sách yêu thích</Text>
+              <TouchableOpacity
+                style={styles.emptyCardBtn}
+                activeOpacity={0.8}
+                onPress={() => router.push('/(tabs)' as any)}
+              >
+                <Text style={styles.emptyCardBtnText}>Duyệt phim hot</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* Section Quản lý hoạt động */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionHeading}>QUẢN LÝ HOẠT ĐỘNG</Text>
+
+          <View style={styles.settingCard}>
+            {/* Phim đã xem & Lịch sử */}
+            <TouchableOpacity
+              style={styles.settingLinkRow}
+              activeOpacity={0.7}
+              onPress={() => router.push('/sub-layout/continue-watching' as any)}
+            >
+              <View style={styles.settingRowLeft}>
+                <View style={styles.settingIconCircle}>
+                  <Ionicons name="play-circle-outline" size={18} color={CinemaColors.primary} />
+                </View>
+                <View>
+                  <Text style={styles.settingLabel}>Toàn bộ Phim đã xem & Lịch sử</Text>
+                  <Text style={styles.settingSubLabel}>{displayWatchedMovies} phim • {displayWatchedHours} giờ xem</Text>
+                </View>
+              </View>
+              <View style={styles.rowRightBadge}>
+                <Ionicons name="chevron-forward" size={18} color={CinemaColors.textMuted} />
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            {/* Phim yêu thích */}
+            <TouchableOpacity
+              style={styles.settingLinkRow}
+              activeOpacity={0.7}
+              onPress={() => router.push('/(tabs)/favorite' as any)}
+            >
+              <View style={styles.settingRowLeft}>
+                <View style={styles.settingIconCircle}>
+                  <Ionicons name="heart-outline" size={18} color={CinemaColors.primary} />
+                </View>
+                <View>
+                  <Text style={styles.settingLabel}>Toàn bộ Danh sách Yêu thích</Text>
+                  <Text style={styles.settingSubLabel}>{displayFavorites} phim đã lưu</Text>
+                </View>
+              </View>
+              <View style={styles.rowRightBadge}>
+                <Ionicons name="chevron-forward" size={18} color={CinemaColors.textMuted} />
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Premium Upgrade Banner */}
@@ -559,6 +808,12 @@ const styles = StyleSheet.create({
     color: CinemaColors.textSecondary,
     textAlign: 'center',
   },
+  statSubText: {
+    fontSize: 10,
+    color: CinemaColors.textMuted,
+    marginTop: 1,
+    textAlign: 'center',
+  },
   statDivider: {
     width: 1,
     height: 38,
@@ -648,6 +903,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: CinemaColors.textPrimary,
   },
+  settingSubLabel: {
+    fontSize: 12,
+    color: CinemaColors.textMuted,
+    marginTop: 2,
+  },
+  rowRightBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   divider: {
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -674,6 +939,200 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 11,
     color: CinemaColors.textMuted,
+  },
+
+  /* Section Header & Carousels for History & Favorites */
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingHorizontal: 2,
+  },
+  sectionTitleWithBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionTitleText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: CinemaColors.textPrimary,
+    letterSpacing: 0.2,
+  },
+  countPill: {
+    backgroundColor: 'rgba(255, 51, 75, 0.15)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 51, 75, 0.3)',
+  },
+  countPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: CinemaColors.primary,
+  },
+  seeAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  seeAllBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: CinemaColors.primary,
+  },
+  horizontalListContent: {
+    paddingRight: 10,
+    gap: 12,
+  },
+  /* Watched Movies Card */
+  watchedCard: {
+    width: 145,
+  },
+  watchedImageWrapper: {
+    width: 145,
+    height: 86,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: CinemaColors.surfaceElevated,
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  watchedImage: {
+    width: '100%',
+    height: '100%',
+  },
+  playIconOverlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -14 }, { translateY: -14 }],
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  progressBarTrack: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: CinemaColors.primary,
+  },
+  watchedTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: CinemaColors.textPrimary,
+    marginTop: 6,
+  },
+  watchedSubtitle: {
+    fontSize: 11,
+    color: CinemaColors.textSecondary,
+    marginTop: 2,
+  },
+  /* Favorite Movies Card */
+  favoriteCard: {
+    width: 108,
+  },
+  favoriteImageWrapper: {
+    width: 108,
+    height: 148,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: CinemaColors.surfaceElevated,
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  favoriteImage: {
+    width: '100%',
+    height: '100%',
+  },
+  favoriteRatingBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 3,
+  },
+  favoriteRatingText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFD700',
+  },
+  favoriteQualityBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: 'rgba(255, 51, 75, 0.85)',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 3,
+  },
+  favoriteQualityText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  favoriteTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: CinemaColors.textPrimary,
+    marginTop: 6,
+  },
+  favoriteSubtitle: {
+    fontSize: 11,
+    color: CinemaColors.textSecondary,
+    marginTop: 2,
+  },
+  /* Empty state card */
+  emptyCard: {
+    backgroundColor: CinemaColors.surface,
+    borderRadius: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: CinemaColors.border,
+    borderStyle: 'dashed',
+  },
+  emptyCardText: {
+    fontSize: 12.5,
+    color: CinemaColors.textSecondary,
+    marginTop: 8,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  emptyCardBtn: {
+    backgroundColor: 'rgba(255, 51, 75, 0.12)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 51, 75, 0.3)',
+  },
+  emptyCardBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: CinemaColors.primary,
   },
 
   /* Centered Logout Modal Styles */

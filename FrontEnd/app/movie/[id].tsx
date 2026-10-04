@@ -106,6 +106,8 @@ export default function MovieDetailScreen() {
   const [commentsOffsetY, setCommentsOffsetY] = useState(0);
 
   const [movie, setMovie] = useState<any>(null);
+  const { avatarUri } = useAuth();
+  const [avatarError, setAvatarError] = useState(false);
   const { isFavorite: checkFavorite, toggleFavorite } = useFavorites();
   const isFavorite = checkFavorite(id) || checkFavorite(movie?.numericId) || checkFavorite(movie?.slug) || checkFavorite(movie?.id);
   const [isDownloaded, setIsDownloaded] = useState(false);
@@ -224,9 +226,11 @@ export default function MovieDetailScreen() {
             activeOpacity={0.8}
           >
             <Image
-              source={{ uri: avatarLoadError ? DEFAULT_AVATAR_URI : finalAvatar }}
+              source={{
+                uri: avatarError ? DEFAULT_AVATAR_URI : getValidAvatarUri(avatarUri),
+              }}
               style={styles.avatarImage}
-              onError={() => setAvatarLoadError(true)}
+              onError={() => setAvatarError(true)}
             />
           </TouchableOpacity>
         </View>
