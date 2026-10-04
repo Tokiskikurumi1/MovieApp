@@ -19,6 +19,8 @@ import { BrandLogo } from '@/components/brand-logo';
 import { CommentsSection } from '@/components/comments-section';
 import { MovieAPI, UserAPI } from '@/services/API';
 import { useFavorites } from '@/store/favorite-context';
+import { useAuth } from '@/store/auth-context';
+import { getValidAvatarUri, DEFAULT_AVATAR_URI } from '@/constants/avatar';
 
 // -------------------------------------------------------------
 // DỮ LIỆU DIỄN VIÊN (CAST MOCK DATA)
@@ -104,6 +106,8 @@ export default function MovieDetailScreen() {
   const [commentsOffsetY, setCommentsOffsetY] = useState(0);
 
   const [movie, setMovie] = useState<any>(null);
+  const { avatarUri } = useAuth();
+  const [avatarError, setAvatarError] = useState(false);
   const { isFavorite: checkFavorite, toggleFavorite } = useFavorites();
   const isFavorite = checkFavorite(id) || checkFavorite(movie?.numericId) || checkFavorite(movie?.slug) || checkFavorite(movie?.id);
   const [isDownloaded, setIsDownloaded] = useState(false);
@@ -207,9 +211,10 @@ export default function MovieDetailScreen() {
           >
             <Image
               source={{
-                uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
+                uri: avatarError ? DEFAULT_AVATAR_URI : getValidAvatarUri(avatarUri),
               }}
               style={styles.avatarImage}
+              onError={() => setAvatarError(true)}
             />
           </TouchableOpacity>
         </View>

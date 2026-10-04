@@ -187,6 +187,28 @@ export async function getMe(req: AuthRequest, res: Response) {
 
     const u = rows[0];
     const isVip = Boolean(u.vip_tier && u.vip_tier !== 'Free');
+
+    // 1. Thống kê lịch sử xem (số phim đã xem và số giờ xem từ watch_history)
+    const [historyStats] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(DISTINCT movie_id) as watched_movies_count,
+              COALESCE(SUM(\`current_time\`), 0) as total_watched_seconds
+       FROM watch_history
+       WHERE user_id = ?`,
+      [req.user.id]
+    );
+
+    const watchedMoviesCount = Number(historyStats[0]?.watched_movies_count) || 0;
+    const totalWatchedSeconds = Number(historyStats[0]?.total_watched_seconds) || 0;
+    const calculatedHours = Number((totalWatchedSeconds / 3600).toFixed(1));
+    const totalWatchedHours = calculatedHours > 0 ? calculatedHours : Number(u.total_watched_hours || 0);
+
+    // 2. Thống kê số lượng phim yêu thích
+    const [favStats] = await pool.query<RowDataPacket[]>(
+      'SELECT COUNT(*) as favorites_count FROM favorites WHERE user_id = ?',
+      [req.user.id]
+    );
+    const favoritesCount = Number(favStats[0]?.favorites_count) || 0;
+
     return res.json({
       success: true,
       data: {
@@ -204,7 +226,12 @@ export async function getMe(req: AuthRequest, res: Response) {
         is_vip: isVip,
         vipExpiry: u.vip_expiry,
         vip_expires_at: u.vip_expiry,
-        totalWatchedHours: u.total_watched_hours || 0,
+        totalWatchedHours: totalWatchedHours,
+        total_watched_hours: totalWatchedHours,
+        watchedMoviesCount: watchedMoviesCount,
+        watched_movies_count: watchedMoviesCount,
+        favoriteCount: favoritesCount,
+        favorites_count: favoritesCount,
         status: u.status,
         createdAt: u.created_at,
       },
