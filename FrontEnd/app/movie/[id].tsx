@@ -19,6 +19,8 @@ import { BrandLogo } from '@/components/brand-logo';
 import { CommentsSection } from '@/components/comments-section';
 import { MovieAPI, UserAPI } from '@/services/API';
 import { useFavorites } from '@/store/favorite-context';
+import { useAuth } from '@/store/auth-context';
+import { getValidAvatarUri, DEFAULT_AVATAR_URI } from '@/constants/avatar';
 
 // -------------------------------------------------------------
 // DỮ LIỆU DIỄN VIÊN (CAST MOCK DATA)
@@ -108,6 +110,22 @@ export default function MovieDetailScreen() {
   const isFavorite = checkFavorite(id) || checkFavorite(movie?.numericId) || checkFavorite(movie?.slug) || checkFavorite(movie?.id);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isSynopsisExpanded, setIsSynopsisExpanded] = useState(false);
+
+  // Đồng bộ Avatar người dùng từ AuthContext
+  const { avatarUri: authAvatarUri, user, refreshUser } = useAuth();
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      refreshUser();
+    }
+  }, [user, refreshUser]);
+
+  const finalAvatar = getValidAvatarUri(authAvatarUri);
+
+  useEffect(() => {
+    setAvatarLoadError(false);
+  }, [finalAvatar]);
 
   useEffect(() => {
     if (!id) return;
@@ -206,10 +224,9 @@ export default function MovieDetailScreen() {
             activeOpacity={0.8}
           >
             <Image
-              source={{
-                uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-              }}
+              source={{ uri: avatarLoadError ? DEFAULT_AVATAR_URI : finalAvatar }}
               style={styles.avatarImage}
+              onError={() => setAvatarLoadError(true)}
             />
           </TouchableOpacity>
         </View>
@@ -421,7 +438,7 @@ export default function MovieDetailScreen() {
           </View>
 
           {/* ----------------- CAST (DÀN DIỄN VIÊN) ----------------- */}
-          <View style={styles.castSection}>
+          {/* <View style={styles.castSection}>
             <View style={styles.sectionHeaderRow}>
               <View style={styles.castTitleRow}>
                 <Text style={styles.sectionTitle}>Dàn diễn viên</Text>
@@ -454,7 +471,7 @@ export default function MovieDetailScreen() {
                 </View>
               ))}
             </ScrollView>
-          </View>
+          </View> */}
 
           {/* ----------------- COMMENTS & REVIEWS SECTION ----------------- */}
           <View onLayout={(e) => setCommentsOffsetY(e.nativeEvent.layout.y)}>

@@ -209,11 +209,6 @@ export const AuthAPI = {
       method: 'POST',
       body: JSON.stringify({ account, password: pass }),
     }),
-  googleLogin: (tokenData: { idToken?: string; accessToken?: string; user?: any }) =>
-    fetchJson('/auth/google', {
-      method: 'POST',
-      body: JSON.stringify(tokenData),
-    }),
   register: (fullName: string, phone: string, email: string, pass: string) =>
     fetchJson('/auth/register', {
       method: 'POST',

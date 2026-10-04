@@ -17,12 +17,10 @@ import { CinemaColors } from '@/constants/theme';
 import { BrandLogo } from '@/components/brand-logo';
 import { AuthAPI, setAuthToken } from '@/services/API';
 import { useAuth } from '@/store/auth-context';
-import { useGoogleAuth } from '@/hooks/useGoogleAuth';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login: contextLogin } = useAuth();
-  const { signInWithGoogle, isLoading: isGoogleLoading, error: googleError } = useGoogleAuth();
 
   const [account, setAccount] = useState('');
   const [password, setPassword] = useState('');
@@ -106,10 +104,10 @@ export default function LoginScreen() {
           </View>
 
           {/* General Hint/Error Box */}
-          {(errors.general || googleError) && (
+          {errors.general && (
             <View style={styles.generalErrorBox}>
               <Ionicons name="information-circle" size={16} color={CinemaColors.primary} />
-              <Text style={styles.generalErrorText}>{errors.general || googleError}</Text>
+              <Text style={styles.generalErrorText}>{errors.general}</Text>
             </View>
           )}
 
@@ -266,41 +264,7 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Hoặc đăng nhập bằng</Text>
-              <View style={styles.dividerLine} />
-            </View>
 
-            {/* Social Logins */}
-            <View style={styles.socialRow}>
-              <TouchableOpacity
-                style={styles.socialButton}
-                activeOpacity={0.75}
-                onPress={() => signInWithGoogle()}
-                disabled={isGoogleLoading || isLoading}
-              >
-                {isGoogleLoading ? (
-                  <ActivityIndicator size="small" color={CinemaColors.google} />
-                ) : (
-                  <>
-                    <Ionicons name="logo-google" size={20} color={CinemaColors.google} />
-                    <Text style={styles.socialButtonText}>Google</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              {/* <TouchableOpacity style={styles.socialButton} activeOpacity={0.75}>
-                <Ionicons name="logo-apple" size={20} color={CinemaColors.apple} />
-                <Text style={styles.socialButtonText}>Apple</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.socialButton} activeOpacity={0.75}>
-                <Ionicons name="logo-facebook" size={20} color={CinemaColors.facebook} />
-                <Text style={styles.socialButtonText}>Facebook</Text>
-              </TouchableOpacity> */}
-            </View>
 
             {/* Guest Browsing */}
             <TouchableOpacity
