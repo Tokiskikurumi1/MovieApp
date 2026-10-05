@@ -1,15 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   CreditCard,
   Search,
   Download,
   X,
   FileText,
+  Sparkles,
 } from 'lucide-react';
-import { type Transaction, INITIAL_TRANSACTIONS } from '../../services/mockData';
+import { type Transaction } from '../../services/mockData';
+import { AdminAPI } from '../../services/apiService';
 
 export const BillingManagement: React.FC = () => {
-  const [transactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [summary, setSummary] = useState({
+    totalRevenue: 0,
+    bestSellingPackage: 'Gói VIP 1 Năm (4K HDR)',
+    successRate: '100.0%',
+    totalTransactions: 0,
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [methodFilter, setMethodFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -17,21 +25,54 @@ export const BillingManagement: React.FC = () => {
   // Selected Transaction for Invoice Modal
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
-  // Filter Logic
-  const filteredTx = transactions.filter((tx) => {
-    const matchSearch =
-      tx.orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tx.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tx.user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchMethod = methodFilter === 'ALL' || tx.paymentMethod === methodFilter;
-    const matchStatus = statusFilter === 'ALL' || tx.status === statusFilter;
+  const loadTransactions = useCallback(() => {
+    AdminAPI.getTransactions({
+      search: searchQuery,
+      method: methodFilter,
+      status: statusFilter,
+    })
+      .then((res) => {
+        if (res.success && res.data) {
+          setTransactions(res.data.transactions || []);
+          if (res.data.summary) {
+            setSummary(res.data.summary);
+          }
+        }
+      })
+      .catch((err) => console.warn('Lỗi tải danh sách giao dịch:', err));
+  }, [searchQuery, methodFilter, statusFilter]);
 
-    return matchSearch && matchMethod && matchStatus;
-  });
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
 
-  const totalRevenue = transactions
-    .filter((tx) => tx.status === 'success')
-    .reduce((acc, curr) => acc + curr.amount, 0);
+  const handleExportCSV = () => {
+    if (transactions.length === 0) {
+      alert('Không có dữ liệu giao dịch để xuất file.');
+      return;
+    }
+
+    const headers = ['Mã Đơn', 'Khách Hàng', 'Email', 'Gói VIP', 'Số Tiền (VND)', 'Cổng Thanh Toán', 'Thời Gian', 'Trạng Thái'];
+    const rows = transactions.map((t) => [
+      t.orderCode,
+      `"${t.user.name}"`,
+      `"${t.user.email}"`,
+      `"${t.packageName}"`,
+      t.amount,
+      t.paymentMethod,
+      `"${t.createdAt}"`,
+      t.status,
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `CINESTREAM_BaoCaoDoanhThu_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="billing-management-page">
@@ -43,16 +84,21 @@ export const BillingManagement: React.FC = () => {
             Lịch Sử Giao Dịch & Gói Cước VIP
           </h2>
           <p className="page-subtitle">
-            Theo dõi dòng tiền nạp VIP qua MoMo, VietQR, ZaloPay & Thẻ quốc tế, xuất hóa đơn điện tử
+            Theo dõi dòng tiền nạp VIP qua MoMo, VietQR, ZaloPay & Thẻ quốc tế thời gian thực từ Database
           </p>
         </div>
-        <button
-          className="btn btn-secondary"
-          onClick={() => alert('Xuất file báo cáo doanh thu .CSV thành công!')}
-        >
-          <Download size={16} />
-          <span>Xuất Báo Cáo Excel</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="badge badge-success" style={{ padding: '8px 14px', fontSize: '13px' }}>
+            <Sparkles size={14} /> MySQL Live Data
+          </div>
+          <button
+            className="btn btn-secondary"
+            onClick={handleExportCSV}
+          >
+            <Download size={16} />
+            <span>Xuất Báo Cáo CSV</span>
+          </button>
+        </div>
       </div>
 
       {/* Summary KPI 3 Cards */}
@@ -69,7 +115,7 @@ export const BillingManagement: React.FC = () => {
             TỔNG TIỀN ĐÃ THU THÀNH CÔNG
           </div>
           <div style={{ fontSize: '22px', fontWeight: 800, color: '#10b981', marginTop: '6px' }}>
-            {totalRevenue.toLocaleString('vi-VN')} đ
+            {summary.totalRevenue.toLocaleString('vi-VN')} đ
           </div>
         </div>
 
@@ -78,7 +124,7 @@ export const BillingManagement: React.FC = () => {
             GÓI VIP BÁN CHẠY NHẤT
           </div>
           <div style={{ fontSize: '18px', fontWeight: 700, color: '#ffd700', marginTop: '8px' }}>
-            Gói VIP 1 Năm (4K HDR)
+            {summary.bestSellingPackage}
           </div>
         </div>
 
@@ -87,7 +133,7 @@ export const BillingManagement: React.FC = () => {
             TỶ LỆ GIAO DỊCH THÀNH CÔNG
           </div>
           <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '6px' }}>
-            98.5%
+            {summary.successRate}
           </div>
         </div>
       </div>
@@ -151,14 +197,14 @@ export const BillingManagement: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredTx.length === 0 ? (
+            {transactions.length === 0 ? (
               <tr>
                 <td colSpan={8} style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
                   Không tìm thấy giao dịch phù hợp.
                 </td>
               </tr>
             ) : (
-              filteredTx.map((tx) => (
+              transactions.map((tx) => (
                 <tr key={tx.id}>
                   <td>
                     <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary)' }}>
@@ -234,7 +280,12 @@ export const BillingManagement: React.FC = () => {
         <div className="modal-overlay" onClick={() => setSelectedTx(null)}>
           <div className="modal-content" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">Chi Tiết Hóa Đơn: {selectedTx.orderCode}</h3>
+              <div>
+                <h3 className="modal-title">Chi Tiết Hóa Đơn</h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Mã giao dịch: <strong style={{ color: 'var(--primary)' }}>{selectedTx.orderCode}</strong>
+                </p>
+              </div>
               <button className="btn-icon" onClick={() => setSelectedTx(null)}>
                 <X size={16} />
               </button>
@@ -244,6 +295,10 @@ export const BillingManagement: React.FC = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '8px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Khách hàng:</span>
                 <span style={{ fontWeight: 600, color: '#fff' }}>{selectedTx.user.name}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '8px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Email tài khoản:</span>
+                <span style={{ color: 'var(--text-secondary)' }}>{selectedTx.user.email}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '8px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Gói dịch vụ:</span>
@@ -263,12 +318,22 @@ export const BillingManagement: React.FC = () => {
                 <span style={{ color: 'var(--text-muted)' }}>Thời gian tạo đơn:</span>
                 <span style={{ color: 'var(--text-secondary)' }}>{selectedTx.createdAt}</span>
               </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '8px' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Trạng thái:</span>
+                <span
+                  className={`badge ${
+                    selectedTx.status === 'success' ? 'badge-success' : selectedTx.status === 'pending' ? 'badge-warning' : 'badge-danger'
+                  }`}
+                >
+                  {selectedTx.status === 'success' ? 'Thành công' : selectedTx.status === 'pending' ? 'Đang xử lý' : 'Hoàn tiền'}
+                </span>
+              </div>
             </div>
 
             <div className="modal-footer">
               <button
                 className="btn btn-secondary"
-                onClick={() => alert('Đã gửi email biên lai điện tử tới ' + selectedTx.user.email)}
+                onClick={() => alert('Đã gửi lại biên lai điện tử tới email: ' + selectedTx.user.email)}
               >
                 Gửi Lại Biên Lai Email
               </button>
@@ -282,3 +347,4 @@ export const BillingManagement: React.FC = () => {
     </div>
   );
 };
+

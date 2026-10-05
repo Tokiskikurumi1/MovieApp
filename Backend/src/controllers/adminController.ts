@@ -418,3 +418,113 @@ export async function triggerCrawler(req: Request, res: Response) {
     return res.status(500).json({ success: false, message: error.message });
   }
 }
+
+// 10. Quản lý lịch sử giao dịch & nạp VIP
+export async function getAdminTransactions(req: Request, res: Response) {
+  try {
+    const { search, method, status } = req.query;
+
+    // Kiểm tra và khởi tạo dữ liệu mẫu nếu bảng transactions đang trống
+    const [[{ txCount }]] = await pool.query<RowDataPacket[]>('SELECT COUNT(*) as txCount FROM transactions');
+    if (Number(txCount) === 0) {
+      const [[testUser]]: any = await pool.query("SELECT id FROM users WHERE email = 'kurumi124@gmail.com' LIMIT 1");
+      const userId = testUser?.id || 1;
+      await pool.query(
+        `INSERT INTO transactions (order_code, user_id, package_id, package_name, amount, payment_method, status, created_at)
+         VALUES 
+           ('VIP-2026-9081', ?, '1y', 'Gói VIP 1 Năm (4K HDR)', 599000, 'VietQR', 'success', DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+           ('VIP-2026-8942', ?, '6m', 'Gói VIP 6 Tháng (Full HD)', 349000, 'MoMo', 'success', DATE_SUB(NOW(), INTERVAL 1 DAY)),
+           ('VIP-2026-8711', ?, '1m', 'Gói VIP 1 Tháng (4K HDR)', 69000, 'ZaloPay', 'success', DATE_SUB(NOW(), INTERVAL 2 DAY)),
+           ('VIP-2026-8530', ?, '1m', 'Gói VIP 1 Tháng (Standard)', 49000, 'Visa/Mastercard', 'pending', DATE_SUB(NOW(), INTERVAL 3 DAY)),
+           ('VIP-2026-8319', ?, '1y', 'Gói VIP 1 Năm (4K HDR)', 599000, 'VietQR', 'success', DATE_SUB(NOW(), INTERVAL 4 DAY))`,
+        [userId, userId, userId, userId, userId]
+      );
+    }
+
+    let sql = `
+      SELECT t.id, t.order_code as orderCode, t.package_id as packageId,
+             t.package_name as packageName, t.amount, t.payment_method as paymentMethod,
+             t.status, t.created_at as createdAt,
+             u.id as userId, u.full_name as userName, u.email as userEmail,
+             u.phone as userPhone, u.avatar as userAvatar
+      FROM transactions t
+      LEFT JOIN users u ON t.user_id = u.id
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+
+    if (search) {
+      sql += ' AND (t.order_code LIKE ? OR u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    if (method && method !== 'ALL') {
+      sql += ' AND t.payment_method = ?';
+      params.push(method);
+    }
+
+    if (status && status !== 'ALL') {
+      sql += ' AND t.status = ?';
+      params.push(status);
+    }
+
+    sql += ' ORDER BY t.created_at DESC LIMIT 200';
+
+    const [rows] = await pool.query<RowDataPacket[]>(sql, params);
+
+    // Tính toán KPI tổng quan
+    const [[kpiData]]: any = await pool.query(
+      `SELECT 
+         COALESCE(SUM(CASE WHEN status = 'success' THEN amount ELSE 0 END), 0) as totalRevenue,
+         COUNT(*) as totalTx,
+         COUNT(CASE WHEN status = 'success' THEN 1 END) as successTx
+       FROM transactions`
+    );
+
+    const [[bestPackage]]: any = await pool.query(
+      `SELECT package_name, COUNT(*) as cnt
+       FROM transactions WHERE status = 'success'
+       GROUP BY package_name
+       ORDER BY cnt DESC LIMIT 1`
+    );
+
+    const totalRevenue = Number(kpiData?.totalRevenue || 0);
+    const totalTx = Number(kpiData?.totalTx || 0);
+    const successTx = Number(kpiData?.successTx || 0);
+    const successRate = totalTx > 0 ? ((successTx / totalTx) * 100).toFixed(1) : '100.0';
+
+    const formatted = rows.map((r) => ({
+      id: String(r.id),
+      orderCode: r.orderCode,
+      packageId: r.packageId,
+      packageName: r.packageName,
+      amount: Number(r.amount),
+      paymentMethod: r.paymentMethod,
+      status: r.status,
+      createdAt: r.createdAt ? new Date(r.createdAt).toLocaleString('vi-VN') : 'Vừa xong',
+      user: {
+        id: String(r.userId || '1'),
+        name: r.userName || 'Hội viên CINESTREAM',
+        email: r.userEmail || 'user@cinestream.vn',
+        phone: r.userPhone || '0987654321',
+        avatar: r.userAvatar || 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png',
+      },
+    }));
+
+    return res.json({
+      success: true,
+      data: {
+        transactions: formatted,
+        summary: {
+          totalRevenue,
+          bestSellingPackage: bestPackage?.package_name || 'Gói VIP 1 Tháng (4K HDR)',
+          successRate: `${successRate}%`,
+          totalTransactions: totalTx,
+        },
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+

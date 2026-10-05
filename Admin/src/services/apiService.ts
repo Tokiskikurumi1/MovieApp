@@ -51,6 +51,15 @@ export const AdminAPI = {
       body: JSON.stringify({ vipTier }),
     }),
 
+  // Quản lý giao dịch & nạp VIP
+  getTransactions: (params: { search?: string; method?: string; status?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.search) query.append('search', params.search);
+    if (params.method) query.append('method', params.method);
+    if (params.status) query.append('status', params.status);
+    return fetchAdminJson(`/admin/transactions?${query.toString()}`);
+  },
+
   // Quản lý bình luận
   getComments: () => fetchAdminJson('/admin/comments'),
   updateCommentStatus: (id: string | number, status: 'approved' | 'pending' | 'hidden') =>

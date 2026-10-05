@@ -61,9 +61,9 @@ export const AdminDashboard: React.FC = () => {
             Cập nhật tình hình tăng trưởng, doanh thu và lưu lượng xem phim theo thời gian thực từ Database
           </p>
         </div>
-        {/* <div className="badge badge-success" style={{ padding: '6px 14px', fontSize: '13px' }}>
+        <div className="badge badge-success" style={{ padding: '6px 14px', fontSize: '13px' }}>
           <Sparkles size={14} /> Dữ liệu MySQL thời gian thực
-        </div> */}
+        </div>
       </div>
 
       {/* KPI Cards 4 Cột */}

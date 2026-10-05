@@ -6,6 +6,7 @@ import {
   getAdminUsers,
   toggleUserBan,
   updateUserVip,
+  getAdminTransactions,
   getAdminComments,
   updateCommentStatus,
   deleteComment,
@@ -27,10 +28,13 @@ router.get('/dashboard-stats', getDashboardStats);
 router.get('/movies', getAdminMovies);
 router.delete('/movies/:id', deleteMovie);
 
-// Quản lý người dùng
+// Quản lý người dùng & VIP
 router.get('/users', getAdminUsers);
 router.put('/users/:id/ban', toggleUserBan);
 router.put('/users/:id/vip', updateUserVip);
+
+// Quản lý giao dịch & Lịch sử thanh toán
+router.get('/transactions', getAdminTransactions);
 
 // Quản lý bình luận
 router.get('/comments', getAdminComments);
