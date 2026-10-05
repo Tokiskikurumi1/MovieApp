@@ -88,9 +88,9 @@ export const BillingManagement: React.FC = () => {
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div className="badge badge-success" style={{ padding: '8px 14px', fontSize: '13px' }}>
+          {/* <div className="badge badge-success" style={{ padding: '8px 14px', fontSize: '13px' }}>
             <Sparkles size={14} /> MySQL Live Data
-          </div>
+          </div> */}
           <button
             className="btn btn-secondary"
             onClick={handleExportCSV}

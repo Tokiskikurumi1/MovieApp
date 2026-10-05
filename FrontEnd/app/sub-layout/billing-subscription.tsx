@@ -82,39 +82,6 @@ const PLANS: SubscriptionPlan[] = [
   },
 ];
 
-const TRANSACTIONS: TransactionItem[] = [
-  {
-    id: 'tx-1',
-    code: 'CINE-2026-8891',
-    planName: 'Gói 6 Tháng VIP 4K',
-    amount: '349.000đ',
-    paymentMethod: 'Ví MoMo',
-    paymentIcon: 'wallet-outline',
-    date: '28/06/2026 14:22',
-    status: 'success',
-  },
-  {
-    id: 'tx-2',
-    code: 'CINE-2025-4421',
-    planName: 'Gói 1 Năm Siêu Cấp',
-    amount: '649.000đ',
-    paymentMethod: 'Thẻ Visa / Mastercard (•••• 8839)',
-    paymentIcon: 'card-outline',
-    date: '28/06/2025 09:15',
-    status: 'success',
-  },
-  {
-    id: 'tx-3',
-    code: 'CINE-2024-1102',
-    planName: 'Gói 1 Tháng Thử Nghiệm',
-    amount: '69.000đ',
-    paymentMethod: 'ZaloPay',
-    paymentIcon: 'phone-portrait-outline',
-    date: '15/05/2024 20:30',
-    status: 'success',
-  },
-];
-
 export default function BillingSubscriptionScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'plans' | 'history'>('plans');
@@ -122,7 +89,7 @@ export default function BillingSubscriptionScreen() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'momo' | 'zalopay' | 'card' | 'apple'>('momo');
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
-  const [transactions, setTransactions] = useState<TransactionItem[]>(TRANSACTIONS);
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [isLoadingTx, setIsLoadingTx] = useState(false);
   const [isProcessingUpgrade, setIsProcessingUpgrade] = useState(false);
 
@@ -130,7 +97,7 @@ export default function BillingSubscriptionScreen() {
     setIsLoadingTx(true);
     UserAPI.getTransactions()
       .then((res) => {
-        if (res.success && res.data && res.data.length > 0) {
+        if (res && res.success && Array.isArray(res.data)) {
           setTransactions(res.data);
         }
       })
@@ -354,36 +321,55 @@ export default function BillingSubscriptionScreen() {
           /* TAB 2: LỊCH SỬ GIAO DỊCH                                  */
           /* ========================================================= */
           <View style={styles.historySection}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <Text style={styles.sectionHeading}>LỊCH SỬ THANH TOÁN GẦN ĐÂY</Text>
               {isLoadingTx && <ActivityIndicator size="small" color={CinemaColors.primary} />}
             </View>
 
-            {(transactions.length > 0 ? transactions : TRANSACTIONS).map((tx) => (
-              <TouchableOpacity
-                key={tx.id}
-                style={styles.txCard}
-                activeOpacity={0.75}
-                onPress={() => setSelectedTx(tx)}
-              >
-                <View style={styles.txIconCircle}>
-                  <Ionicons name={tx.paymentIcon} size={20} color={CinemaColors.primary} />
+            {transactions.length === 0 ? (
+              <View style={styles.emptyHistoryBox}>
+                <View style={styles.emptyIconCircle}>
+                  <Ionicons name="receipt-outline" size={36} color={CinemaColors.textMuted} />
                 </View>
-
-                <View style={styles.txInfo}>
-                  <Text style={styles.txPlanName}>{tx.planName}</Text>
-                  <Text style={styles.txCode}>Mã: {tx.code}</Text>
-                  <Text style={styles.txDate}>{tx.date}</Text>
-                </View>
-
-                <View style={styles.txAmountCol}>
-                  <Text style={styles.txAmount}>{tx.amount}</Text>
-                  <View style={styles.txStatusBadge}>
-                    <Text style={styles.txStatusText}>Thành công</Text>
+                <Text style={styles.emptyHistoryTitle}>Chưa có giao dịch nào</Text>
+                <Text style={styles.emptyHistorySub}>
+                  Lịch sử đăng ký và gia hạn các gói VIP của bạn sẽ được lưu trữ và hiển thị chi tiết tại đây.
+                </Text>
+                <TouchableOpacity
+                  style={styles.emptyActionBtn}
+                  activeOpacity={0.85}
+                  onPress={() => setActiveTab('plans')}
+                >
+                  <Text style={styles.emptyActionBtnText}>Khám phá các gói VIP</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              transactions.map((tx) => (
+                <TouchableOpacity
+                  key={tx.id}
+                  style={styles.txCard}
+                  activeOpacity={0.75}
+                  onPress={() => setSelectedTx(tx)}
+                >
+                  <View style={styles.txIconCircle}>
+                    <Ionicons name={tx.paymentIcon} size={20} color={CinemaColors.primary} />
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+
+                  <View style={styles.txInfo}>
+                    <Text style={styles.txPlanName}>{tx.planName}</Text>
+                    <Text style={styles.txCode}>Mã: {tx.code}</Text>
+                    <Text style={styles.txDate}>{tx.date}</Text>
+                  </View>
+
+                  <View style={styles.txAmountCol}>
+                    <Text style={styles.txAmount}>{tx.amount}</Text>
+                    <View style={styles.txStatusBadge}>
+                      <Text style={styles.txStatusText}>Thành công</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         )}
       </ScrollView>
@@ -1051,4 +1037,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  emptyHistoryBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 36,
+    paddingHorizontal: 20,
+    backgroundColor: CinemaColors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: CinemaColors.border,
+    marginTop: 8,
+  },
+  emptyIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: CinemaColors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyHistoryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  emptyHistorySub: {
+    fontSize: 13,
+    color: CinemaColors.textMuted,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 18,
+    maxWidth: 280,
+  },
+  emptyActionBtn: {
+    backgroundColor: CinemaColors.primary,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  emptyActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
 });
+

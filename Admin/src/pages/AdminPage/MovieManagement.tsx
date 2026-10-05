@@ -456,10 +456,10 @@ export const MovieManagement: React.FC = () => {
         <div className="modal-overlay" onClick={() => setIsEditModalOpen(false)}>
           <div
             className="modal-content"
-            style={{ maxWidth: '720px' }}
+            style={{ maxWidth: '760px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-header">
+            <div className="modal-header" style={{ flexShrink: 0 }}>
               <h3 className="modal-title">
                 {editingMovie.title ? 'Chỉnh Sửa Thông Tin Phim' : 'Thêm Phim Mới Vào Hệ Thống'}
               </h3>
@@ -468,8 +468,8 @@ export const MovieManagement: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSaveMovie}>
-              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <form onSubmit={handleSaveMovie} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', flex: 1, padding: '24px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div className="form-group">
                     <label className="form-label">Tên Phim (Tiếng Việt)</label>
@@ -607,7 +607,7 @@ export const MovieManagement: React.FC = () => {
                 </div>
               </div>
 
-              <div className="modal-footer">
+              <div className="modal-footer" style={{ flexShrink: 0 }}>
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -629,10 +629,10 @@ export const MovieManagement: React.FC = () => {
         <div className="modal-overlay" onClick={() => setIsEpisodeModalOpen(false)}>
           <div
             className="modal-content"
-            style={{ maxWidth: '680px' }}
+            style={{ maxWidth: '680px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-header">
+            <div className="modal-header" style={{ flexShrink: 0 }}>
               <div>
                 <h3 className="modal-title">Danh Sách Tập: {activeMovieForEpisodes.title}</h3>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -644,7 +644,7 @@ export const MovieManagement: React.FC = () => {
               </button>
             </div>
 
-            <div className="modal-body">
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', flex: 1, minHeight: 0, padding: '24px' }}>
               {/* Form Thêm Tập Mới */}
               <div
                 style={{
@@ -653,6 +653,7 @@ export const MovieManagement: React.FC = () => {
                   borderRadius: '10px',
                   border: '1px solid var(--border)',
                   marginBottom: '20px',
+                  flexShrink: 0,
                 }}
               >
                 <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>
@@ -690,7 +691,7 @@ export const MovieManagement: React.FC = () => {
               </div>
 
               {/* Episode List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '300px', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto', minHeight: '120px' }}>
                 {activeMovieForEpisodes.episodes?.map((ep) => (
                   <div
                     key={ep.id}
@@ -743,7 +744,7 @@ export const MovieManagement: React.FC = () => {
               </div>
             </div>
 
-            <div className="modal-footer">
+            <div className="modal-footer" style={{ flexShrink: 0 }}>
               <button className="btn btn-primary" onClick={() => setIsEpisodeModalOpen(false)}>
                 Hoàn Tất
               </button>

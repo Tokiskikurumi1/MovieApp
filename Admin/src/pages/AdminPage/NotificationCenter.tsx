@@ -173,9 +173,9 @@ export const NotificationCenter: React.FC = () => {
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
             Làm mới
           </button>
-          <div className="badge badge-success" style={{ padding: '6px 14px' }}>
+          {/* <div className="badge badge-success" style={{ padding: '6px 14px' }}>
             <Smartphone size={14} /> Socket.io & Push Broadcast
-          </div>
+          </div> */}
         </div>
       </div>
 
