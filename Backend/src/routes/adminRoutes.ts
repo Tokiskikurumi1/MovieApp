@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getDashboardStats,
   getAdminMovies,
+  createOrUpdateMovie,
   deleteMovie,
   getAdminUsers,
   toggleUserBan,
@@ -26,6 +27,8 @@ router.get('/dashboard-stats', getDashboardStats);
 
 // Quản lý phim
 router.get('/movies', getAdminMovies);
+router.post('/movies', createOrUpdateMovie);
+router.put('/movies/:id', createOrUpdateMovie);
 router.delete('/movies/:id', deleteMovie);
 
 // Quản lý người dùng & VIP

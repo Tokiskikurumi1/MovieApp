@@ -49,7 +49,7 @@ export const MovieManagement: React.FC = () => {
             quality: m.quality || 'FHD',
             ageLimit: m.age_rating || '16+',
             isVip: Boolean(m.is_vip),
-            status: m.status === 'published' ? 'active' : (m.status || 'active'),
+            status: 'active', // Chuyển trạng thái toàn bộ phim sang Đang Chiếu
             genres: m.genres ? (Array.isArray(m.genres) ? m.genres : String(m.genres).split(',').map((g: string) => g.trim())) : ['Hành Động'],
             totalEpisodes: m.total_episodes || 1,
             views: m.view_count || 0,
@@ -156,21 +156,31 @@ export const MovieManagement: React.FC = () => {
   };
 
   // Save Movie (Add / Update)
-  const handleSaveMovie = (e: React.FormEvent) => {
+  const handleSaveMovie = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingMovie || !editingMovie.title) {
       alert('Vui lòng nhập tên phim!');
       return;
     }
 
-    setMovies((prev) => {
-      const exists = prev.some((m) => m.id === editingMovie.id);
-      if (exists) {
-        return prev.map((m) => (m.id === editingMovie.id ? (editingMovie as Movie) : m));
+    try {
+      const res = await AdminAPI.saveMovie(editingMovie);
+      if (res.success && res.data?.id) {
+        const savedMovie = { ...editingMovie, id: res.data.id } as Movie;
+        setMovies((prev) => {
+          const exists = prev.some((m) => m.id === editingMovie.id || m.id === res.data.id);
+          if (exists) {
+            return prev.map((m) => (m.id === editingMovie.id || m.id === res.data.id ? savedMovie : m));
+          } else {
+            return [savedMovie, ...prev];
+          }
+        });
       } else {
-        return [editingMovie as Movie, ...prev];
+        loadMovies();
       }
-    });
+    } catch (err: any) {
+      console.warn('Lỗi lưu phim vào DB:', err);
+    }
 
     setIsEditModalOpen(false);
     setEditingMovie(null);

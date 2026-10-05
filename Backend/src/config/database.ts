@@ -148,6 +148,11 @@ export async function initDatabase() {
           await pool.query("ALTER TABLE users ADD COLUMN deleted_at DATETIME NULL AFTER last_active");
         }
       } catch (_) {}
+
+      // Cập nhật trạng thái tất cả phim sang 'ongoing' (Đang chiếu)
+      try {
+        await pool.query("UPDATE movies SET status = 'ongoing' WHERE status IS NULL OR status = 'draft' OR status = 'completed' OR status = ''");
+      } catch (_) {}
     } catch (_) {}
   }
 

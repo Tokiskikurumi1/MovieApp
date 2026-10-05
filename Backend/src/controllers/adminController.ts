@@ -214,7 +214,86 @@ export async function getAdminMovies(req: Request, res: Response) {
   }
 }
 
-// 3. Xóa phim
+// 3. Tạo hoặc Cập nhật thông tin Phim
+export async function createOrUpdateMovie(req: Request, res: Response) {
+  try {
+    const {
+      id,
+      title,
+      originalTitle,
+      synopsis,
+      poster,
+      banner,
+      trailerUrl,
+      year = 2024,
+      quality = '4K HDR',
+      isVip = false,
+      status = 'ongoing',
+      genres = [],
+    } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ success: false, message: 'Tên phim không được để trống' });
+    }
+
+    const slug = req.body.slug || title.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[đĐ]/g, 'd')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-') + '-' + Date.now().toString().slice(-4);
+
+    let movieId = id && !String(id).startsWith('movie-') ? Number(id) : null;
+
+    if (movieId) {
+      // Cập nhật phim đã có
+      await pool.query(
+        `UPDATE movies 
+         SET name = ?, origin_name = ?, content = ?, thumb_url = ?, poster_url = ?, trailer_url = ?, year = ?, quality = ?, is_vip = ?, status = ?
+         WHERE id = ?`,
+        [title, originalTitle || title, synopsis || '', poster || null, banner || null, trailerUrl || null, year, quality, isVip ? 1 : 0, status || 'ongoing', movieId]
+      );
+    } else {
+      // Tạo phim mới
+      const [insertRes]: any = await pool.query(
+        `INSERT INTO movies 
+         (name, origin_name, slug, content, thumb_url, poster_url, trailer_url, year, quality, is_vip, status, rating, vote_count, view_count)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 8.5, 120, 0)`,
+        [title, originalTitle || title, slug, synopsis || '', poster || null, banner || null, trailerUrl || null, year, quality, isVip ? 1 : 0, status || 'ongoing']
+      );
+      movieId = insertRes.insertId;
+    }
+
+    // Cập nhật thể loại
+    if (movieId && Array.isArray(genres) && genres.length > 0) {
+      await pool.query('DELETE FROM movie_categories WHERE movie_id = ?', [movieId]);
+      for (const gName of genres) {
+        const [catRows]: any = await pool.query('SELECT id FROM categories WHERE name = ? LIMIT 1', [gName]);
+        let catId = catRows[0]?.id;
+        if (!catId) {
+          const catSlug = gName.toLowerCase().replace(/\s+/g, '-');
+          const [catIns]: any = await pool.query('INSERT IGNORE INTO categories (name, slug) VALUES (?, ?)', [gName, catSlug]);
+          catId = catIns.insertId;
+        }
+        if (catId) {
+          await pool.query('INSERT IGNORE INTO movie_categories (movie_id, category_id) VALUES (?, ?)', [movieId, catId]);
+        }
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'Đã lưu thông tin phim vào MySQL thành công',
+      data: { id: String(movieId), title, slug },
+    });
+  } catch (error: any) {
+    console.error('Lỗi createOrUpdateMovie:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// 4. Xóa phim
 export async function deleteMovie(req: Request, res: Response) {
   try {
     const { id } = req.params;

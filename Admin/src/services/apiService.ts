@@ -40,6 +40,11 @@ export const AdminAPI = {
     if (params.status) query.append('status', params.status);
     return fetchAdminJson(`/admin/movies?${query.toString()}`);
   },
+  saveMovie: (movieData: any) =>
+    fetchAdminJson('/admin/movies', {
+      method: 'POST',
+      body: JSON.stringify(movieData),
+    }),
   deleteMovie: (id: string | number) => fetchAdminJson(`/admin/movies/${id}`, { method: 'DELETE' }),
 
   // Quản lý người dùng
