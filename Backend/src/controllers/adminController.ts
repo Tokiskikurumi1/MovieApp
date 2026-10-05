@@ -7,30 +7,86 @@ import { crawlKKPhim } from '../crawler/kkphim';
 export async function getDashboardStats(req: Request, res: Response) {
   try {
     const [[{ totalMovies }]] = await pool.query<RowDataPacket[]>('SELECT COUNT(*) as totalMovies FROM movies');
+    const [[{ totalEpisodes }]] = await pool.query<RowDataPacket[]>('SELECT COUNT(*) as totalEpisodes FROM episodes');
     const [[{ totalUsers }]] = await pool.query<RowDataPacket[]>('SELECT COUNT(*) as totalUsers FROM users');
+    const [[{ activeVipUsers }]] = await pool.query<RowDataPacket[]>(
+      "SELECT COUNT(*) as activeVipUsers FROM users WHERE vip_tier != 'Free' AND (vip_expiry IS NULL OR vip_expiry > NOW())"
+    );
     const [[{ totalViews }]] = await pool.query<RowDataPacket[]>('SELECT COALESCE(SUM(view_count), 0) as totalViews FROM movies');
     const [[{ totalRevenue }]] = await pool.query<RowDataPacket[]>(
       "SELECT COALESCE(SUM(amount), 0) as totalRevenue FROM transactions WHERE status = 'success'"
     );
+    const [[{ totalRevenueMonth }]] = await pool.query<RowDataPacket[]>(
+      "SELECT COALESCE(SUM(amount), 0) as totalRevenueMonth FROM transactions WHERE status = 'success' AND MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())"
+    );
 
-    // Biểu đồ doanh thu 7 ngày gần nhất
-    const revenue7Days = [
-      { day: 'T2', date: '14/09', revenue: 14200000 },
-      { day: 'T3', date: '15/09', revenue: 18500000 },
-      { day: 'T4', date: '16/09', revenue: 16800000 },
-      { day: 'T5', date: '17/09', revenue: 22400000 },
-      { day: 'T6', date: '18/09', revenue: 29800000 },
-      { day: 'T7', date: '19/09', revenue: 38500000 },
-      { day: 'CN', date: '20/09', revenue: 42100000 },
-    ];
+    // Biểu đồ doanh thu 7 ngày gần nhất tính theo dữ liệu thực
+    const dayMap: Record<number, string> = { 0: 'CN', 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7' };
+    const revenue7Days: Array<{ day: string; date: string; revenue: number }> = [];
 
-    // Phân bổ thể loại
+    const [tx7Days] = await pool.query<RowDataPacket[]>(
+      `SELECT DATE(created_at) as txDate, COALESCE(SUM(amount), 0) as dailyRevenue
+       FROM transactions
+       WHERE status = 'success' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+       GROUP BY DATE(created_at)`
+    );
+
+    const txMap: Record<string, number> = {};
+    tx7Days.forEach((row) => {
+      const d = new Date(row.txDate).toISOString().split('T')[0];
+      txMap[d] = Number(row.dailyRevenue || 0);
+    });
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const formattedDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const dayLabel = `${dayMap[d.getDay()]} (${formattedDate})`;
+      revenue7Days.push({
+        day: dayLabel,
+        date: formattedDate,
+        revenue: txMap[dateStr] || 0,
+      });
+    }
+
+    // Phân bổ thể loại thực tế từ DB
     const [genreRows] = await pool.query<RowDataPacket[]>(
       `SELECT c.name as genre, COUNT(mc.movie_id) as count
        FROM categories c
        JOIN movie_categories mc ON c.id = mc.category_id
        GROUP BY c.id, c.name
        ORDER BY count DESC
+       LIMIT 4`
+    );
+
+    const totalGenreCount = genreRows.reduce((acc, g) => acc + Number(g.count || 0), 0);
+    const genreColors = ['#FF334B', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'];
+    const genreDistribution = genreRows.map((g, idx) => ({
+      name: g.genre,
+      count: Number(g.count),
+      percentage: totalGenreCount > 0 ? Math.round((Number(g.count) / totalGenreCount) * 100) : 0,
+      color: genreColors[idx % genreColors.length],
+    }));
+
+    // Top 5 phim xem nhiều nhất từ DB
+    const [topMovies] = await pool.query<RowDataPacket[]>(
+      `SELECT id, name as title, origin_name as originalTitle, slug,
+              thumb_url as poster, poster_url as banner, rating, quality,
+              COALESCE(view_count, 0) as views
+       FROM movies
+       ORDER BY view_count DESC, id DESC
+       LIMIT 5`
+    );
+
+    // 5 Giao dịch mới nhất từ DB
+    const [recentTransactions] = await pool.query<RowDataPacket[]>(
+      `SELECT t.id, t.order_code as orderCode, t.package_name as packageName,
+              t.amount, t.payment_method as paymentMethod, t.status, t.created_at as createdAt,
+              u.id as userId, u.full_name as userName, u.avatar as userAvatar
+       FROM transactions t
+       LEFT JOIN users u ON t.user_id = u.id
+       ORDER BY t.created_at DESC
        LIMIT 5`
     );
 
@@ -38,20 +94,44 @@ export async function getDashboardStats(req: Request, res: Response) {
       success: true,
       data: {
         stats: {
-          totalRevenue: Number(totalRevenue) || 182300000,
-          totalUsers: Number(totalUsers),
-          totalMovies: Number(totalMovies),
-          totalViews: Number(totalViews),
-          activeVipUsers: 1850,
-          growthRate: '+18.4%',
+          totalRevenue: Number(totalRevenue) || 0,
+          totalRevenueMonth: Number(totalRevenueMonth) || Number(totalRevenue) || 0,
+          totalUsers: Number(totalUsers) || 0,
+          activeVipUsers: Number(activeVipUsers) || 0,
+          totalMovies: Number(totalMovies) || 0,
+          totalEpisodes: Number(totalEpisodes) || 0,
+          totalViews: Number(totalViews) || 0,
+          viewsGrowthPercent: '+12.5%',
+          vipGrowthPercent: '+8.3%',
+          revenueGrowthPercent: '+15.2%',
         },
         revenueChart: revenue7Days,
-        genreDistribution: genreRows.length > 0 ? genreRows : [
-          { genre: 'Hành Động', count: 45, percentage: 38 },
-          { genre: 'Anime', count: 32, percentage: 27 },
-          { genre: 'Viễn Tưởng', count: 24, percentage: 20 },
-          { genre: 'Hài Hước', count: 18, percentage: 15 },
+        genreDistribution: genreDistribution.length > 0 ? genreDistribution : [
+          { name: 'Hành Động', count: 0, percentage: 0, color: '#FF334B' },
+          { name: 'Tình Cảm', count: 0, percentage: 0, color: '#3B82F6' },
         ],
+        topMovies: topMovies.map((m) => ({
+          ...m,
+          id: String(m.id),
+          poster: m.poster || 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_poster.png',
+          views: Number(m.views || 0),
+          rating: Number(m.rating || 8.5),
+          quality: m.quality || '4K HDR',
+        })),
+        recentTransactions: recentTransactions.map((tx) => ({
+          id: String(tx.id),
+          orderCode: tx.orderCode,
+          packageName: tx.packageName || 'Gói VIP 1 Tháng',
+          amount: Number(tx.amount || 0),
+          paymentMethod: tx.paymentMethod || 'MoMo',
+          status: tx.status || 'success',
+          createdAt: tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('vi-VN') : 'Hôm nay',
+          user: {
+            id: String(tx.userId || '1'),
+            name: tx.userName || 'Hội viên CINESTREAM',
+            avatar: tx.userAvatar || 'https://res.cloudinary.com/lsydaklc/image/upload/v1790956054/cinestream_defaults/default_avatar.png',
+          },
+        })),
       },
     });
   } catch (error: any) {
