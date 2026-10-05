@@ -255,6 +255,22 @@ export async function updateProfile(req: AuthRequest, res: Response) {
     const avatar = req.body.avatar || req.body.avatar_url;
     const phone = req.body.phone || req.body.phoneNumber;
 
+    // Kiểm tra số điện thoại đã được người dùng khác sử dụng chưa
+    if (phone && typeof phone === 'string' && phone.trim()) {
+      const cleanPhone = phone.trim();
+      const [existingPhoneRows] = await pool.query<RowDataPacket[]>(
+        'SELECT id FROM users WHERE phone = ? AND id != ? LIMIT 1',
+        [cleanPhone, req.user.id]
+      );
+      if (existingPhoneRows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          field: 'phone',
+          message: 'Số điện thoại đã được sử dụng',
+        });
+      }
+    }
+
     let finalAvatar = avatar;
     if (avatar && typeof avatar === 'string' && avatar.startsWith('data:image/')) {
       try {

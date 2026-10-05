@@ -66,7 +66,7 @@ export default function ForgotPasswordScreen() {
       return;
     }
     if (!emailRegex.test(trimmedEmail)) {
-      setErrors({ email: 'Email không đúng định dạng (vd: kurumi124@gmail.com)' });
+      setErrors({ email: 'Email không đúng định dạng (ví dụ: email@example.com)' });
       return;
     }
 
@@ -276,7 +276,7 @@ export default function ForgotPasswordScreen() {
               {step === 1
                 ? 'Nhập địa chỉ email đã đăng ký của bạn. Chúng tôi sẽ gửi mã OTP 4 số để đặt lại mật khẩu.'
                 : step === 2
-                ? `Mã OTP gồm 4 số đã được gửi tới ${email}. Vui lòng nhập mã để tiếp tục (Mã test: 1111).`
+                ? `Mã OTP gồm 4 số đã được gửi tới ${email}. Vui lòng nhập mã để tiếp tục.`
                 : 'Vui lòng nhập mật khẩu mới (≥ 8 ký tự) và xác nhận để hoàn tất.'}
             </Text>
           </View>
@@ -369,7 +369,7 @@ export default function ForgotPasswordScreen() {
           {step === 2 && (
             <View style={styles.formContainer}>
               <View style={styles.otpSection}>
-                <Text style={styles.inputLabelCentered}>Nhập mã OTP 4 số (Mã test: 1111)</Text>
+                <Text style={styles.inputLabelCentered}>Nhập mã OTP 4 số</Text>
 
                 {/* 4 Formatted OTP Boxes */}
                 <View style={styles.otpContainer}>

@@ -309,6 +309,20 @@ export default function AccountSecurityScreen() {
     try {
       const cleanName = tempName.trim();
       const cleanPhone = tempPhone.replace(/\s+/g, '');
+
+      // Nếu số điện thoại thay đổi so với số hiện tại, kiểm tra xem đã tồn tại chưa
+      if (cleanPhone !== phoneNumber) {
+        const checkRes = await AuthAPI.checkExists({ phone: cleanPhone });
+        if (checkRes?.data?.phoneExists) {
+          setProfileErrors((prev) => ({
+            ...prev,
+            phone: 'Số điện thoại đã được sử dụng',
+          }));
+          setIsSavingProfile(false);
+          return;
+        }
+      }
+
       const res = await AuthAPI.updateProfile({
         fullName: cleanName,
         phone: cleanPhone,
@@ -320,10 +334,24 @@ export default function AccountSecurityScreen() {
         setIsEditProfileVisible(false);
         Alert.alert('Thành công 🎉', 'Thông tin cá nhân đã được lưu thành công!');
       } else {
-        Alert.alert('Lỗi', res.message || 'Không thể cập nhật thông tin');
+        if (res.field === 'phone' || res.message?.toLowerCase().includes('số điện thoại')) {
+          setProfileErrors((prev) => ({
+            ...prev,
+            phone: res.message || 'Số điện thoại đã được sử dụng',
+          }));
+        } else {
+          Alert.alert('Lỗi', res.message || 'Không thể cập nhật thông tin');
+        }
       }
     } catch (err: any) {
-      Alert.alert('Lỗi', err.message || 'Không thể kết nối máy chủ');
+      if (err.field === 'phone' || err.message?.toLowerCase().includes('số điện thoại')) {
+        setProfileErrors((prev) => ({
+          ...prev,
+          phone: err.message || 'Số điện thoại đã được sử dụng',
+        }));
+      } else {
+        Alert.alert('Lỗi', err.message || 'Không thể kết nối máy chủ');
+      }
     } finally {
       setIsSavingProfile(false);
     }

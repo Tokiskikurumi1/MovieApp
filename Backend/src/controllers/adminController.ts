@@ -151,35 +151,28 @@ export async function getAdminUsers(req: Request, res: Response) {
     const [rows] = await pool.query<RowDataPacket[]>(
       `SELECT u.id, u.full_name as fullName, u.email, u.phone, u.avatar,
               u.role, u.vip_tier as vipTier, u.vip_expiry as vipExpiry,
-              u.total_watched_hours as totalWatchedHours, u.status,
+              ROUND(
+                GREATEST(
+                  COALESCE(u.total_watched_hours, 0),
+                  COALESCE(wh_stats.total_watched_seconds, 0) / 3600.0
+                ), 1
+              ) as totalWatchedHours,
+              u.status,
               u.created_at as createdAt, u.last_active as lastActive
        FROM users u
+       LEFT JOIN (
+         SELECT user_id, SUM(\`current_time\`) as total_watched_seconds
+         FROM watch_history
+         GROUP BY user_id
+       ) wh_stats ON u.id = wh_stats.user_id
        ORDER BY u.created_at DESC`
     );
 
-    const usersWithDevices = await Promise.all(
-      rows.map(async (u) => {
-        const [devices] = await pool.query<RowDataPacket[]>(
-          `SELECT id, device_name as deviceName, device_type as deviceType, ip, location, last_active as lastActive
-           FROM user_devices WHERE user_id = ?`,
-          [u.id]
-        );
-        return {
-          ...u,
-          id: String(u.id),
-          devices: devices.length > 0 ? devices : [
-            {
-              id: 'dev-1',
-              deviceName: 'iPhone 15 Pro Max',
-              deviceType: 'mobile',
-              ip: '118.69.182.10',
-              location: 'Hà Nội, VN',
-              lastActive: 'Vừa xong',
-            },
-          ],
-        };
-      })
-    );
+    const usersWithDevices = rows.map((u) => ({
+      ...u,
+      id: String(u.id),
+      totalWatchedHours: Number(u.totalWatchedHours || 0),
+    }));
 
     return res.json({ success: true, data: usersWithDevices });
   } catch (error: any) {
