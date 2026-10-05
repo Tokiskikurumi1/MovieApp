@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -10,38 +10,43 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { CinemaColors } from '@/constants/theme';
-import { BrandLogo } from '@/components/brand-logo';
-import { AuthAPI, setAuthToken } from '@/services/API';
-import { useAuth } from '@/store/auth-context';
+} from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { CinemaColors } from "@/constants/theme";
+import { BrandLogo } from "@/components/brand-logo";
+import { AuthAPI, setAuthToken } from "@/services/API";
+import { useAuth } from "@/store/auth-context";
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login: contextLogin } = useAuth();
 
-  const [account, setAccount] = useState('');
-  const [password, setPassword] = useState('');
+  const [account, setAccount] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
 
   // Inline Validation Errors
-  const [errors, setErrors] = useState<{ account?: string; password?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{
+    account?: string;
+    password?: string;
+    general?: string;
+  }>({});
 
   const handleLogin = () => {
     const trimmedAccount = account.trim();
-    const newErrors: { account?: string; password?: string; general?: string } = {};
+    const newErrors: { account?: string; password?: string; general?: string } =
+      {};
 
     // 1. Kiểm tra để trống
     if (!trimmedAccount) {
-      newErrors.account = 'Vui lòng nhập email hoặc số điện thoại';
+      newErrors.account = "Vui lòng nhập email hoặc số điện thoại";
     }
     if (!password) {
-      newErrors.password = 'Vui lòng nhập mật khẩu';
+      newErrors.password = "Vui lòng nhập mật khẩu";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -60,16 +65,16 @@ export default function LoginScreen() {
           if (res.data.user) {
             contextLogin(res.data.user, res.data.token);
           }
-          router.replace('/(tabs)');
+          router.replace("/(tabs)");
         } else {
           setErrors({
-            general: res.message || 'Tài khoản hoặc mật khẩu không chính xác',
+            general: res.message || "Tài khoản hoặc mật khẩu không chính xác",
           });
         }
       })
       .catch((err) => {
         setErrors({
-          general: err.message || 'Tài khoản hoặc mật khẩu không chính xác',
+          general: err.message || "Tài khoản hoặc mật khẩu không chính xác",
         });
       })
       .finally(() => {
@@ -81,7 +86,7 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -93,7 +98,12 @@ export default function LoginScreen() {
           <View style={styles.glowBottomLeft} />
 
           {/* Logo & Brand Header */}
-          <BrandLogo layout="vertical" size="medium" showTagline={true} style={{ marginBottom: 20 }} />
+          <BrandLogo
+            layout="vertical"
+            size="medium"
+            showTagline={true}
+            style={{ marginBottom: 20 }}
+          />
 
           {/* Welcome Text */}
           <View style={styles.headerSection}>
@@ -106,7 +116,11 @@ export default function LoginScreen() {
           {/* General Hint/Error Box */}
           {errors.general && (
             <View style={styles.generalErrorBox}>
-              <Ionicons name="information-circle" size={16} color={CinemaColors.primary} />
+              <Ionicons
+                name="information-circle"
+                size={16}
+                color={CinemaColors.primary}
+              />
               <Text style={styles.generalErrorText}>{errors.general}</Text>
             </View>
           )}
@@ -119,7 +133,7 @@ export default function LoginScreen() {
               <View
                 style={[
                   styles.inputWrapper,
-                  focusedInput === 'account' && styles.inputWrapperFocused,
+                  focusedInput === "account" && styles.inputWrapperFocused,
                   errors.account ? styles.inputWrapperError : null,
                 ]}
               >
@@ -129,9 +143,9 @@ export default function LoginScreen() {
                   color={
                     errors.account
                       ? CinemaColors.error
-                      : focusedInput === 'account'
-                      ? CinemaColors.primary
-                      : CinemaColors.textMuted
+                      : focusedInput === "account"
+                        ? CinemaColors.primary
+                        : CinemaColors.textMuted
                   }
                   style={styles.inputIcon}
                 />
@@ -144,27 +158,39 @@ export default function LoginScreen() {
                   onChangeText={(val) => {
                     setAccount(val);
                     if (errors.account || errors.general) {
-                      setErrors((prev) => ({ ...prev, account: undefined, general: undefined }));
+                      setErrors((prev) => ({
+                        ...prev,
+                        account: undefined,
+                        general: undefined,
+                      }));
                     }
                   }}
-                  onFocus={() => setFocusedInput('account')}
+                  onFocus={() => setFocusedInput("account")}
                   onBlur={() => setFocusedInput(null)}
                 />
                 {account.length > 0 && (
                   <TouchableOpacity
                     onPress={() => {
-                      setAccount('');
+                      setAccount("");
                       setErrors((prev) => ({ ...prev, account: undefined }));
                     }}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    <Ionicons name="close-circle" size={18} color={CinemaColors.textMuted} />
+                    <Ionicons
+                      name="close-circle"
+                      size={18}
+                      color={CinemaColors.textMuted}
+                    />
                   </TouchableOpacity>
                 )}
               </View>
               {errors.account && (
                 <View style={styles.errorRow}>
-                  <Ionicons name="alert-circle" size={13} color={CinemaColors.error} />
+                  <Ionicons
+                    name="alert-circle"
+                    size={13}
+                    color={CinemaColors.error}
+                  />
                   <Text style={styles.errorText}>{errors.account}</Text>
                 </View>
               )}
@@ -176,7 +202,7 @@ export default function LoginScreen() {
               <View
                 style={[
                   styles.inputWrapper,
-                  focusedInput === 'password' && styles.inputWrapperFocused,
+                  focusedInput === "password" && styles.inputWrapperFocused,
                   errors.password ? styles.inputWrapperError : null,
                 ]}
               >
@@ -186,9 +212,9 @@ export default function LoginScreen() {
                   color={
                     errors.password
                       ? CinemaColors.error
-                      : focusedInput === 'password'
-                      ? CinemaColors.primary
-                      : CinemaColors.textMuted
+                      : focusedInput === "password"
+                        ? CinemaColors.primary
+                        : CinemaColors.textMuted
                   }
                   style={styles.inputIcon}
                 />
@@ -201,10 +227,14 @@ export default function LoginScreen() {
                   onChangeText={(val) => {
                     setPassword(val);
                     if (errors.password || errors.general) {
-                      setErrors((prev) => ({ ...prev, password: undefined, general: undefined }));
+                      setErrors((prev) => ({
+                        ...prev,
+                        password: undefined,
+                        general: undefined,
+                      }));
                     }
                   }}
-                  onFocus={() => setFocusedInput('password')}
+                  onFocus={() => setFocusedInput("password")}
                   onBlur={() => setFocusedInput(null)}
                 />
                 <TouchableOpacity
@@ -212,7 +242,7 @@ export default function LoginScreen() {
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
                     size={20}
                     color={CinemaColors.textSecondary}
                   />
@@ -220,7 +250,11 @@ export default function LoginScreen() {
               </View>
               {errors.password && (
                 <View style={styles.errorRow}>
-                  <Ionicons name="alert-circle" size={13} color={CinemaColors.error} />
+                  <Ionicons
+                    name="alert-circle"
+                    size={13}
+                    color={CinemaColors.error}
+                  />
                   <Text style={styles.errorText}>{errors.password}</Text>
                 </View>
               )}
@@ -233,14 +267,25 @@ export default function LoginScreen() {
                 activeOpacity={0.7}
                 onPress={() => setRememberMe(!rememberMe)}
               >
-                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                  {rememberMe && <Ionicons name="checkmark" size={14} color={CinemaColors.textPrimary} />}
+                <View
+                  style={[
+                    styles.checkbox,
+                    rememberMe && styles.checkboxChecked,
+                  ]}
+                >
+                  {rememberMe && (
+                    <Ionicons
+                      name="checkmark"
+                      size={14}
+                      color={CinemaColors.textPrimary}
+                    />
+                  )}
                 </View>
                 <Text style={styles.rememberMeText}>Ghi nhớ đăng nhập</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => router.push('/(auth)/forgotPass' as any)}
+                onPress={() => router.push("/(auth)/forgotPass" as any)}
                 activeOpacity={0.7}
               >
                 <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
@@ -249,37 +294,49 @@ export default function LoginScreen() {
 
             {/* Primary Login Button */}
             <TouchableOpacity
-              style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
+              style={[
+                styles.primaryButton,
+                isLoading && styles.primaryButtonDisabled,
+              ]}
               onPress={handleLogin}
               disabled={isLoading}
               activeOpacity={0.85}
             >
               {isLoading ? (
-                <ActivityIndicator color={CinemaColors.textPrimary} size="small" />
+                <ActivityIndicator
+                  color={CinemaColors.textPrimary}
+                  size="small"
+                />
               ) : (
                 <>
                   <Text style={styles.primaryButtonText}>Đăng Nhập</Text>
-                  <Ionicons name="arrow-forward" size={18} color={CinemaColors.textPrimary} style={styles.buttonIcon} />
+                  <Ionicons
+                    name="arrow-forward"
+                    size={18}
+                    color={CinemaColors.textPrimary}
+                    style={styles.buttonIcon}
+                  />
                 </>
               )}
             </TouchableOpacity>
 
-
-
             {/* Guest Browsing */}
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.guestButton}
               onPress={() => router.replace('/(tabs)')}
               activeOpacity={0.7}
             >
               <Text style={styles.guestButtonText}>Khám phá với tư cách Khách</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Chưa có tài khoản? </Text>
-            <TouchableOpacity onPress={() => router.push('/(auth)/register' as any)} activeOpacity={0.7}>
+            <TouchableOpacity
+              onPress={() => router.push("/(auth)/register" as any)}
+              activeOpacity={0.7}
+            >
               <Text style={styles.footerLink}>Đăng ký ngay</Text>
             </TouchableOpacity>
           </View>
@@ -304,7 +361,7 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
   },
   glowTopRight: {
-    position: 'absolute',
+    position: "absolute",
     top: -60,
     right: -60,
     width: 220,
@@ -313,7 +370,7 @@ const styles = StyleSheet.create({
     backgroundColor: CinemaColors.glowTopRight,
   },
   glowBottomLeft: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 60,
     left: -80,
     width: 260,
@@ -326,23 +383,23 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 26,
-    fontWeight: '700',
+    fontWeight: "700",
     color: CinemaColors.textPrimary,
     marginBottom: 6,
-    textAlign: 'center',
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 14,
     color: CinemaColors.textSecondary,
     lineHeight: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
   generalErrorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 51, 75, 0.1)',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 51, 75, 0.1)",
     borderWidth: 1,
-    borderColor: 'rgba(255, 51, 75, 0.3)',
+    borderColor: "rgba(255, 51, 75, 0.3)",
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -356,20 +413,20 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   formContainer: {
-    width: '100%',
+    width: "100%",
   },
   inputGroup: {
     marginBottom: 16,
   },
   inputLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     color: CinemaColors.textTertiary,
     marginBottom: 8,
   },
   inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: CinemaColors.surface,
     borderRadius: 14,
     borderWidth: 1.2,
@@ -383,11 +440,11 @@ const styles = StyleSheet.create({
   },
   inputWrapperError: {
     borderColor: CinemaColors.error,
-    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+    backgroundColor: "rgba(239, 68, 68, 0.05)",
   },
   errorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 6,
     gap: 4,
     paddingHorizontal: 4,
@@ -395,7 +452,7 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     color: CinemaColors.error,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   inputIcon: {
     marginRight: 10,
@@ -406,15 +463,15 @@ const styles = StyleSheet.create({
     color: CinemaColors.textPrimary,
   },
   optionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 4,
     marginBottom: 20,
   },
   rememberMeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   checkbox: {
     width: 20,
@@ -422,8 +479,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1.5,
     borderColor: CinemaColors.borderLight,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 8,
     backgroundColor: CinemaColors.surface,
   },
@@ -437,16 +494,16 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     color: CinemaColors.primary,
   },
   primaryButton: {
     height: 52,
     borderRadius: 14,
     backgroundColor: CinemaColors.primary,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     shadowColor: CinemaColors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
@@ -458,7 +515,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     color: CinemaColors.textPrimary,
     letterSpacing: 0.5,
   },
@@ -466,8 +523,8 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginVertical: 24,
   },
   dividerLine: {
@@ -479,18 +536,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     fontSize: 12,
     color: CinemaColors.textDivider,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   socialRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     gap: 10,
   },
   socialButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     height: 48,
     backgroundColor: CinemaColors.surfaceSocial,
     borderRadius: 12,
@@ -500,24 +557,24 @@ const styles = StyleSheet.create({
   },
   socialButtonText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     color: CinemaColors.textTertiary,
   },
   guestButton: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 14,
     marginTop: 8,
   },
   guestButtonText: {
     fontSize: 13,
     color: CinemaColors.textGuest,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 'auto',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: "auto",
     paddingTop: 20,
   },
   footerText: {
@@ -526,7 +583,7 @@ const styles = StyleSheet.create({
   },
   footerLink: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
     color: CinemaColors.primary,
   },
 });

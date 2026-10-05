@@ -148,7 +148,7 @@ export default function AccountSecurityScreen() {
   // -------------------------------------------------------------
   // FORM 1: THAY ĐỔI ẢNH ĐẠI DIỆN (AVATAR PICKER - CLOUDINARY UPLOAD)
   // -------------------------------------------------------------
-  const { updateAvatar: contextUpdateAvatar } = useAuth();
+  const { updateAvatar: contextUpdateAvatar, logout } = useAuth();
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
   const [tempAvatar, setTempAvatar] = useState(userAvatar);
   const [selectedBase64, setSelectedBase64] = useState<string | null>(null);
@@ -546,19 +546,37 @@ export default function AccountSecurityScreen() {
     );
   };
 
-  const handleDeleteAccount = () => {
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  const handleDeleteAccount = async () => {
     if (deleteConfirmText.trim() !== 'XÓA TÀI KHOẢN') {
-      Alert.alert('Lỗi', 'Vui lòng nhập chính xác cụm từ "XÓA TÀI KHOẢN" để xác nhận.');
+      Alert.alert('Lỗi xác nhận', 'Vui lòng nhập chính xác cụm từ "XÓA TÀI KHOẢN" (viết hoa) để xác nhận hủy tài khoản.');
       return;
     }
-    setIsDeleteModalVisible(false);
-    setDeleteConfirmText('');
-    Alert.alert('Đã xóa', 'Tài khoản của bạn đã được xóa khỏi hệ thống.', [
-      {
-        text: 'Đóng',
-        onPress: () => router.replace('/(auth)/login' as any),
-      },
-    ]);
+
+    setIsDeletingAccount(true);
+    try {
+      const res = await AuthAPI.deleteAccount();
+      if (res && res.success) {
+        setIsDeleteModalVisible(false);
+        setDeleteConfirmText('');
+        if (logout) {
+          logout();
+        }
+        Alert.alert('Đã xóa tài khoản', 'Tài khoản của bạn đã được hủy thành công. Cảm ơn bạn đã đồng hành cùng CINESTREAM.', [
+          {
+            text: 'Đóng',
+            onPress: () => router.replace('/(auth)/login' as any),
+          },
+        ]);
+      } else {
+        Alert.alert('Lỗi xóa tài khoản', res?.message || 'Không thể xóa tài khoản lúc này.');
+      }
+    } catch (error: any) {
+      Alert.alert('Lỗi kết nối', error?.message || 'Không thể kết nối đến máy chủ.');
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   const getDeviceIcon = (type: DeviceSession['type']) => {
@@ -1398,11 +1416,14 @@ export default function AccountSecurityScreen() {
                 <Text style={styles.modalCancelBtnText}>Hủy Bỏ</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalSubmitBtn, styles.deleteSubmitBtn]}
+                style={[styles.modalSubmitBtn, styles.deleteSubmitBtn, isDeletingAccount && { opacity: 0.6 }]}
                 onPress={handleDeleteAccount}
+                disabled={isDeletingAccount}
                 activeOpacity={0.85}
               >
-                <Text style={styles.deleteSubmitBtnText}>Xác Nhận Xóa</Text>
+                <Text style={styles.deleteSubmitBtnText}>
+                  {isDeletingAccount ? 'Đang xử lý...' : 'Xác Nhận Xóa'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -258,6 +258,10 @@ export const AuthAPI = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  deleteAccount: () =>
+    fetchJson<{ success: boolean; message: string }>('/auth/account', {
+      method: 'DELETE',
+    }),
 };
 
 export const NotificationAPI = {

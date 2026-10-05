@@ -38,7 +38,7 @@ export const UserManagement: React.FC = () => {
             vipExpiry: u.vipExpiry
               ? (typeof u.vipExpiry === 'string' && u.vipExpiry.includes('T') ? new Date(u.vipExpiry).toLocaleDateString('vi-VN') : u.vipExpiry)
               : (u.vip_expires_at ? new Date(u.vip_expires_at).toLocaleDateString('vi-VN') : undefined),
-            status: (u.status === 'banned' || u.is_banned ? 'banned' : 'active') as 'active' | 'banned',
+            status: (u.status || (u.is_banned ? 'banned' : 'active')) as any,
             devices: [],
             totalWatchedHours: Number(u.totalWatchedHours || u.total_watched_hours || 0),
             createdAt: u.createdAt
@@ -72,13 +72,13 @@ export const UserManagement: React.FC = () => {
     return matchSearch && matchVip && matchStatus;
   });
 
-  // Toggle Ban / Active
+  // Toggle Ban / Active / Restore
   const handleToggleBan = (userId: string) => {
-    AdminAPI.toggleBanUser(userId).catch((err) => console.warn('Lỗi ban user:', err));
+    AdminAPI.toggleBanUser(userId).catch((err) => console.warn('Lỗi ban/khôi phục user:', err));
     setUsers((prev) =>
       prev.map((u) => {
         if (u.id === userId) {
-          const newStatus = u.status === 'banned' ? 'active' : 'banned';
+          const newStatus = (u.status === 'banned' || (u.status as any) === 'deleted') ? 'active' : 'banned';
           return { ...u, status: newStatus };
         }
         return u;
@@ -160,13 +160,14 @@ export const UserManagement: React.FC = () => {
           {/* Status Filter */}
           <select
             className="form-select"
-            style={{ width: '160px' }}
+            style={{ width: '170px' }}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="ALL">Tất cả trạng thái</option>
             <option value="active">Đang hoạt động</option>
             <option value="banned">Bị tạm khóa</option>
+            <option value="deleted">Đã hủy / xóa</option>
           </select>
         </div>
       </div>
@@ -207,6 +208,7 @@ export const UserManagement: React.FC = () => {
                           borderRadius: '10px',
                           objectFit: 'cover',
                           border: user.role === 'admin' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                          opacity: (user.status as any) === 'deleted' ? 0.6 : 1,
                         }}
                       />
                       <div>
@@ -276,6 +278,10 @@ export const UserManagement: React.FC = () => {
                   <td>
                     {user.status === 'active' ? (
                       <span className="badge badge-success">Hoạt động</span>
+                    ) : (user.status as any) === 'deleted' ? (
+                      <span className="badge badge-neutral" style={{ color: '#9ca3af', border: '1px dashed rgba(255,255,255,0.2)' }}>
+                        Đã xóa (Hủy)
+                      </span>
                     ) : (
                       <span className="badge badge-danger">Đã khóa</span>
                     )}
@@ -298,11 +304,19 @@ export const UserManagement: React.FC = () => {
                       {user.role !== 'admin' && (
                         <button
                           className="btn-icon"
-                          style={{ color: user.status === 'banned' ? '#10b981' : '#ef4444' }}
-                          title={user.status === 'banned' ? 'Mở khóa tài khoản' : 'Khóa tài khoản'}
+                          style={{
+                            color: user.status === 'active' ? '#ef4444' : '#10b981',
+                          }}
+                          title={
+                            (user.status as any) === 'deleted'
+                              ? 'Khôi phục tài khoản'
+                              : user.status === 'banned'
+                              ? 'Mở khóa tài khoản'
+                              : 'Khóa tài khoản'
+                          }
                           onClick={() => handleToggleBan(user.id)}
                         >
-                          {user.status === 'banned' ? <CheckCircle size={15} /> : <Ban size={15} />}
+                          {user.status === 'active' ? <Ban size={15} /> : <CheckCircle size={15} />}
                         </button>
                       )}
                     </div>

@@ -11,6 +11,7 @@ import {
   verifyOtp,
   resetPassword,
   uploadAvatar,
+  deleteAccount,
 } from '../controllers/authController';
 import { authenticate } from '../middlewares/authMiddleware';
 
@@ -27,5 +28,6 @@ router.get('/me', authenticate, getMe);
 router.put('/profile', authenticate, updateProfile);
 router.post('/upload-avatar', authenticate, uploadAvatar);
 router.post('/change-password', authenticate, changePassword);
+router.delete('/account', authenticate, deleteAccount);
 
 export default router;

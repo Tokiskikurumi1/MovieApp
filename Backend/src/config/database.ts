@@ -78,6 +78,15 @@ export async function initDatabase() {
           INDEX idx_comment_reports_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
       `);
+
+      // Migration: Hỗ trợ xóa mềm người dùng (status 'deleted' & deleted_at)
+      try {
+        await pool.query("ALTER TABLE users MODIFY COLUMN status ENUM('active', 'suspended', 'banned', 'deleted') DEFAULT 'active'");
+        const [delCols] = await pool.query("SHOW COLUMNS FROM users LIKE 'deleted_at'");
+        if ((delCols as any[]).length === 0) {
+          await pool.query("ALTER TABLE users ADD COLUMN deleted_at DATETIME NULL AFTER last_active");
+        }
+      } catch (_) {}
     } catch (_) {}
   }
 

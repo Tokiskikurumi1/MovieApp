@@ -270,14 +270,14 @@ export async function toggleUserBan(req: Request, res: Response) {
     }
 
     const currentStatus = userRows[0].status;
-    const newStatus = currentStatus === 'banned' ? 'active' : 'banned';
+    const newStatus = currentStatus === 'banned' || currentStatus === 'deleted' ? 'active' : 'banned';
 
-    await pool.query('UPDATE users SET status = ? WHERE id = ?', [newStatus, id]);
+    await pool.query('UPDATE users SET status = ?, deleted_at = NULL WHERE id = ?', [newStatus, id]);
 
     return res.json({
       success: true,
       status: newStatus,
-      message: `Đã chuyển trạng thái người dùng thành: ${newStatus}`,
+      message: `Đã chuyển trạng thái người dùng thành: ${newStatus === 'active' ? 'Đang hoạt động' : 'Tạm khóa'}`,
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });

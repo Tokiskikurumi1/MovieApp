@@ -127,6 +127,13 @@ export async function login(req: Request, res: Response) {
       });
     }
 
+    if (user.status === 'deleted') {
+      return res.status(403).json({
+        success: false,
+        message: 'Tài khoản này đã bị yêu cầu hủy/xóa. Vui lòng liên hệ bộ phận hỗ trợ CINESTREAM nếu bạn muốn khôi phục tài khoản.',
+      });
+    }
+
     // Kiểm tra mật khẩu (hỗ trợ cả bcrypt hash lẫn mật khẩu test mặc định)
     let isMatch = false;
     if (user.password_hash === password) {
@@ -650,3 +657,28 @@ export async function resetPassword(req: Request, res: Response) {
     return res.status(500).json({ success: false, message: error.message });
   }
 }
+
+// Xóa tài khoản người dùng (Xóa mềm - Soft Delete)
+export async function deleteAccount(req: AuthRequest, res: Response) {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: 'Chưa xác thực người dùng' });
+    }
+
+    const userId = req.user.id;
+
+    // Cập nhật trạng thái thành 'deleted' và lưu thời gian deleted_at
+    await pool.query(
+      "UPDATE users SET status = 'deleted', deleted_at = NOW() WHERE id = ?",
+      [userId]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Tài khoản của bạn đã được hủy và xóa thành công khỏi hệ thống.',
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
