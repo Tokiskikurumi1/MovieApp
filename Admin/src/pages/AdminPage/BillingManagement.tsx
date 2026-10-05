@@ -5,7 +5,6 @@ import {
   Download,
   X,
   FileText,
-  Sparkles,
 } from 'lucide-react';
 import { type Transaction } from '../../services/mockData';
 import { AdminAPI } from '../../services/apiService';

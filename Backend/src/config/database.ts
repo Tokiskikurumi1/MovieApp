@@ -79,6 +79,67 @@ export async function initDatabase() {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
       `);
 
+      // Migration: Bảng thông báo (notifications) & lượt đọc (user_notification_reads)
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS notifications (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          message TEXT NOT NULL,
+          type VARCHAR(50) DEFAULT 'system',
+          movie_id INT NULL,
+          movie_slug VARCHAR(255) NULL,
+          image VARCHAR(500) NULL,
+          target_audience VARCHAR(50) DEFAULT 'all',
+          action_route VARCHAR(255) DEFAULT '/(tabs)',
+          sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          read_count INT DEFAULT 0,
+          total_sent INT DEFAULT 0
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      try {
+        const [nCols] = await pool.query<any[]>("SHOW COLUMNS FROM notifications");
+        const existingColNames = nCols.map((c: any) => c.Field);
+
+        if (!existingColNames.includes('movie_id')) {
+          await pool.query("ALTER TABLE notifications ADD COLUMN movie_id INT NULL AFTER type");
+        }
+        if (!existingColNames.includes('movie_slug')) {
+          await pool.query("ALTER TABLE notifications ADD COLUMN movie_slug VARCHAR(255) NULL AFTER movie_id");
+        }
+        if (!existingColNames.includes('image')) {
+          await pool.query("ALTER TABLE notifications ADD COLUMN image VARCHAR(500) NULL AFTER movie_slug");
+        }
+        if (!existingColNames.includes('target_audience')) {
+          await pool.query("ALTER TABLE notifications ADD COLUMN target_audience VARCHAR(50) DEFAULT 'all' AFTER image");
+        }
+        if (!existingColNames.includes('action_route')) {
+          await pool.query("ALTER TABLE notifications ADD COLUMN action_route VARCHAR(255) DEFAULT '/(tabs)' AFTER target_audience");
+        }
+        if (!existingColNames.includes('sent_at')) {
+          await pool.query("ALTER TABLE notifications ADD COLUMN sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER action_route");
+        }
+        if (!existingColNames.includes('read_count')) {
+          await pool.query("ALTER TABLE notifications ADD COLUMN read_count INT DEFAULT 0 AFTER sent_at");
+        }
+        if (!existingColNames.includes('total_sent')) {
+          await pool.query("ALTER TABLE notifications ADD COLUMN total_sent INT DEFAULT 0 AFTER read_count");
+        }
+      } catch (colErr) {
+        console.warn('Lỗi kiểm tra cột bảng notifications:', colErr);
+      }
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS user_notification_reads (
+          user_id INT NOT NULL,
+          notification_id INT NOT NULL,
+          read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (user_id, notification_id),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
       // Migration: Hỗ trợ xóa mềm người dùng (status 'deleted' & deleted_at)
       try {
         await pool.query("ALTER TABLE users MODIFY COLUMN status ENUM('active', 'suspended', 'banned', 'deleted') DEFAULT 'active'");

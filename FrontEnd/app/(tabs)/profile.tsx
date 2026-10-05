@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,14 @@ import {
   Switch,
   StatusBar,
   Modal,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useFocusEffect } from "expo-router";
-import { CinemaColors } from "@/constants/theme";
-import { AuthAPI, UserAPI, MovieAPI, setAuthToken } from "@/services/API";
-import { useFavorites } from "@/store/favorite-context";
-import { useAuth } from "@/store/auth-context";
-import { getValidAvatarUri, DEFAULT_AVATAR_URI } from "@/constants/avatar";
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { CinemaColors } from '@/constants/theme';
+import { AuthAPI, UserAPI, MovieAPI, setAuthToken } from '@/services/API';
+import { useFavorites } from '@/store/favorite-context';
+import { useAuth } from '@/store/auth-context';
+import { getValidAvatarUri, DEFAULT_AVATAR_URI } from '@/constants/avatar';
 
 interface UserProfileData {
   id?: number | string;
@@ -49,15 +49,8 @@ export default function ProfileScreen() {
   const [notifications, setNotifications] = useState(true);
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
 
-  const {
-    user: authUser,
-    avatarUri: authAvatarUri,
-    refreshUser,
-    logout: contextLogout,
-  } = useAuth();
-  const [userProfile, setUserProfile] = useState<UserProfileData | null>(
-    authUser,
-  );
+  const { user: authUser, avatarUri: authAvatarUri, refreshUser, logout: contextLogout } = useAuth();
+  const [userProfile, setUserProfile] = useState<UserProfileData | null>(authUser);
   const [avatarLoadError, setAvatarLoadError] = useState(false);
   const { favorites, refreshFavorites } = useFavorites();
   const [watchedMoviesCount, setWatchedMoviesCount] = useState<number>(0);
@@ -78,7 +71,7 @@ export default function ProfileScreen() {
         }
       })
       .catch((err) => {
-        console.warn("Lỗi tải thông tin tài khoản:", err.message);
+        console.warn('Lỗi tải thông tin tài khoản:', err.message);
       });
 
     // Đồng bộ số lượng phim đã xem & danh sách phim đã xem gần đây
@@ -95,7 +88,7 @@ export default function ProfileScreen() {
         }
       })
       .catch((err) => {
-        console.warn("Lỗi tải phim đã xem gần đây:", err);
+        console.warn('Lỗi tải phim đã xem gần đây:', err);
       })
       .finally(() => {
         setIsLoadingHistory(false);
@@ -106,57 +99,41 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       loadProfile();
-    }, [loadProfile]),
+    }, [loadProfile])
   );
 
   const handleConfirmLogout = () => {
     setIsLogoutModalVisible(false);
     contextLogout();
     setUserProfile(null);
-    router.replace("/(auth)/login" as any);
+    router.replace('/(auth)/login' as any);
   };
 
-  const displayName =
-    userProfile?.fullName || userProfile?.full_name || "Khách hàng";
-  const displayEmail = userProfile?.email || "Chưa liên kết email";
+  const displayName = userProfile?.fullName || userProfile?.full_name || 'Khách hàng';
+  const displayEmail = userProfile?.email || 'Chưa liên kết email';
   const displayAvatar = getValidAvatarUri(
-    userProfile?.avatar || userProfile?.avatar_url || authAvatarUri,
+    userProfile?.avatar || userProfile?.avatar_url || authAvatarUri
   );
-  const isVip = Boolean(
-    userProfile?.is_vip ||
-    (userProfile?.vipTier && userProfile.vipTier !== "Free"),
-  );
+  const isVip = Boolean(userProfile?.is_vip || (userProfile?.vipTier && userProfile.vipTier !== 'Free'));
   const vipText = isVip
-    ? userProfile?.vipTier || "VIP 4K"
-    : userProfile?.role === "admin"
-      ? "ADMIN"
-      : "MEMBER";
+    ? (userProfile?.vipTier || 'VIP 4K')
+    : userProfile?.role === 'admin'
+    ? 'ADMIN'
+    : 'MEMBER';
   const expiryDate = userProfile?.vipExpiry || userProfile?.vip_expires_at;
-  const displayExpiry =
-    isVip && expiryDate
-      ? `Hạn dùng VIP: ${new Date(expiryDate).toLocaleDateString("vi-VN")}`
-      : isVip
-        ? "Gói VIP Đang hoạt động"
-        : "CINESTREAM Member";
+  const displayExpiry = isVip && expiryDate
+    ? `Hạn dùng VIP: ${new Date(expiryDate).toLocaleDateString('vi-VN')}`
+    : isVip
+    ? 'Gói VIP Đang hoạt động'
+    : 'CINESTREAM Member';
 
-  const displayWatchedHours =
-    userProfile?.totalWatchedHours ?? userProfile?.total_watched_hours ?? 0;
-  const displayWatchedMovies =
-    watchedMoviesCount ||
-    userProfile?.watchedMoviesCount ||
-    userProfile?.watched_movies_count ||
-    0;
-  const displayFavorites =
-    favorites.length > 0
-      ? favorites.length
-      : (userProfile?.favoriteCount ?? userProfile?.favorites_count ?? 0);
+  const displayWatchedHours = userProfile?.totalWatchedHours ?? userProfile?.total_watched_hours ?? 0;
+  const displayWatchedMovies = watchedMoviesCount || userProfile?.watchedMoviesCount || userProfile?.watched_movies_count || 0;
+  const displayFavorites = favorites.length > 0 ? favorites.length : (userProfile?.favoriteCount ?? userProfile?.favorites_count ?? 0);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={CinemaColors.background}
-      />
+      <StatusBar barStyle="light-content" backgroundColor={CinemaColors.background} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -164,13 +141,9 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.headerActionBtn}
           activeOpacity={0.75}
-          onPress={() => router.push("/sub-layout/account-security" as any)}
+          onPress={() => router.push('/sub-layout/account-security' as any)}
         >
-          <Ionicons
-            name="settings-outline"
-            size={20}
-            color={CinemaColors.textPrimary}
-          />
+          <Ionicons name="settings-outline" size={20} color={CinemaColors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -182,16 +155,14 @@ export default function ProfileScreen() {
         <View style={styles.profileCard}>
           <View style={styles.avatarWrapper}>
             <Image
-              source={{
-                uri: avatarLoadError ? DEFAULT_AVATAR_URI : displayAvatar,
-              }}
+              source={{ uri: avatarLoadError ? DEFAULT_AVATAR_URI : displayAvatar }}
               style={styles.avatarImage}
               onError={() => setAvatarLoadError(true)}
             />
             <TouchableOpacity
               style={styles.editAvatarBadge}
               activeOpacity={0.8}
-              onPress={() => router.push("/sub-layout/account-security" as any)}
+              onPress={() => router.push('/sub-layout/account-security' as any)}
             >
               <Ionicons name="camera" size={12} color="#FFFFFF" />
             </TouchableOpacity>
@@ -200,25 +171,9 @@ export default function ProfileScreen() {
           <View style={styles.profileInfo}>
             <View style={styles.nameRow}>
               <Text style={styles.userName}>{displayName}</Text>
-              <View
-                style={[
-                  styles.vipBadge,
-                  !isVip && { backgroundColor: "rgba(255, 255, 255, 0.08)" },
-                ]}
-              >
-                <Ionicons
-                  name="shield-checkmark"
-                  size={12}
-                  color={isVip ? "#FFD700" : CinemaColors.textMuted}
-                />
-                <Text
-                  style={[
-                    styles.vipText,
-                    !isVip && { color: CinemaColors.textSecondary },
-                  ]}
-                >
-                  {vipText}
-                </Text>
+              <View style={[styles.vipBadge, !isVip && { backgroundColor: 'rgba(255, 255, 255, 0.08)' }]}>
+                <Ionicons name="shield-checkmark" size={12} color={isVip ? '#FFD700' : CinemaColors.textMuted} />
+                <Text style={[styles.vipText, !isVip && { color: CinemaColors.textSecondary }]}>{vipText}</Text>
               </View>
             </View>
             <Text style={styles.userEmail}>{displayEmail}</Text>
@@ -231,14 +186,13 @@ export default function ProfileScreen() {
           <TouchableOpacity
             style={styles.statItem}
             activeOpacity={0.75}
-            onPress={() => router.push("/sub-layout/continue-watching" as any)}
+            onPress={() => router.push('/sub-layout/continue-watching' as any)}
           >
             <View style={styles.statIconBadge}>
               <Ionicons name="time" size={16} color={CinemaColors.primary} />
             </View>
             <Text style={styles.statValue}>
-              {displayWatchedHours}
-              <Text style={styles.statUnit}>h</Text>
+              {displayWatchedHours}<Text style={styles.statUnit}>h</Text>
             </Text>
             <Text style={styles.statLabel}>Số giờ xem</Text>
             <Text style={styles.statSubText}>Thời lượng</Text>
@@ -249,14 +203,10 @@ export default function ProfileScreen() {
           <TouchableOpacity
             style={styles.statItem}
             activeOpacity={0.75}
-            onPress={() => router.push("/sub-layout/continue-watching" as any)}
+            onPress={() => router.push('/sub-layout/continue-watching' as any)}
           >
             <View style={styles.statIconBadge}>
-              <Ionicons
-                name="play-circle"
-                size={17}
-                color={CinemaColors.primary}
-              />
+              <Ionicons name="play-circle" size={17} color={CinemaColors.primary} />
             </View>
             <Text style={styles.statValue}>{displayWatchedMovies}</Text>
             <Text style={styles.statLabel}>Phim đã xem</Text>
@@ -268,7 +218,7 @@ export default function ProfileScreen() {
           <TouchableOpacity
             style={styles.statItem}
             activeOpacity={0.75}
-            onPress={() => router.push("/(tabs)/favorite" as any)}
+            onPress={() => router.push('/(tabs)/favorite' as any)}
           >
             <View style={styles.statIconBadge}>
               <Ionicons name="heart" size={16} color={CinemaColors.primary} />
@@ -434,12 +384,13 @@ export default function ProfileScreen() {
         </View> */}
 
         {/* Section Quản lý hoạt động */}
+        
 
         {/* Premium Upgrade Banner */}
         <TouchableOpacity
           style={styles.premiumBanner}
           activeOpacity={0.85}
-          onPress={() => router.push("/sub-layout/billing-subscription" as any)}
+          onPress={() => router.push('/sub-layout/billing-subscription' as any)}
         >
           <View style={styles.premiumLeft}>
             <View style={styles.premiumIconBox}>
@@ -447,16 +398,10 @@ export default function ProfileScreen() {
             </View>
             <View>
               <Text style={styles.premiumTitle}>Gói CINESTREAM Premium</Text>
-              <Text style={styles.premiumSubtitle}>
-                Xem không giới hạn 4K HDR & Dolby Atmos
-              </Text>
+              <Text style={styles.premiumSubtitle}>Xem không giới hạn 4K HDR & Dolby Atmos</Text>
             </View>
           </View>
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color={CinemaColors.primary}
-          />
+          <Ionicons name="chevron-forward" size={18} color={CinemaColors.primary} />
         </TouchableOpacity>
 
         {/* Section 1: Cài đặt xem phim */}
@@ -468,21 +413,14 @@ export default function ProfileScreen() {
             <View style={styles.settingRow}>
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>
-                  <Ionicons
-                    name="wifi-outline"
-                    size={18}
-                    color={CinemaColors.primary}
-                  />
+                  <Ionicons name="wifi-outline" size={18} color={CinemaColors.primary} />
                 </View>
                 <Text style={styles.settingLabel}>Chỉ tải qua Wi-Fi</Text>
               </View>
               <Switch
                 value={wifiOnlyDownload}
                 onValueChange={setWifiOnlyDownload}
-                trackColor={{
-                  false: CinemaColors.border,
-                  true: CinemaColors.primary,
-                }}
+                trackColor={{ false: CinemaColors.border, true: CinemaColors.primary }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -493,21 +431,14 @@ export default function ProfileScreen() {
             <View style={styles.settingRow}>
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>
-                  <Ionicons
-                    name="play-forward-outline"
-                    size={18}
-                    color={CinemaColors.primary}
-                  />
+                  <Ionicons name="play-forward-outline" size={18} color={CinemaColors.primary} />
                 </View>
                 <Text style={styles.settingLabel}>Tự động phát tập tiếp</Text>
               </View>
               <Switch
                 value={autoPlayNext}
                 onValueChange={setAutoPlayNext}
-                trackColor={{
-                  false: CinemaColors.border,
-                  true: CinemaColors.primary,
-                }}
+                trackColor={{ false: CinemaColors.border, true: CinemaColors.primary }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -518,21 +449,14 @@ export default function ProfileScreen() {
             <View style={styles.settingRow}>
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>
-                  <Ionicons
-                    name="notifications-outline"
-                    size={18}
-                    color={CinemaColors.primary}
-                  />
+                  <Ionicons name="notifications-outline" size={18} color={CinemaColors.primary} />
                 </View>
                 <Text style={styles.settingLabel}>Thông báo phim mới</Text>
               </View>
               <Switch
                 value={notifications}
                 onValueChange={setNotifications}
-                trackColor={{
-                  false: CinemaColors.border,
-                  true: CinemaColors.primary,
-                }}
+                trackColor={{ false: CinemaColors.border, true: CinemaColors.primary }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -547,25 +471,15 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.settingLinkRow}
               activeOpacity={0.7}
-              onPress={() => router.push("/sub-layout/account-security" as any)}
+              onPress={() => router.push('/sub-layout/account-security' as any)}
             >
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>
-                  <Ionicons
-                    name="shield-checkmark-outline"
-                    size={18}
-                    color={CinemaColors.primary}
-                  />
+                  <Ionicons name="shield-checkmark-outline" size={18} color={CinemaColors.primary} />
                 </View>
-                <Text style={styles.settingLabel}>
-                  Tài khoản & Bảo mật (Chi tiết)
-                </Text>
+                <Text style={styles.settingLabel}>Tài khoản & Bảo mật (Chi tiết)</Text>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={CinemaColors.textMuted}
-              />
+              <Ionicons name="chevron-forward" size={18} color={CinemaColors.textMuted} />
             </TouchableOpacity>
 
             <View style={styles.divider} />
@@ -573,27 +487,15 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.settingLinkRow}
               activeOpacity={0.7}
-              onPress={() =>
-                router.push("/sub-layout/billing-subscription" as any)
-              }
+              onPress={() => router.push('/sub-layout/billing-subscription' as any)}
             >
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>
-                  <Ionicons
-                    name="card-outline"
-                    size={18}
-                    color={CinemaColors.primary}
-                  />
+                  <Ionicons name="card-outline" size={18} color={CinemaColors.primary} />
                 </View>
-                <Text style={styles.settingLabel}>
-                  Lịch sử thanh toán & Gói cước
-                </Text>
+                <Text style={styles.settingLabel}>Lịch sử thanh toán & Gói cước</Text>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={CinemaColors.textMuted}
-              />
+              <Ionicons name="chevron-forward" size={18} color={CinemaColors.textMuted} />
             </TouchableOpacity>
           </View>
         </View>
@@ -606,23 +508,15 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.settingLinkRow}
               activeOpacity={0.7}
-              onPress={() => router.push("/sub-layout/help-center" as any)}
+              onPress={() => router.push('/sub-layout/help-center' as any)}
             >
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>
-                  <Ionicons
-                    name="help-circle-outline"
-                    size={18}
-                    color={CinemaColors.primary}
-                  />
+                  <Ionicons name="help-circle-outline" size={18} color={CinemaColors.primary} />
                 </View>
                 <Text style={styles.settingLabel}>Trung tâm trợ giúp 24/7</Text>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={CinemaColors.textMuted}
-              />
+              <Ionicons name="chevron-forward" size={18} color={CinemaColors.textMuted} />
             </TouchableOpacity>
 
             <View style={styles.divider} />
@@ -630,25 +524,15 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.settingLinkRow}
               activeOpacity={0.7}
-              onPress={() => router.push("/sub-layout/terms-privacy" as any)}
+              onPress={() => router.push('/sub-layout/terms-privacy' as any)}
             >
               <View style={styles.settingRowLeft}>
                 <View style={styles.settingIconCircle}>
-                  <Ionicons
-                    name="document-text-outline"
-                    size={18}
-                    color={CinemaColors.primary}
-                  />
+                  <Ionicons name="document-text-outline" size={18} color={CinemaColors.primary} />
                 </View>
-                <Text style={styles.settingLabel}>
-                  Điều khoản & Chính sách bảo mật
-                </Text>
+                <Text style={styles.settingLabel}>Điều khoản & Chính sách bảo mật</Text>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={CinemaColors.textMuted}
-              />
+              <Ionicons name="chevron-forward" size={18} color={CinemaColors.textMuted} />
             </TouchableOpacity>
           </View>
         </View>
@@ -659,11 +543,7 @@ export default function ProfileScreen() {
           onPress={() => setIsLogoutModalVisible(true)}
           activeOpacity={0.85}
         >
-          <Ionicons
-            name="log-out-outline"
-            size={20}
-            color={CinemaColors.error}
-          />
+          <Ionicons name="log-out-outline" size={20} color={CinemaColors.error} />
           <Text style={styles.logoutButtonText}>Đăng Xuất Tài Khoản</Text>
         </TouchableOpacity>
 
@@ -692,11 +572,7 @@ export default function ProfileScreen() {
           >
             {/* Top Red Glow Icon */}
             <View style={styles.logoutIconGlow}>
-              <Ionicons
-                name="log-out-outline"
-                size={28}
-                color={CinemaColors.error}
-              />
+              <Ionicons name="log-out-outline" size={28} color={CinemaColors.error} />
             </View>
 
             <Text style={styles.logoutModalTitle}>Đăng Xuất</Text>
@@ -735,18 +611,18 @@ const styles = StyleSheet.create({
     backgroundColor: CinemaColors.background,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.05)",
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: "800",
+    fontWeight: '800',
     color: CinemaColors.textPrimary,
     letterSpacing: 0.3,
   },
@@ -755,8 +631,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: CinemaColors.surface,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: CinemaColors.border,
   },
@@ -766,8 +642,8 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
   },
   profileCard: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: CinemaColors.surface,
     borderRadius: 16,
     padding: 16,
@@ -777,7 +653,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   avatarWrapper: {
-    position: "relative",
+    position: 'relative',
   },
   avatarImage: {
     width: 64,
@@ -787,15 +663,15 @@ const styles = StyleSheet.create({
     borderColor: CinemaColors.primary,
   },
   editAvatarBadge: {
-    position: "absolute",
+    position: 'absolute',
     bottom: -2,
     right: -2,
     width: 22,
     height: 22,
     borderRadius: 11,
     backgroundColor: CinemaColors.primary,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1.5,
     borderColor: CinemaColors.surface,
   },
@@ -803,31 +679,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginBottom: 3,
   },
   userName: {
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: '700',
     color: CinemaColors.textPrimary,
   },
   vipBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 215, 0, 0.15)",
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
     gap: 3,
     borderWidth: 0.5,
-    borderColor: "rgba(255, 215, 0, 0.3)",
+    borderColor: 'rgba(255, 215, 0, 0.3)',
   },
   vipText: {
     fontSize: 10,
-    fontWeight: "800",
-    color: "#FFD700",
+    fontWeight: '800',
+    color: '#FFD700',
   },
   userEmail: {
     fontSize: 12,
@@ -837,13 +713,13 @@ const styles = StyleSheet.create({
   membershipExpiry: {
     fontSize: 11,
     color: CinemaColors.primary,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   /* Stats Card */
   statsCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: CinemaColors.surface,
     borderRadius: 16,
     paddingVertical: 14,
@@ -854,63 +730,63 @@ const styles = StyleSheet.create({
   },
   statItem: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statIconBadge: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(255, 51, 75, 0.12)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(255, 51, 75, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: "rgba(255, 51, 75, 0.25)",
+    borderColor: 'rgba(255, 51, 75, 0.25)',
   },
   statValue: {
     fontSize: 18,
-    fontWeight: "800",
+    fontWeight: '800',
     color: CinemaColors.textPrimary,
     letterSpacing: 0.2,
     marginBottom: 2,
   },
   statUnit: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: '600',
     color: CinemaColors.textSecondary,
   },
   statLabel: {
     fontSize: 11.5,
-    fontWeight: "500",
+    fontWeight: '500',
     color: CinemaColors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
   },
   statSubText: {
     fontSize: 10,
     color: CinemaColors.textMuted,
     marginTop: 1,
-    textAlign: "center",
+    textAlign: 'center',
   },
   statDivider: {
     width: 1,
     height: 38,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   premiumBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "rgba(255, 51, 75, 0.08)",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 51, 75, 0.08)',
     borderWidth: 1,
-    borderColor: "rgba(255, 51, 75, 0.25)",
+    borderColor: 'rgba(255, 51, 75, 0.25)',
     borderRadius: 14,
     padding: 14,
     marginBottom: 20,
   },
   premiumLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
     flex: 1,
   },
@@ -918,13 +794,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: "rgba(255, 215, 0, 0.15)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   premiumTitle: {
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: '700',
     color: CinemaColors.textPrimary,
     marginBottom: 2,
   },
@@ -937,7 +813,7 @@ const styles = StyleSheet.create({
   },
   sectionHeading: {
     fontSize: 11,
-    fontWeight: "800",
+    fontWeight: '800',
     color: CinemaColors.textMuted,
     letterSpacing: 0.8,
     marginBottom: 8,
@@ -951,20 +827,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   settingRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 14,
   },
   settingLinkRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 14,
   },
   settingRowLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
     flex: 1,
   },
@@ -972,13 +848,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(255, 51, 75, 0.12)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(255, 51, 75, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   settingLabel: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     color: CinemaColors.textPrimary,
   },
   settingSubLabel: {
@@ -987,21 +863,21 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   rowRightBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   divider: {
     height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   logoutButton: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.3)",
+    borderColor: 'rgba(239, 68, 68, 0.3)',
     borderRadius: 14,
     paddingVertical: 14,
     gap: 8,
@@ -1010,55 +886,55 @@ const styles = StyleSheet.create({
   },
   logoutButtonText: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: '700',
     color: CinemaColors.error,
   },
   versionText: {
-    textAlign: "center",
+    textAlign: 'center',
     fontSize: 11,
     color: CinemaColors.textMuted,
   },
 
   /* Section Header & Carousels for History & Favorites */
   sectionHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
     paddingHorizontal: 2,
   },
   sectionTitleWithBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   sectionTitleText: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: '700',
     color: CinemaColors.textPrimary,
     letterSpacing: 0.2,
   },
   countPill: {
-    backgroundColor: "rgba(255, 51, 75, 0.15)",
+    backgroundColor: 'rgba(255, 51, 75, 0.15)',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 10,
     borderWidth: 0.5,
-    borderColor: "rgba(255, 51, 75, 0.3)",
+    borderColor: 'rgba(255, 51, 75, 0.3)',
   },
   countPillText: {
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: '700',
     color: CinemaColors.primary,
   },
   seeAllBtn: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 2,
   },
   seeAllBtnText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: CinemaColors.primary,
   },
   horizontalListContent: {
@@ -1073,45 +949,45 @@ const styles = StyleSheet.create({
     width: 145,
     height: 86,
     borderRadius: 10,
-    overflow: "hidden",
+    overflow: 'hidden',
     backgroundColor: CinemaColors.surfaceElevated,
-    position: "relative",
+    position: 'relative',
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   watchedImage: {
-    width: "100%",
-    height: "100%",
+    width: '100%',
+    height: '100%',
   },
   playIconOverlay: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
     transform: [{ translateX: -14 }, { translateY: -14 }],
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "rgba(0, 0, 0, 0.65)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   progressBarTrack: {
-    position: "absolute",
+    position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     height: 3,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
   progressBarFill: {
-    height: "100%",
+    height: '100%',
     backgroundColor: CinemaColors.primary,
   },
   watchedTitle: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: CinemaColors.textPrimary,
     marginTop: 6,
   },
@@ -1128,23 +1004,23 @@ const styles = StyleSheet.create({
     width: 108,
     height: 148,
     borderRadius: 10,
-    overflow: "hidden",
+    overflow: 'hidden',
     backgroundColor: CinemaColors.surfaceElevated,
-    position: "relative",
+    position: 'relative',
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   favoriteImage: {
-    width: "100%",
-    height: "100%",
+    width: '100%',
+    height: '100%',
   },
   favoriteRatingBadge: {
-    position: "absolute",
+    position: 'absolute',
     top: 6,
     right: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 4,
@@ -1152,26 +1028,26 @@ const styles = StyleSheet.create({
   },
   favoriteRatingText: {
     fontSize: 10,
-    fontWeight: "700",
-    color: "#FFD700",
+    fontWeight: '700',
+    color: '#FFD700',
   },
   favoriteQualityBadge: {
-    position: "absolute",
+    position: 'absolute',
     top: 6,
     left: 6,
-    backgroundColor: "rgba(255, 51, 75, 0.85)",
+    backgroundColor: 'rgba(255, 51, 75, 0.85)',
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 3,
   },
   favoriteQualityText: {
     fontSize: 9,
-    fontWeight: "800",
-    color: "#FFFFFF",
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   favoriteTitle: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     color: CinemaColors.textPrimary,
     marginTop: 6,
   },
@@ -1186,50 +1062,50 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 18,
     paddingHorizontal: 16,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: CinemaColors.border,
-    borderStyle: "dashed",
+    borderStyle: 'dashed',
   },
   emptyCardText: {
     fontSize: 12.5,
     color: CinemaColors.textSecondary,
     marginTop: 8,
     marginBottom: 10,
-    textAlign: "center",
+    textAlign: 'center',
   },
   emptyCardBtn: {
-    backgroundColor: "rgba(255, 51, 75, 0.12)",
+    backgroundColor: 'rgba(255, 51, 75, 0.12)',
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 51, 75, 0.3)",
+    borderColor: 'rgba(255, 51, 75, 0.3)',
   },
   emptyCardBtnText: {
     fontSize: 11.5,
-    fontWeight: "700",
+    fontWeight: '700',
     color: CinemaColors.primary,
   },
 
   /* Centered Logout Modal Styles */
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.75)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 28,
   },
   logoutModalCard: {
-    width: "100%",
+    width: '100%',
     backgroundColor: CinemaColors.surface,
     borderRadius: 22,
     padding: 24,
-    alignItems: "center",
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    shadowColor: "#000",
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.5,
     shadowRadius: 15,
@@ -1239,43 +1115,43 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: "rgba(239, 68, 68, 0.12)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.25)",
+    borderColor: 'rgba(239, 68, 68, 0.25)',
   },
   logoutModalTitle: {
     fontSize: 19,
-    fontWeight: "800",
-    color: "#FFFFFF",
+    fontWeight: '800',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   logoutModalMessage: {
     fontSize: 13.5,
     color: CinemaColors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     lineHeight: 20,
     marginBottom: 22,
   },
   logoutModalButtonsRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
-    width: "100%",
+    width: '100%',
   },
   cancelLogoutBtn: {
     flex: 1,
     backgroundColor: CinemaColors.surfaceElevated,
     paddingVertical: 12,
     borderRadius: 12,
-    alignItems: "center",
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: CinemaColors.border,
   },
   cancelLogoutText: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: '700',
     color: CinemaColors.textPrimary,
   },
   confirmLogoutBtn: {
@@ -1283,11 +1159,11 @@ const styles = StyleSheet.create({
     backgroundColor: CinemaColors.error,
     paddingVertical: 12,
     borderRadius: 12,
-    alignItems: "center",
+    alignItems: 'center',
   },
   confirmLogoutText: {
     fontSize: 14,
-    fontWeight: "700",
-    color: "#FFFFFF",
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

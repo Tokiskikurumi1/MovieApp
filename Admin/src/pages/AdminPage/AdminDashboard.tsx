@@ -7,7 +7,6 @@ import {
   ShieldCheck,
   Star,
   ArrowUpRight,
-  Sparkles,
   Users,
 } from 'lucide-react';
 import { AdminAPI } from '../../services/apiService';

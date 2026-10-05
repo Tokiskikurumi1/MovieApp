@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   BellRing,
   Send,
-  Smartphone,
   CheckCircle2,
   Trash2,
   Film,
