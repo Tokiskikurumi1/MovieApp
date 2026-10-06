@@ -411,90 +411,137 @@ export default function BillingSubscriptionScreen() {
               </TouchableOpacity>
             </View>
 
-            {selectedPlan && (
-              <View style={styles.modalPlanSummary}>
-                <View>
-                  <Text style={styles.modalPlanName}>{selectedPlan.name}</Text>
-                  <Text style={styles.modalPlanDuration}>Thời hạn: {selectedPlan.duration}</Text>
-                </View>
-                <Text style={styles.modalPlanPrice}>{selectedPlan.price}</Text>
-              </View>
-            )}
-
-            <Text style={styles.paymentMethodHeading}>CHỌN PHƯƠNG THỨC THANH TOÁN</Text>
-
-            {/* Payment Methods */}
-            {[
-              { id: 'vietqr', name: 'Chuyển Khoản VietQR (Napas 247)', icon: 'qr-code-outline', badge: 'Khuyên dùng • 0% phí' },
-              { id: 'momo', name: 'Ví Điện Tử MoMo', icon: 'wallet-outline' },
-              { id: 'zalopay', name: 'Ví ZaloPay', icon: 'phone-portrait-outline' },
-              { id: 'card', name: 'Thẻ Quốc Tế Visa / Mastercard / JCB', icon: 'card-outline' },
-              { id: 'apple', name: 'Apple Pay / Google Pay', icon: 'logo-apple' },
-            ].map((method) => {
-              const isSelected = selectedPaymentMethod === method.id;
-              return (
-                <TouchableOpacity
-                  key={method.id}
-                  style={[styles.paymentMethodRow, isSelected && styles.paymentMethodRowActive]}
-                  activeOpacity={0.8}
-                  onPress={() => setSelectedPaymentMethod(method.id as any)}
-                >
-                  <View style={styles.methodLeft}>
-                    <View style={[styles.methodIconBox, isSelected && styles.methodIconBoxActive]}>
-                      <Ionicons
-                        name={method.icon as any}
-                        size={20}
-                        color={isSelected ? CinemaColors.primary : CinemaColors.textSecondary}
-                      />
-                    </View>
-                    <View>
-                      <Text style={[styles.methodName, isSelected && styles.methodNameActive]}>
-                        {method.name}
-                      </Text>
-                      {method.badge && <Text style={styles.methodBadge}>{method.badge}</Text>}
-                    </View>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+              {selectedPlan && (
+                <View style={styles.modalPlanSummary}>
+                  <View>
+                    <Text style={styles.modalPlanName}>{selectedPlan.name}</Text>
+                    <Text style={styles.modalPlanDuration}>Thời hạn: {selectedPlan.duration}</Text>
                   </View>
-                  <Ionicons
-                    name={isSelected ? 'radio-button-on' : 'radio-button-off'}
-                    size={20}
-                    color={isSelected ? CinemaColors.primary : CinemaColors.textMuted}
-                  />
-                </TouchableOpacity>
-              );
-            })}
-
-            {/* VietQR Dynamic Code Preview if Selected */}
-            {selectedPaymentMethod === 'vietqr' && selectedPlan && (
-              <View style={styles.vietQrBox}>
-                <Image
-                  source={{
-                    uri: `https://img.vietqr.io/image/MB-0987654321-compact2.png?amount=${selectedPlan.price.replace(/\\D/g, '')}&addInfo=VIP%20${selectedPlan.id}&accountName=CTY%20CP%20TRUYEN%20THONG%20CINESTREAM`,
-                  }}
-                  style={styles.vietQrImage}
-                  resizeMode="contain"
-                />
-                <View style={styles.vietQrInfoRow}>
-                  <Text style={styles.vietQrBankText}>MB Bank • STK: 0987654321</Text>
-                  <Text style={styles.vietQrSubText}>Quét mã bằng app ngân hàng bất kỳ để thanh toán tự động</Text>
+                  <Text style={styles.modalPlanPrice}>{selectedPlan.price}</Text>
                 </View>
-              </View>
-            )}
-
-            {/* Confirm Payment Button */}
-            <TouchableOpacity
-              style={[styles.confirmPayBtn, isProcessingUpgrade && { opacity: 0.6 }]}
-              activeOpacity={0.85}
-              disabled={isProcessingUpgrade}
-              onPress={handleConfirmPayment}
-            >
-              {isProcessingUpgrade ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={styles.confirmPayText}>
-                  {selectedPaymentMethod === 'vietqr' ? 'Xác Nhận Đã Chuyển Khoản' : 'Thanh Toán Ngay'}
-                </Text>
               )}
-            </TouchableOpacity>
+
+              <Text style={styles.paymentMethodHeading}>CHỌN PHƯƠNG THỨC THANH TOÁN</Text>
+
+              {/* Payment Methods */}
+              {[
+                { id: 'vietqr', name: 'Chuyển Khoản VietQR (Napas 247)', icon: 'qr-code-outline', badge: 'Khuyên dùng • Phí 0%' },
+                { id: 'momo', name: 'Ví Điện Tử MoMo', icon: 'wallet-outline', badge: 'Miễn phí GD' },
+                { id: 'zalopay', name: 'Ví ZaloPay', icon: 'phone-portrait-outline', badge: 'Miễn phí GD' },
+                { id: 'card', name: 'Thẻ Quốc Tế Visa / Mastercard / JCB', icon: 'card-outline', badge: 'Miễn phí GD' },
+                { id: 'apple', name: 'Apple Pay / Google Pay', icon: 'logo-apple', badge: 'Miễn phí GD' },
+              ].map((method) => {
+                const isSelected = selectedPaymentMethod === method.id;
+                return (
+                  <TouchableOpacity
+                    key={method.id}
+                    style={[styles.paymentMethodRow, isSelected && styles.paymentMethodRowActive]}
+                    activeOpacity={0.8}
+                    onPress={() => setSelectedPaymentMethod(method.id as any)}
+                  >
+                    <View style={styles.methodLeft}>
+                      <View style={[styles.methodIconBox, isSelected && styles.methodIconBoxActive]}>
+                        <Ionicons
+                          name={method.icon as any}
+                          size={20}
+                          color={isSelected ? CinemaColors.primary : CinemaColors.textSecondary}
+                        />
+                      </View>
+                      <View>
+                        <Text style={[styles.methodName, isSelected && styles.methodNameActive]}>
+                          {method.name}
+                        </Text>
+                        {method.badge && <Text style={styles.methodBadge}>{method.badge}</Text>}
+                      </View>
+                    </View>
+                    <Ionicons
+                      name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                      size={20}
+                      color={isSelected ? CinemaColors.primary : CinemaColors.textMuted}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+
+              {/* VietQR Dynamic Code Preview if Selected */}
+              {selectedPaymentMethod === 'vietqr' && selectedPlan && (
+                <View style={styles.vietQrBox}>
+                  <Image
+                    source={{
+                      uri: `https://img.vietqr.io/image/MB-0987654321-compact2.png?amount=${selectedPlan.price.replace(/[^0-9]/g, '')}&addInfo=VIP%20${selectedPlan.id}&accountName=CTY%20CP%20TRUYEN%20THONG%20CINESTREAM`,
+                    }}
+                    style={styles.vietQrImage}
+                    resizeMode="contain"
+                  />
+                  <View style={styles.vietQrInfoRow}>
+                    <Text style={styles.vietQrBankText}>MB Bank • STK: 0987654321</Text>
+                    <Text style={styles.vietQrSubText}>Quét mã bằng app ngân hàng bất kỳ để thanh toán tự động</Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Chi Tiết Minh Bạch Giá & Phí Cổng */}
+              {selectedPlan && (() => {
+                const grossNum = parseInt(selectedPlan.price.replace(/[^0-9]/g, ''), 10) || 0;
+                // Làm tròn đến nghìn đồng (.000 đ) theo đúng chuẩn tiền tệ VNĐ
+                const vatNum = Math.round((grossNum - grossNum / 1.1) / 1000) * 1000;
+                const netNum = grossNum - vatNum;
+                const feeMap: Record<string, { label: string; fee: string }> = {
+                  vietqr: { label: 'VietQR Napas 247', fee: '0 đ (Miễn phí 100%)' },
+                  momo: { label: 'Ví MoMo', fee: '0 đ (CineStream tài trợ)' },
+                  zalopay: { label: 'Ví ZaloPay', fee: '0 đ (CineStream tài trợ)' },
+                  card: { label: 'Thẻ Visa/Mastercard', fee: '0 đ (CineStream tài trợ)' },
+                  apple: { label: 'Apple/Google Pay', fee: '0 đ (CineStream tài trợ)' },
+                };
+                const curFee = feeMap[selectedPaymentMethod] || { label: 'Cổng thanh toán', fee: '0 đ' };
+
+                return (
+                  <View style={styles.modalFeeBreakdown}>
+                    <View style={styles.feeBreakdownRow}>
+                      <Text style={styles.feeBreakdownLabel}>Giá cước dịch vụ (chưa thuế)</Text>
+                      <Text style={styles.feeBreakdownValue}>{netNum.toLocaleString('vi-VN')} đ</Text>
+                    </View>
+                    <View style={styles.feeBreakdownRow}>
+                      <Text style={styles.feeBreakdownLabel}>Thuế GTGT (VAT 10%)</Text>
+                      <Text style={[styles.feeBreakdownValue, { color: '#F59E0B' }]}>
+                        +{vatNum.toLocaleString('vi-VN')} đ
+                      </Text>
+                    </View>
+                    <View style={styles.feeBreakdownRow}>
+                      <Text style={styles.feeBreakdownLabel}>Phí xử lý ({curFee.label})</Text>
+                      <Text style={[styles.feeBreakdownValue, { color: '#10B981', fontWeight: '700' }]}>
+                        {curFee.fee}
+                      </Text>
+                    </View>
+                    <View style={styles.feeBreakdownDivider} />
+                    <View style={styles.feeBreakdownRow}>
+                      <Text style={styles.feeBreakdownTotalLabel}>Tổng thanh toán thực tế</Text>
+                      <Text style={styles.feeBreakdownTotalValue}>{selectedPlan.price}</Text>
+                    </View>
+                    <Text style={styles.feeGuaranteeText}>
+                      🛡️ Cam kết trọn gói: Đã bao gồm thuế VAT & không phụ thu bất kỳ chi phí nào
+                    </Text>
+                  </View>
+                );
+              })()}
+
+              {/* Confirm Payment Button */}
+              <TouchableOpacity
+                style={[styles.confirmPayBtn, isProcessingUpgrade && { opacity: 0.6 }]}
+                activeOpacity={0.85}
+                disabled={isProcessingUpgrade}
+                onPress={handleConfirmPayment}
+              >
+                {isProcessingUpgrade ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.confirmPayText}>
+                    {selectedPaymentMethod === 'vietqr' ? 'Xác Nhận Đã Chuyển Khoản' : 'Thanh Toán Ngay'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -554,8 +601,8 @@ export default function BillingSubscriptionScreen() {
                 <View style={styles.receiptDivider} />
 
                 {(() => {
-                  const gross = selectedTx.rawAmount || (selectedTx.amount ? parseInt(selectedTx.amount.replace(/\\D/g, ''), 10) : 0) || 0;
-                  const vat = selectedTx.vatAmount !== undefined ? selectedTx.vatAmount : Math.round(gross - gross / 1.1);
+                  const gross = selectedTx.rawAmount || (selectedTx.amount ? parseInt(selectedTx.amount.replace(/[^0-9]/g, ''), 10) : 0) || 0;
+                  const vat = selectedTx.vatAmount !== undefined ? selectedTx.vatAmount : (Math.round((gross - gross / 1.1) / 1000) * 1000);
                   const net = selectedTx.netAmount !== undefined ? selectedTx.netAmount : (gross - vat);
                   return (
                     <>
@@ -924,7 +971,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
-    paddingBottom: 36,
+    paddingBottom: 24,
+    maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1188,6 +1236,52 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: 'center',
     lineHeight: 16,
+  },
+  modalFeeBreakdown: {
+    backgroundColor: CinemaColors.surfaceElevated,
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  feeBreakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 3,
+  },
+  feeBreakdownLabel: {
+    fontSize: 12,
+    color: CinemaColors.textMuted,
+  },
+  feeBreakdownValue: {
+    fontSize: 12.5,
+    color: CinemaColors.textPrimary,
+    fontWeight: '600',
+  },
+  feeBreakdownDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginVertical: 8,
+  },
+  feeBreakdownTotalLabel: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  feeBreakdownTotalValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: CinemaColors.primary,
+  },
+  feeGuaranteeText: {
+    fontSize: 11,
+    color: '#10B981',
+    marginTop: 8,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });
 
