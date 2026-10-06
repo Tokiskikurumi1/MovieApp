@@ -522,7 +522,12 @@ export async function getAdminTransactions(req: Request, res: Response) {
 
     let sql = `
       SELECT t.id, t.order_code as orderCode, t.package_id as packageId,
-             t.package_name as packageName, t.amount, t.payment_method as paymentMethod,
+             t.package_name as packageName, t.amount,
+             COALESCE(t.vat_amount, ROUND((t.amount / 1.1) * 0.1, 2)) as vatAmount,
+             COALESCE(t.net_amount, ROUND(t.amount / 1.1, 2)) as netAmount,
+             COALESCE(t.invoice_code, CONCAT('HD-', YEAR(t.created_at), '-', LPAD(t.id, 6, '0'))) as invoiceCode,
+             t.invoice_url as invoiceUrl,
+             t.payment_method as paymentMethod,
              t.status, t.created_at as createdAt,
              u.id as userId, u.full_name as userName, u.email as userEmail,
              u.phone as userPhone, u.avatar as userAvatar
@@ -533,8 +538,8 @@ export async function getAdminTransactions(req: Request, res: Response) {
     const params: any[] = [];
 
     if (search) {
-      sql += ' AND (t.order_code LIKE ? OR u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+      sql += ' AND (t.order_code LIKE ? OR u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ? OR t.invoice_code LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
     }
 
     if (method && method !== 'ALL') {
@@ -551,10 +556,12 @@ export async function getAdminTransactions(req: Request, res: Response) {
 
     const [rows] = await pool.query<RowDataPacket[]>(sql, params);
 
-    // Tính toán KPI tổng quan
+    // Tính toán KPI tổng quan và Thuế GTGT 10%
     const [[kpiData]]: any = await pool.query(
       `SELECT 
          COALESCE(SUM(CASE WHEN status = 'success' THEN amount ELSE 0 END), 0) as totalRevenue,
+         COALESCE(SUM(CASE WHEN status = 'success' THEN COALESCE(vat_amount, (amount / 1.1) * 0.1) ELSE 0 END), 0) as totalVat,
+         COALESCE(SUM(CASE WHEN status = 'success' THEN COALESCE(net_amount, amount / 1.1) ELSE 0 END), 0) as totalNet,
          COUNT(*) as totalTx,
          COUNT(CASE WHEN status = 'success' THEN 1 END) as successTx
        FROM transactions`
@@ -568,6 +575,8 @@ export async function getAdminTransactions(req: Request, res: Response) {
     );
 
     const totalRevenue = Number(kpiData?.totalRevenue || 0);
+    const totalVat = Math.round(Number(kpiData?.totalVat || 0));
+    const totalNet = Math.round(Number(kpiData?.totalNet || 0));
     const totalTx = Number(kpiData?.totalTx || 0);
     const successTx = Number(kpiData?.successTx || 0);
     const successRate = totalTx > 0 ? ((successTx / totalTx) * 100).toFixed(1) : '100.0';
@@ -578,6 +587,10 @@ export async function getAdminTransactions(req: Request, res: Response) {
       packageId: r.packageId,
       packageName: r.packageName,
       amount: Number(r.amount),
+      vatAmount: Number(r.vatAmount || Math.round((Number(r.amount) / 1.1) * 0.1)),
+      netAmount: Number(r.netAmount || Math.round(Number(r.amount) / 1.1)),
+      invoiceCode: r.invoiceCode,
+      invoiceUrl: r.invoiceUrl || `https://tracuu.hoadondientu.gdt.gov.vn?code=${r.invoiceCode}`,
       paymentMethod: r.paymentMethod,
       status: r.status,
       createdAt: r.createdAt ? new Date(r.createdAt).toLocaleString('vi-VN') : 'Vừa xong',
@@ -596,6 +609,8 @@ export async function getAdminTransactions(req: Request, res: Response) {
         transactions: formatted,
         summary: {
           totalRevenue,
+          totalVat,
+          totalNet,
           bestSellingPackage: bestPackage?.package_name || 'Gói VIP 1 Tháng (4K HDR)',
           successRate: `${successRate}%`,
           totalTransactions: totalTx,

@@ -153,6 +153,36 @@ export async function initDatabase() {
       try {
         await pool.query("UPDATE movies SET status = 'ongoing' WHERE status IS NULL OR status = 'draft' OR status = 'completed' OR status = ''");
       } catch (_) {}
+
+      // Migration: Thuế GTGT 10% & Hóa Đơn Điện Tử (E-Invoice) cho bảng transactions
+      try {
+        const [txCols] = await pool.query<any[]>("SHOW COLUMNS FROM transactions");
+        const existingTxCols = txCols.map((c: any) => c.Field);
+
+        if (!existingTxCols.includes('vat_amount')) {
+          await pool.query("ALTER TABLE transactions ADD COLUMN vat_amount DECIMAL(12, 2) DEFAULT 0.00 COMMENT 'Thuế GTGT 10%' AFTER amount");
+        }
+        if (!existingTxCols.includes('net_amount')) {
+          await pool.query("ALTER TABLE transactions ADD COLUMN net_amount DECIMAL(12, 2) DEFAULT 0.00 COMMENT 'Doanh thu thuần chưa thuế' AFTER vat_amount");
+        }
+        if (!existingTxCols.includes('invoice_code')) {
+          await pool.query("ALTER TABLE transactions ADD COLUMN invoice_code VARCHAR(100) NULL COMMENT 'Mã hóa đơn điện tử e-Invoice' AFTER net_amount");
+        }
+        if (!existingTxCols.includes('invoice_url')) {
+          await pool.query("ALTER TABLE transactions ADD COLUMN invoice_url VARCHAR(500) NULL COMMENT 'Link tra cứu hóa đơn điện tử' AFTER invoice_code");
+        }
+
+        // Cập nhật các giao dịch cũ tự động tính VAT 10% và sinh mã hóa đơn
+        await pool.query(`
+          UPDATE transactions 
+          SET vat_amount = ROUND((amount / 1.1) * 0.1, 2),
+              net_amount = ROUND(amount / 1.1, 2),
+              invoice_code = CONCAT('HD-', YEAR(created_at), '-', LPAD(id, 6, '0'))
+          WHERE invoice_code IS NULL OR invoice_code = ''
+        `);
+      } catch (txErr) {
+        console.warn('Lỗi migration hóa đơn & thuế bảng transactions:', txErr);
+      }
     } catch (_) {}
   }
 

@@ -187,8 +187,13 @@ export const UserAPI = {
 
   // Giao dịch & Gói cước VIP
   getTransactions: () => fetchJson('/user/transactions'),
-  upgradeSubscription: (data: { packageId: string; paymentMethod: string }) =>
+  upgradeSubscription: (data: { packageId: string; paymentMethod: string; customOrderCode?: string }) =>
     fetchJson('/user/subscription/upgrade', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  createVietQr: (data: { packageId: string; amount: number }) =>
+    fetchJson('/user/payments/vietqr', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

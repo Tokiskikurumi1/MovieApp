@@ -64,6 +64,10 @@ export interface Transaction {
   packageId: '1m' | '6m' | '1y';
   packageName: string;
   amount: number;
+  vatAmount?: number;
+  netAmount?: number;
+  invoiceCode?: string;
+  invoiceUrl?: string;
   paymentMethod: 'MoMo' | 'VietQR' | 'ZaloPay' | 'Visa/Mastercard';
   status: 'success' | 'pending' | 'refunded' | 'failed';
   createdAt: string;

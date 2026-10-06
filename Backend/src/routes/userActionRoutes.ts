@@ -11,6 +11,7 @@ import {
   clearAllWatchHistory,
   getTransactions,
   upgradeSubscription,
+  generateVietQr,
   reportComment,
 } from '../controllers/userActionController';
 import {
@@ -38,9 +39,10 @@ router.post('/comments', optionalAuthenticate, createComment);
 router.post('/comments/:commentId/like', optionalAuthenticate, toggleLikeComment);
 router.post('/comments/:commentId/report', optionalAuthenticate, reportComment);
 
-// Gói cước VIP & Lịch sử giao dịch
+// Gói cước VIP & Lịch sử giao dịch & Thanh toán VietQR
 router.get('/transactions', optionalAuthenticate, getTransactions);
 router.post('/subscription/upgrade', optionalAuthenticate, upgradeSubscription);
+router.post('/payments/vietqr', generateVietQr);
 
 // Thông báo người dùng
 router.get('/notifications', optionalAuthenticate, getUserNotifications);

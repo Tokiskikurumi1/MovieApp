@@ -10,6 +10,7 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -32,6 +33,11 @@ interface TransactionItem {
   code: string;
   planName: string;
   amount: string;
+  rawAmount?: number;
+  vatAmount?: number;
+  netAmount?: number;
+  invoiceCode?: string;
+  invoiceUrl?: string;
   paymentMethod: string;
   paymentIcon: keyof typeof Ionicons.glyphMap;
   date: string;
@@ -86,7 +92,7 @@ export default function BillingSubscriptionScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'plans' | 'history'>('plans');
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'momo' | 'zalopay' | 'card' | 'apple'>('momo');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'vietqr' | 'momo' | 'zalopay' | 'card' | 'apple'>('vietqr');
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
@@ -120,6 +126,7 @@ export default function BillingSubscriptionScreen() {
 
     try {
       const pmMap: Record<string, string> = {
+        vietqr: 'VietQR (Napas 247)',
         momo: 'MoMo',
         zalopay: 'ZaloPay',
         card: 'Visa/Mastercard',
@@ -128,7 +135,7 @@ export default function BillingSubscriptionScreen() {
 
       const res = await UserAPI.upgradeSubscription({
         packageId: selectedPlan.id,
-        paymentMethod: pmMap[selectedPaymentMethod] || 'MoMo',
+        paymentMethod: pmMap[selectedPaymentMethod] || 'VietQR (Napas 247)',
       });
 
       setIsPaymentModalVisible(false);
@@ -357,7 +364,12 @@ export default function BillingSubscriptionScreen() {
 
                   <View style={styles.txInfo}>
                     <Text style={styles.txPlanName}>{tx.planName}</Text>
-                    <Text style={styles.txCode}>Mã: {tx.code}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 2 }}>
+                      <Text style={styles.txCode}>Mã: {tx.code}</Text>
+                      <View style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                        <Text style={{ color: '#38BDF8', fontSize: 10, fontWeight: '700' }}>HĐĐT VAT</Text>
+                      </View>
+                    </View>
                     <Text style={styles.txDate}>{tx.date}</Text>
                   </View>
 
@@ -413,7 +425,8 @@ export default function BillingSubscriptionScreen() {
 
             {/* Payment Methods */}
             {[
-              { id: 'momo', name: 'Ví Điện Tử MoMo', icon: 'wallet-outline', badge: 'Khuyên dùng' },
+              { id: 'vietqr', name: 'Chuyển Khoản VietQR (Napas 247)', icon: 'qr-code-outline', badge: 'Khuyên dùng • 0% phí' },
+              { id: 'momo', name: 'Ví Điện Tử MoMo', icon: 'wallet-outline' },
               { id: 'zalopay', name: 'Ví ZaloPay', icon: 'phone-portrait-outline' },
               { id: 'card', name: 'Thẻ Quốc Tế Visa / Mastercard / JCB', icon: 'card-outline' },
               { id: 'apple', name: 'Apple Pay / Google Pay', icon: 'logo-apple' },
@@ -450,6 +463,23 @@ export default function BillingSubscriptionScreen() {
               );
             })}
 
+            {/* VietQR Dynamic Code Preview if Selected */}
+            {selectedPaymentMethod === 'vietqr' && selectedPlan && (
+              <View style={styles.vietQrBox}>
+                <Image
+                  source={{
+                    uri: `https://img.vietqr.io/image/MB-0987654321-compact2.png?amount=${selectedPlan.price.replace(/\\D/g, '')}&addInfo=VIP%20${selectedPlan.id}&accountName=CTY%20CP%20TRUYEN%20THONG%20CINESTREAM`,
+                  }}
+                  style={styles.vietQrImage}
+                  resizeMode="contain"
+                />
+                <View style={styles.vietQrInfoRow}>
+                  <Text style={styles.vietQrBankText}>MB Bank • STK: 0987654321</Text>
+                  <Text style={styles.vietQrSubText}>Quét mã bằng app ngân hàng bất kỳ để thanh toán tự động</Text>
+                </View>
+              </View>
+            )}
+
             {/* Confirm Payment Button */}
             <TouchableOpacity
               style={[styles.confirmPayBtn, isProcessingUpgrade && { opacity: 0.6 }]}
@@ -460,7 +490,9 @@ export default function BillingSubscriptionScreen() {
               {isProcessingUpgrade ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.confirmPayText}>Thanh Toán Ngay</Text>
+                <Text style={styles.confirmPayText}>
+                  {selectedPaymentMethod === 'vietqr' ? 'Xác Nhận Đã Chuyển Khoản' : 'Thanh Toán Ngay'}
+                </Text>
               )}
             </TouchableOpacity>
           </View>
@@ -493,25 +525,60 @@ export default function BillingSubscriptionScreen() {
             {selectedTx && (
               <View style={styles.receiptDetails}>
                 <View style={styles.receiptRow}>
-                  <Text style={styles.receiptLabel}>Mã hóa đơn</Text>
+                  <Text style={styles.receiptLabel}>Mã đơn hàng</Text>
                   <Text style={styles.receiptValueBold}>{selectedTx.code}</Text>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Mã số HĐĐT</Text>
+                  <Text style={[styles.receiptValueBold, { color: '#38BDF8' }]}>
+                    {selectedTx.invoiceCode || `HD-${selectedTx.code}`}
+                  </Text>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Ký hiệu / Mẫu số</Text>
+                  <Text style={styles.receiptValue}>1C26TAA • 01GTKT0/001</Text>
                 </View>
                 <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Gói dịch vụ</Text>
                   <Text style={styles.receiptValue}>{selectedTx.planName}</Text>
                 </View>
                 <View style={styles.receiptRow}>
-                  <Text style={styles.receiptLabel}>Thời gian</Text>
+                  <Text style={styles.receiptLabel}>Thời gian lập HĐ</Text>
                   <Text style={styles.receiptValue}>{selectedTx.date}</Text>
                 </View>
                 <View style={styles.receiptRow}>
-                  <Text style={styles.receiptLabel}>Hình thức</Text>
+                  <Text style={styles.receiptLabel}>Hình thức TT</Text>
                   <Text style={styles.receiptValue}>{selectedTx.paymentMethod}</Text>
                 </View>
+
                 <View style={styles.receiptDivider} />
-                <View style={styles.receiptRow}>
-                  <Text style={styles.receiptTotalLabel}>Tổng số tiền</Text>
-                  <Text style={styles.receiptTotalValue}>{selectedTx.amount}</Text>
+
+                {(() => {
+                  const gross = selectedTx.rawAmount || (selectedTx.amount ? parseInt(selectedTx.amount.replace(/\\D/g, ''), 10) : 0) || 0;
+                  const vat = selectedTx.vatAmount !== undefined ? selectedTx.vatAmount : Math.round(gross - gross / 1.1);
+                  const net = selectedTx.netAmount !== undefined ? selectedTx.netAmount : (gross - vat);
+                  return (
+                    <>
+                      <View style={styles.receiptRow}>
+                        <Text style={styles.receiptLabel}>Tiền cước trước thuế</Text>
+                        <Text style={styles.receiptValue}>{net.toLocaleString('vi-VN')} đ</Text>
+                      </View>
+                      <View style={styles.receiptRow}>
+                        <Text style={styles.receiptLabel}>Thuế GTGT (VAT 10%)</Text>
+                        <Text style={[styles.receiptValue, { color: '#F59E0B' }]}>+{vat.toLocaleString('vi-VN')} đ</Text>
+                      </View>
+                      <View style={styles.receiptRow}>
+                        <Text style={styles.receiptTotalLabel}>Tổng thanh toán</Text>
+                        <Text style={styles.receiptTotalValue}>{selectedTx.amount}</Text>
+                      </View>
+                    </>
+                  );
+                })()}
+
+                <View style={styles.taxNoticeBox}>
+                  <Text style={styles.taxNoticeText}>
+                    Hóa đơn điện tử hợp lệ theo NĐ 123/2020/NĐ-CP • Tra cứu trực tuyến tại hoadon.cinestream.vn
+                  </Text>
                 </View>
               </View>
             )}
@@ -1081,6 +1148,46 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13.5,
     fontWeight: '700',
+  },
+  vietQrBox: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 12,
+    marginVertical: 12,
+  },
+  vietQrImage: {
+    width: 200,
+    height: 200,
+  },
+  vietQrInfoRow: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  vietQrBankText: {
+    color: '#1E293B',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  vietQrSubText: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  taxNoticeBox: {
+    marginTop: 12,
+    padding: 10,
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.2)',
+  },
+  taxNoticeText: {
+    color: '#38BDF8',
+    fontSize: 11,
+    textAlign: 'center',
+    lineHeight: 16,
   },
 });
 

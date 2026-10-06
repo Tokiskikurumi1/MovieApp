@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { RowDataPacket, ResultSetHeader } from 'mysql2/promise';
 import { pool } from '../config/database';
 import { AuthRequest } from '../middlewares/authMiddleware';
@@ -406,6 +406,10 @@ export async function getTransactions(req: AuthRequest, res: Response) {
 
     const [rows] = await pool.query<RowDataPacket[]>(
       `SELECT id, order_code as code, package_name as planName, amount,
+              COALESCE(vat_amount, ROUND((amount / 1.1) * 0.1, 2)) as vatAmount,
+              COALESCE(net_amount, ROUND(amount / 1.1, 2)) as netAmount,
+              COALESCE(invoice_code, CONCAT('HD-', YEAR(created_at), '-', LPAD(id, 6, '0'))) as invoiceCode,
+              invoice_url as invoiceUrl,
               payment_method as paymentMethod, status, created_at as createdAt
        FROM transactions
        WHERE user_id = ?
@@ -430,6 +434,10 @@ export async function getTransactions(req: AuthRequest, res: Response) {
         planName: tx.planName,
         amount: `${Number(tx.amount).toLocaleString('vi-VN')}đ`,
         rawAmount: Number(tx.amount),
+        vatAmount: Number(tx.vatAmount || 0),
+        netAmount: Number(tx.netAmount || 0),
+        invoiceCode: tx.invoiceCode,
+        invoiceUrl: tx.invoiceUrl || `https://tracuu.hoadondientu.gdt.gov.vn?code=${tx.invoiceCode}`,
         paymentMethod: tx.paymentMethod,
         paymentIcon,
         status: tx.status,
@@ -449,11 +457,44 @@ export async function getTransactions(req: AuthRequest, res: Response) {
   }
 }
 
+// 9.1. Tạo thông tin thanh toán VietQR động (Napas 247)
+export async function generateVietQr(req: Request, res: Response) {
+  try {
+    const { packageId = '6m', amount = 349000 } = req.body;
+    const orderCode = `CINE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const bankId = 'MB'; // MB Bank
+    const bankName = 'Ngân hàng Quân Đội (MB Bank)';
+    const accountNo = '0987654321';
+    const accountName = 'CÔNG TY CỔ PHẦN TRUYỀN THÔNG CINESTREAM';
+    const memo = `THANH TOAN ${orderCode}`;
+
+    // Tạo link ảnh VietQR chuẩn Napas247 theo chuẩn ngân hàng
+    const qrImageUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(memo)}&accountName=${encodeURIComponent(accountName)}`;
+
+    return res.json({
+      success: true,
+      data: {
+        orderCode,
+        bankId,
+        bankName,
+        accountNo,
+        accountName,
+        amount: Number(amount),
+        memo,
+        qrImageUrl,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
 // 10. Đăng ký & Nâng cấp Gói cước VIP (Subscription Upgrade)
 export async function upgradeSubscription(req: AuthRequest, res: Response) {
   try {
     const userId = req.user?.id || 2;
-    const { packageId = '6m', paymentMethod = 'MoMo' } = req.body;
+    const { packageId = '6m', paymentMethod = 'MoMo', customOrderCode } = req.body;
 
     // Chuẩn hóa phương thức thanh toán theo ENUM DB: ('MoMo','VietQR','ZaloPay','Visa/Mastercard')
     let validMethod: 'MoMo' | 'VietQR' | 'ZaloPay' | 'Visa/Mastercard' = 'MoMo';
@@ -481,13 +522,17 @@ export async function upgradeSubscription(req: AuthRequest, res: Response) {
     };
 
     const selected = planConfig[packageId] || planConfig['6m'];
-    const orderCode = `CINE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const orderCode = customOrderCode || `CINE-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const vatAmount = Math.round((selected.amount / 1.1) * 0.1);
+    const netAmount = selected.amount - vatAmount;
+    const invoiceCode = `HD-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+    const invoiceUrl = `https://tracuu.hoadondientu.gdt.gov.vn?code=${invoiceCode}`;
 
     // 1. Tạo bản ghi giao dịch thành công trong transactions
     await pool.query(
-      `INSERT INTO transactions (order_code, user_id, package_id, package_name, amount, payment_method, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'success')`,
-      [orderCode, userId, selected.dbPkgId, selected.name, selected.amount, validMethod]
+      `INSERT INTO transactions (order_code, user_id, package_id, package_name, amount, vat_amount, net_amount, invoice_code, invoice_url, payment_method, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'success')`,
+      [orderCode, userId, selected.dbPkgId, selected.name, selected.amount, vatAmount, netAmount, invoiceCode, invoiceUrl, validMethod]
     );
 
     // 2. Nâng cấp hạn VIP cho User
@@ -506,11 +551,15 @@ export async function upgradeSubscription(req: AuthRequest, res: Response) {
 
     return res.json({
       success: true,
-      message: `Chúc mừng! Bạn đã nâng cấp thành công ${selected.name}!`,
+      message: `Chúc mừng! Bạn đã nâng cấp thành công ${selected.name}! Hóa đơn điện tử VAT đã được phát hành.`,
       data: {
         orderCode,
         planName: selected.name,
         amount: selected.amount,
+        vatAmount,
+        netAmount,
+        invoiceCode,
+        invoiceUrl,
         vipTier: userRows[0]?.vip_tier,
         vipExpiry: userRows[0]?.vip_expiry,
       },
