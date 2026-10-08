@@ -12,6 +12,7 @@ import {
   PlusCircle,
   Play,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { type Movie, type Episode, INITIAL_MOVIES } from '../../services/mockData';
 import { ConfirmModal } from '../../components/UI/ConfirmModal';
@@ -23,6 +24,16 @@ export const MovieManagement: React.FC = () => {
   const [selectedGenre, setSelectedGenre] = useState('ALL');
   const [selectedVipFilter, setSelectedVipFilter] = useState('ALL');
   const [isCrawling, setIsCrawling] = useState(false);
+  const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
+  const [movieStats, setMovieStats] = useState({
+    totalMovies: 0,
+    totalEpisodes: 0,
+    seriesMovies: 0,
+    singleMovies: 0,
+    vipMovies: 0,
+    freeMovies: 0,
+    avgEpisodesPerMovie: '0',
+  });
 
   // Modal States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -31,29 +42,40 @@ export const MovieManagement: React.FC = () => {
   const [activeMovieForEpisodes, setActiveMovieForEpisodes] = useState<Movie | null>(null);
   const [movieToDelete, setMovieToDelete] = useState<Movie | null>(null);
 
+  const loadMovieStats = () => {
+    AdminAPI.getMovieStats()
+      .then((res: any) => {
+        if (res.success && res.data) {
+          setMovieStats(res.data);
+        }
+      })
+      .catch((err: any) => console.warn('Lỗi tải thống kê kho phim:', err));
+  };
+
   const loadMovies = () => {
+    loadMovieStats();
     AdminAPI.getMovies({ limit: 100 })
       .then((res) => {
         if (res.success && res.data?.length > 0) {
           const mapped: Movie[] = res.data.map((m: any) => ({
             id: String(m.id),
             title: m.title,
-            originalTitle: m.original_title || m.title,
-            synopsis: m.description || '',
-            poster: m.poster_url || m.poster,
-            banner: m.poster_url || m.banner,
-            trailerUrl: m.trailer_url || '',
+            originalTitle: m.originalTitle || m.original_title || m.title,
+            synopsis: m.synopsis || m.description || m.content || '',
+            poster: m.poster || m.poster_url,
+            banner: m.banner || m.poster_url,
+            trailerUrl: m.trailerUrl || m.trailer_url || '',
             rating: Number(m.rating) || 8.5,
-            voteCount: m.vote_count || 100,
-            year: m.release_year || 2024,
+            voteCount: Number(m.voteCount || m.vote_count || 100),
+            year: Number(m.year || m.release_year || 2024),
             quality: m.quality || 'FHD',
-            ageLimit: m.age_rating || '16+',
-            isVip: Boolean(m.is_vip),
-            status: 'active', // Chuyển trạng thái toàn bộ phim sang Đang Chiếu
+            ageLimit: m.ageLimit || m.age_rating || '16+',
+            isVip: Boolean(m.isVip !== undefined ? m.isVip : m.is_vip),
+            status: m.status || 'active',
             genres: m.genres ? (Array.isArray(m.genres) ? m.genres : String(m.genres).split(',').map((g: string) => g.trim())) : ['Hành Động'],
-            totalEpisodes: m.total_episodes || 1,
-            views: m.view_count || 0,
-            createdAt: m.created_at ? new Date(m.created_at).toISOString().split('T')[0] : '2026-09-20',
+            totalEpisodes: Number(m.totalEpisodes !== undefined ? m.totalEpisodes : (m.total_episodes !== undefined ? m.total_episodes : 0)),
+            views: Number(m.views !== undefined ? m.views : (m.view_count || 0)),
+            createdAt: m.createdAt || (m.created_at ? new Date(m.created_at).toISOString().split('T')[0] : '2026-09-20'),
             episodes: [],
           }));
           setMovies(mapped);
@@ -199,48 +221,85 @@ export const MovieManagement: React.FC = () => {
   const handleOpenEpisodes = (movie: Movie) => {
     setActiveMovieForEpisodes(movie);
     setIsEpisodeModalOpen(true);
+    setIsLoadingEpisodes(true);
+
+    AdminAPI.getMovieEpisodes(movie.id)
+      .then((res: any) => {
+        if (res.success && Array.isArray(res.data)) {
+          const loadedMovie = {
+            ...movie,
+            episodes: res.data,
+            totalEpisodes: res.data.length,
+          };
+          setActiveMovieForEpisodes(loadedMovie);
+          setMovies((prev) => prev.map((m) => (m.id === movie.id ? loadedMovie : m)));
+        }
+      })
+      .catch((err: any) => console.warn('Lỗi tải tập phim:', err))
+      .finally(() => setIsLoadingEpisodes(false));
   };
 
-  const handleAddEpisode = () => {
+  const handleAddEpisode = async () => {
     if (!activeMovieForEpisodes || !newEpTitle) {
       alert('Vui lòng nhập tiêu đề tập phim!');
       return;
     }
 
-    const nextEpNum = (activeMovieForEpisodes.episodes?.length || 0) + 1;
-    const newEp: Episode = {
-      id: `ep-${activeMovieForEpisodes.id}-${Date.now()}`,
-      episodeNumber: nextEpNum,
-      title: newEpTitle,
-      duration: newEpDuration || '24 phút',
-      videoUrl: newEpVideoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      thumbnail: activeMovieForEpisodes.poster,
-      views: 0,
-    };
+    try {
+      const res: any = await AdminAPI.addMovieEpisode(activeMovieForEpisodes.id, {
+        title: newEpTitle,
+        duration: newEpDuration || '24 phút',
+        videoUrl: newEpVideoUrl || '',
+        serverName: 'Server #1',
+        isVip: false,
+      });
 
-    const updatedEpisodes = [...(activeMovieForEpisodes.episodes || []), newEp];
-    const updatedMovie: Movie = {
-      ...activeMovieForEpisodes,
-      episodes: updatedEpisodes,
-      totalEpisodes: updatedEpisodes.length,
-    };
+      const nextEpNum = (activeMovieForEpisodes.episodes?.length || 0) + 1;
+      const newEp: Episode = {
+        id: res.data?.id || `ep-${activeMovieForEpisodes.id}-${Date.now()}`,
+        episodeNumber: nextEpNum,
+        title: newEpTitle,
+        duration: newEpDuration || '24 phút',
+        videoUrl: newEpVideoUrl || '',
+        thumbnail: activeMovieForEpisodes.poster,
+        views: 0,
+      };
 
-    setActiveMovieForEpisodes(updatedMovie);
-    setMovies((prev) => prev.map((m) => (m.id === updatedMovie.id ? updatedMovie : m)));
-    setNewEpTitle('');
+      const updatedEpisodes = [...(activeMovieForEpisodes.episodes || []), newEp];
+      const updatedMovie: Movie = {
+        ...activeMovieForEpisodes,
+        episodes: updatedEpisodes,
+        totalEpisodes: updatedEpisodes.length,
+      };
+
+      setActiveMovieForEpisodes(updatedMovie);
+      setMovies((prev) => prev.map((m) => (m.id === updatedMovie.id ? updatedMovie : m)));
+      setNewEpTitle('');
+      loadMovieStats();
+    } catch (err: any) {
+      alert(err.message || 'Lỗi khi thêm tập phim');
+    }
   };
 
-  const handleDeleteEpisode = (epId: string) => {
+  const handleDeleteEpisode = async (epId: string) => {
     if (!activeMovieForEpisodes) return;
-    const updatedEpisodes = activeMovieForEpisodes.episodes.filter((ep) => ep.id !== epId);
-    const updatedMovie: Movie = {
-      ...activeMovieForEpisodes,
-      episodes: updatedEpisodes,
-      totalEpisodes: updatedEpisodes.length,
-    };
+    if (!confirm('Bạn có chắc muốn xóa tập phim này?')) return;
 
-    setActiveMovieForEpisodes(updatedMovie);
-    setMovies((prev) => prev.map((m) => (m.id === updatedMovie.id ? updatedMovie : m)));
+    try {
+      await AdminAPI.deleteMovieEpisode(activeMovieForEpisodes.id, epId);
+      const updatedEpisodes = activeMovieForEpisodes.episodes.filter((ep) => ep.id !== epId);
+      const updatedMovie: Movie = {
+        ...activeMovieForEpisodes,
+        episodes: updatedEpisodes,
+        totalEpisodes: updatedEpisodes.length,
+      };
+
+      setActiveMovieForEpisodes(updatedMovie);
+      setMovies((prev) => prev.map((m) => (m.id === updatedMovie.id ? updatedMovie : m)));
+      loadMovieStats();
+    } catch (err: any) {
+      alert(err.message || 'Lỗi khi xóa tập phim');
+    }
   };
 
   return (
@@ -275,6 +334,64 @@ export const MovieManagement: React.FC = () => {
             <span>Thêm Phim Mới</span>
           </button>
         </div>
+      </div>
+
+      {/* 4 Thẻ KPI Thống Kê Kho Phim Chính Xác Từ Database */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '16px',
+          marginBottom: '20px',
+        }}
+      >
+        <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: 'rgba(255, 51, 75, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff334b' }}>
+            <Film size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>TỔNG SỐ PHIM</div>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#ffffff' }}>
+              {(movieStats.totalMovies || movies.length).toLocaleString('vi-VN')} <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-muted)' }}>phim</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
+            <ListOrdered size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>TỔNG SỐ TẬP PHIM</div>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#ffffff' }}>
+              {(movieStats.totalEpisodes || 0).toLocaleString('vi-VN')} <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-muted)' }}>tập</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+            <Play size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>ĐỊNH DẠNG KHO PHIM</div>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>
+              {(movieStats.seriesMovies || 0).toLocaleString('vi-VN')} bộ • {(movieStats.singleMovies || 0).toLocaleString('vi-VN')} lẻ
+            </div>
+          </div>
+        </div>
+
+        {/* <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
+            <Sparkles size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>PHÂN HẠNG GÓI</div>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff' }}>
+              {(movieStats.vipMovies || 0).toLocaleString('vi-VN')} VIP • {(movieStats.freeMovies || 0).toLocaleString('vi-VN')} Free
+            </div>
+          </div>
+        </div> */}
       </div>
 
       {/* Filter & Search Bar */}
@@ -412,7 +529,7 @@ export const MovieManagement: React.FC = () => {
                       onClick={() => handleOpenEpisodes(movie)}
                     >
                       <ListOrdered size={14} />
-                      <span>{movie.episodes?.length || movie.totalEpisodes} tập</span>
+                      <span>{(movie.totalEpisodes || movie.episodes?.length || 0).toLocaleString('vi-VN')} tập</span>
                     </button>
                   </td>
 
@@ -702,55 +819,66 @@ export const MovieManagement: React.FC = () => {
 
               {/* Episode List */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto', minHeight: '120px' }}>
-                {activeMovieForEpisodes.episodes?.map((ep) => (
-                  <div
-                    key={ep.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 14px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '8px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '6px',
-                          backgroundColor: 'var(--primary-light)',
-                          color: 'var(--primary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 700,
-                          fontSize: '12px',
-                        }}
-                      >
-                        {ep.episodeNumber}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#fff' }}>
-                          {ep.title}
-                        </div>
-                        <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                          {ep.duration} • {ep.views.toLocaleString('vi-VN')} lượt xem
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      className="btn-icon"
-                      style={{ color: '#ef4444' }}
-                      title="Xóa tập này"
-                      onClick={() => handleDeleteEpisode(ep.id)}
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                {isLoadingEpisodes ? (
+                  <div style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
+                    <RefreshCw size={24} className="spin" style={{ margin: '0 auto 10px', display: 'block', color: 'var(--primary)' }} />
+                    <span>Đang tải danh sách tập thực tế từ cơ sở dữ liệu...</span>
                   </div>
-                ))}
+                ) : (!activeMovieForEpisodes.episodes || activeMovieForEpisodes.episodes.length === 0) ? (
+                  <div style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
+                    Phim này hiện chưa có tập phim nào được lưu trong hệ thống.
+                  </div>
+                ) : (
+                  activeMovieForEpisodes.episodes.map((ep) => (
+                    <div
+                      key={ep.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 14px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '8px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '6px',
+                            backgroundColor: 'var(--primary-light)',
+                            color: 'var(--primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 700,
+                            fontSize: '12px',
+                          }}
+                        >
+                          {ep.episodeNumber}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#fff' }}>
+                            {ep.title}
+                          </div>
+                          <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                            {ep.duration} • {ep.views.toLocaleString('vi-VN')} lượt xem
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        className="btn-icon"
+                        style={{ color: '#ef4444' }}
+                        title="Xóa tập này"
+                        onClick={() => handleDeleteEpisode(ep.id)}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 

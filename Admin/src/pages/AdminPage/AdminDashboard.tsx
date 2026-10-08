@@ -192,7 +192,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
           <div style={{ fontSize: '24px', fontWeight: 800, color: '#ffffff', margin: '10px 0 4px' }}>
-            {stats.totalMovies} Phim ({stats.totalEpisodes} Tập)
+            {Number(stats.totalMovies || 0).toLocaleString('vi-VN')} Phim ({Number(stats.totalEpisodes || 0).toLocaleString('vi-VN')} Tập)
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
             <div className="status-dot" />

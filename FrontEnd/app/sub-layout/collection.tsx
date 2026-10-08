@@ -218,8 +218,8 @@ export default function MovieCollectionScreen() {
             setMoviesData(res.data);
           }
         } else {
-          // Gợi ý phim hay: Lấy danh sách phim nổi bật từ MySQL
-          const res = await MovieAPI.getFeatured();
+          // Gợi ý phim hay: Lấy danh sách phim cá nhân hóa theo thuật toán AI/Recommendation
+          const res = await MovieAPI.getPersonalizedRecommendations(30);
           if (isMounted && res?.data && res.data.length > 0) {
             setMoviesData(res.data);
           }
@@ -337,6 +337,12 @@ export default function MovieCollectionScreen() {
 
                 {/* Tag Pills Row */}
                 <View style={styles.tagPillsRow}>
+                  {item.matchScore ? (
+                    <View style={styles.matchPill}>
+                      <Ionicons name="sparkles" size={9} color="#FFD700" />
+                      <Text style={styles.matchPillText}>{item.matchScore}%</Text>
+                    </View>
+                  ) : null}
                   {tagsList.map((tag: string, idx: number) => (
                     <View key={idx} style={styles.tagPill}>
                       <Text style={styles.tagPillText}>{tag}</Text>
@@ -346,6 +352,12 @@ export default function MovieCollectionScreen() {
                     <Text style={styles.qualityTagText}>{item.quality || 'FHD'}</Text>
                   </View>
                 </View>
+
+                {item.matchReason ? (
+                  <Text style={styles.matchReasonText} numberOfLines={1}>
+                    {item.matchReason}
+                  </Text>
+                ) : null}
 
                 {/* Short Synopsis Description */}
                 <Text style={styles.synopsisText} numberOfLines={2}>
@@ -515,6 +527,26 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: CinemaColors.primary,
+  },
+  matchPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 51, 75, 0.9)',
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderRadius: 4,
+    gap: 3,
+  },
+  matchPillText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  matchReasonText: {
+    fontSize: 10.5,
+    color: '#FF6B7D',
+    fontWeight: '600',
+    marginBottom: 4,
   },
   synopsisText: {
     fontSize: 11.5,

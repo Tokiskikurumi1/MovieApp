@@ -124,6 +124,10 @@ export const MovieAPI = {
   // 8. Thuật toán gợi ý phim thông minh (Content-Based Recommendations)
   getRecommendations: (idOrSlug: string, limit: number = 10) =>
     fetchJson(`/movies/${idOrSlug}/recommendations?limit=${limit}`),
+
+  // 9. Thuật toán gợi ý cá nhân hóa dựa trên gu người dùng (Personalized Recommendations)
+  getPersonalizedRecommendations: (limit: number = 15) =>
+    fetchJson(`/movies/recommendations/personalized?limit=${limit}`),
 };
 
 export const UserAPI = {

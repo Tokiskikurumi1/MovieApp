@@ -184,6 +184,18 @@ export async function getAdminMovies(req: Request, res: Response) {
       query += ' WHERE ' + conditions.join(' AND ');
     }
 
+    // Đếm tổng số phim theo bộ lọc
+    let countQuery = 'SELECT COUNT(DISTINCT m.id) as total FROM movies m';
+    if (genre && genre !== 'ALL') {
+      countQuery += ` JOIN movie_categories mc ON m.id = mc.movie_id
+                      JOIN categories c ON mc.category_id = c.id `;
+    }
+    if (conditions.length > 0) {
+      countQuery += ' WHERE ' + conditions.join(' AND ');
+    }
+    const [countRows] = await pool.query<RowDataPacket[]>(countQuery, params);
+    const total = Number(countRows[0]?.total || 0);
+
     query += ' ORDER BY m.updated_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
@@ -201,6 +213,8 @@ export async function getAdminMovies(req: Request, res: Response) {
         return {
           ...m,
           id: String(m.id),
+          totalEpisodes: Number(m.totalEpisodes || 0),
+          total_episodes: Number(m.totalEpisodes || 0),
           isVip: Boolean(m.isVip),
           rating: parseFloat(m.rating) || 8.5,
           genres: genres.map((g) => g.name),
@@ -208,7 +222,16 @@ export async function getAdminMovies(req: Request, res: Response) {
       })
     );
 
-    return res.json({ success: true, data: formattedMovies });
+    return res.json({
+      success: true,
+      data: formattedMovies,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -617,6 +640,129 @@ export async function getAdminTransactions(req: Request, res: Response) {
         },
       },
     });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// 6. Thống kê chi tiết kho phim (Số phim, số tập, phân loại)
+export async function getAdminMovieStats(req: Request, res: Response) {
+  try {
+    const [[{ totalMovies }]] = await pool.query<RowDataPacket[]>('SELECT COUNT(*) as totalMovies FROM movies');
+    const [[{ totalEpisodes }]] = await pool.query<RowDataPacket[]>('SELECT COUNT(*) as totalEpisodes FROM episodes');
+    const [[{ seriesMovies }]] = await pool.query<RowDataPacket[]>("SELECT COUNT(*) as seriesMovies FROM movies WHERE type = 'series'");
+    const [[{ singleMovies }]] = await pool.query<RowDataPacket[]>("SELECT COUNT(*) as singleMovies FROM movies WHERE type = 'single' OR type IS NULL");
+    const [[{ vipMovies }]] = await pool.query<RowDataPacket[]>('SELECT COUNT(*) as vipMovies FROM movies WHERE is_vip = 1');
+    const [[{ freeMovies }]] = await pool.query<RowDataPacket[]>('SELECT COUNT(*) as freeMovies FROM movies WHERE is_vip = 0 OR is_vip IS NULL');
+
+    return res.json({
+      success: true,
+      data: {
+        totalMovies: Number(totalMovies) || 0,
+        totalEpisodes: Number(totalEpisodes) || 0,
+        seriesMovies: Number(seriesMovies) || 0,
+        singleMovies: Number(singleMovies) || 0,
+        vipMovies: Number(vipMovies) || 0,
+        freeMovies: Number(freeMovies) || 0,
+        avgEpisodesPerMovie: totalMovies > 0 ? (Number(totalEpisodes) / Number(totalMovies)).toFixed(1) : '0',
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// 7. Lấy danh sách tập phim thực tế của một phim cho Admin
+export async function getAdminMovieEpisodes(req: Request, res: Response) {
+  try {
+    const movieId = Number(req.params.id);
+    if (!movieId) {
+      return res.status(400).json({ success: false, message: 'ID phim không hợp lệ' });
+    }
+
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT id, movie_id, server_name, name, slug, filename, link_embed, link_m3u8, is_vip, created_at
+       FROM episodes
+       WHERE movie_id = ?
+       ORDER BY id ASC`,
+      [movieId]
+    );
+
+    const formatted = rows.map((ep, idx) => ({
+      id: String(ep.id),
+      episodeNumber: idx + 1,
+      title: ep.name,
+      slug: ep.slug,
+      serverName: ep.server_name,
+      videoUrl: ep.link_m3u8 || ep.link_embed || '',
+      embedUrl: ep.link_embed || '',
+      duration: '45 phút',
+      isVip: Boolean(ep.is_vip),
+    }));
+
+    return res.json({
+      success: true,
+      data: formatted,
+      total: formatted.length,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// 8. Thêm tập phim mới cho Admin
+export async function addAdminMovieEpisode(req: Request, res: Response) {
+  try {
+    const movieId = Number(req.params.id);
+    const { title, videoUrl, embedUrl, serverName = 'Server #1', isVip = false } = req.body;
+
+    if (!movieId || !title) {
+      return res.status(400).json({ success: false, message: 'Thiếu tiêu đề tập phim hoặc ID phim' });
+    }
+
+    const slug = 'tap-' + title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+
+    const [result]: any = await pool.query(
+      `INSERT INTO episodes (movie_id, server_name, name, slug, link_m3u8, link_embed, is_vip)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [movieId, serverName, title, slug, videoUrl || '', embedUrl || videoUrl || '', isVip ? 1 : 0]
+    );
+
+    // Cập nhật episode_current của phim
+    await pool.query(
+      `UPDATE movies SET episode_current = (SELECT COUNT(*) FROM episodes WHERE movie_id = ?) WHERE id = ?`,
+      [movieId, movieId]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Thêm tập phim thành công',
+      data: { id: String(result.insertId), title, videoUrl, isVip },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// 9. Xóa tập phim cho Admin
+export async function deleteAdminMovieEpisode(req: Request, res: Response) {
+  try {
+    const movieId = Number(req.params.id);
+    const episodeId = Number(req.params.episodeId);
+
+    if (!movieId || !episodeId) {
+      return res.status(400).json({ success: false, message: 'Thiếu ID phim hoặc ID tập' });
+    }
+
+    await pool.query('DELETE FROM episodes WHERE id = ? AND movie_id = ?', [episodeId, movieId]);
+
+    // Cập nhật lại episode_current của phim
+    await pool.query(
+      `UPDATE movies SET episode_current = (SELECT COUNT(*) FROM episodes WHERE movie_id = ?) WHERE id = ?`,
+      [movieId, movieId]
+    );
+
+    return res.json({ success: true, message: 'Xóa tập phim thành công' });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
   }

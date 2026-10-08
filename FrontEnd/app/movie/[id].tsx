@@ -526,6 +526,12 @@ export default function MovieDetailScreen() {
                       source={{ uri: simMovie.image || simMovie.poster || simMovie.backdrop }}
                       style={styles.similarPoster}
                     />
+                    {simMovie.matchScore ? (
+                      <View style={styles.similarMatchBadge}>
+                        <Ionicons name="sparkles" size={8} color="#FFD700" />
+                        <Text style={styles.similarMatchText}>{simMovie.matchScore}%</Text>
+                      </View>
+                    ) : null}
                     <View style={styles.similarRatingBadge}>
                       <Ionicons name="star" size={10} color={CinemaColors.primary} />
                       <Text style={styles.similarRatingText}>{simMovie.rating || '8.8'}</Text>
@@ -534,6 +540,11 @@ export default function MovieDetailScreen() {
                   <Text style={styles.similarTitle} numberOfLines={1}>
                     {simMovie.title}
                   </Text>
+                  {simMovie.matchReason ? (
+                    <Text style={styles.similarReasonText} numberOfLines={1}>
+                      {simMovie.matchReason}
+                    </Text>
+                  ) : null}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -1009,5 +1020,28 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700',
     color: CinemaColors.textPrimary,
+  },
+  similarMatchBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 51, 75, 0.92)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 2,
+  },
+  similarMatchText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  similarReasonText: {
+    fontSize: 9.5,
+    color: '#FF6B7D',
+    fontWeight: '600',
+    marginTop: 2,
   },
 });

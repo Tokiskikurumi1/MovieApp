@@ -29,7 +29,8 @@ export const AdminAPI = {
   // Thống kê Dashboard
   getStats: () => fetchAdminJson('/admin/dashboard-stats'),
 
-  // Quản lý phim
+  // Quản lý phim & Thống kê
+  getMovieStats: () => fetchAdminJson('/admin/movies/stats'),
   getMovies: (params: { page?: number; limit?: number; search?: string; genre?: string; isVip?: string; status?: string } = {}) => {
     const query = new URLSearchParams();
     if (params.page) query.append('page', String(params.page));
@@ -46,6 +47,14 @@ export const AdminAPI = {
       body: JSON.stringify(movieData),
     }),
   deleteMovie: (id: string | number) => fetchAdminJson(`/admin/movies/${id}`, { method: 'DELETE' }),
+  getMovieEpisodes: (movieId: string | number) => fetchAdminJson(`/admin/movies/${movieId}/episodes`),
+  addMovieEpisode: (movieId: string | number, data: any) =>
+    fetchAdminJson(`/admin/movies/${movieId}/episodes`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  deleteMovieEpisode: (movieId: string | number, episodeId: string | number) =>
+    fetchAdminJson(`/admin/movies/${movieId}/episodes/${episodeId}`, { method: 'DELETE' }),
 
   // Quản lý người dùng
   getUsers: () => fetchAdminJson('/admin/users'),

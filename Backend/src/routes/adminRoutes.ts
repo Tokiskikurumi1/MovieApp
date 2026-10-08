@@ -13,6 +13,10 @@ import {
   deleteComment,
   dismissCommentReports,
   triggerCrawler,
+  getAdminMovieStats,
+  getAdminMovieEpisodes,
+  addAdminMovieEpisode,
+  deleteAdminMovieEpisode,
 } from '../controllers/adminController';
 import {
   getAdminNotifications,
@@ -25,8 +29,12 @@ const router = Router();
 // Thống kê Dashboard
 router.get('/dashboard-stats', getDashboardStats);
 
-// Quản lý phim
+// Quản lý phim & Thống kê
+router.get('/movies/stats', getAdminMovieStats);
 router.get('/movies', getAdminMovies);
+router.get('/movies/:id/episodes', getAdminMovieEpisodes);
+router.post('/movies/:id/episodes', addAdminMovieEpisode);
+router.delete('/movies/:id/episodes/:episodeId', deleteAdminMovieEpisode);
 router.post('/movies', createOrUpdateMovie);
 router.put('/movies/:id', createOrUpdateMovie);
 router.delete('/movies/:id', deleteMovie);

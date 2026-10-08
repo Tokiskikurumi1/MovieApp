@@ -237,6 +237,7 @@ export default function HomeScreen() {
   const [continueWatching, setContinueWatching] = useState<any[]>([]);
   const [trendingMovies, setTrendingMovies] = useState(TRENDING_MOVIES);
   const [newReleases, setNewReleases] = useState(NEW_RELEASES);
+  const [recommendedMovies, setRecommendedMovies] = useState<any[]>([]);
 
   const heroFlatListRef = useRef<FlatList>(null);
   const activeHeroIndexRef = useRef(activeHeroIndex);
@@ -259,21 +260,35 @@ export default function HomeScreen() {
     }
   }, []);
 
+  // Tải danh sách phim gợi ý cá nhân hóa
+  const loadRecommendations = useCallback(async () => {
+    try {
+      const res = await MovieAPI.getPersonalizedRecommendations(15);
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setRecommendedMovies(res.data);
+      }
+    } catch (err) {
+      // Fallback giữ nguyên
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       refreshUser();
       loadContinueWatching();
-    }, [refreshUser, loadContinueWatching])
+      loadRecommendations();
+    }, [refreshUser, loadContinueWatching, loadRecommendations])
   );
 
   // Load live data from Backend API
   useEffect(() => {
     async function loadHomeData() {
       try {
-        const [featRes, trendRes, newRes] = await Promise.allSettled([
+        const [featRes, trendRes, newRes, recRes] = await Promise.allSettled([
           MovieAPI.getFeatured(),
           MovieAPI.getTrending(),
           MovieAPI.getNewReleases(),
+          MovieAPI.getPersonalizedRecommendations(15),
         ]);
 
         if (featRes.status === 'fulfilled' && featRes.value?.data?.length > 0) {
@@ -284,6 +299,9 @@ export default function HomeScreen() {
         }
         if (newRes.status === 'fulfilled' && newRes.value?.data?.length > 0) {
           setNewReleases(newRes.value.data);
+        }
+        if (recRes.status === 'fulfilled' && recRes.value?.data?.length > 0) {
+          setRecommendedMovies(recRes.value.data);
         }
       } catch (err) {
         console.warn('Lỗi kết nối API Backend trang chủ:', err);
@@ -659,8 +677,8 @@ export default function HomeScreen() {
           </View>
 
           <FlatList
-            data={newReleases}
-            keyExtractor={(item) => item.id}
+            data={recommendedMovies.length > 0 ? recommendedMovies : newReleases}
+            keyExtractor={(item) => String(item.id)}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalListContent}
@@ -671,10 +689,17 @@ export default function HomeScreen() {
                 onPress={() => router.push({ pathname: '/movie/[id]', params: { id: item.id } })}
               >
                 <View style={styles.moviePosterWrapper}>
-                  <Image source={{ uri: item.image }} style={styles.moviePosterImage} />
-                  <View style={styles.movieQualityTag}>
-                    <Text style={styles.movieQualityText}>{item.quality}</Text>
-                  </View>
+                  <Image source={{ uri: item.image || item.poster }} style={styles.moviePosterImage} />
+                  {item.matchScore ? (
+                    <View style={styles.recommendMatchTag}>
+                      <Ionicons name="sparkles" size={9} color="#FFD700" />
+                      <Text style={styles.recommendMatchText}>{item.matchScore}%</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.movieQualityTag}>
+                      <Text style={styles.movieQualityText}>{item.quality}</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={styles.moviePosterTitle} numberOfLines={1}>{item.title}</Text>
                 <View style={styles.moviePosterMetaRow}>
@@ -684,6 +709,11 @@ export default function HomeScreen() {
                     <Text style={styles.moviePosterRatingText}>{item.rating}</Text>
                   </View>
                 </View>
+                {item.matchReason ? (
+                  <Text style={styles.matchReasonText} numberOfLines={1}>
+                    {item.matchReason}
+                  </Text>
+                ) : null}
               </TouchableOpacity>
             )}
           />
@@ -1233,5 +1263,34 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#FFD700',
+  },
+  recommendMatchTag: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: 'rgba(255, 51, 75, 0.92)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 3,
+    shadowColor: CinemaColors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  recommendMatchText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+  matchReasonText: {
+    fontSize: 10,
+    color: '#FF6B7D',
+    fontWeight: '600',
+    marginTop: 2,
   },
 });
